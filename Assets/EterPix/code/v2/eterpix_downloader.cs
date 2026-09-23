@@ -64,6 +64,13 @@ namespace ali.eterpix.v2
         private int[] _imgRefCount;
         private int[] _imgPriority;
         private int[] _imgGraceGeneration;
+        // 各キーが最後に「参照0になった瞬間」の絶対時刻(Time.time)。
+        // 世代一致チェックだけでは「たまたま他のキーのスキャンが走った」ことしか分からず、
+        // このキー自身のreleaseGraceSecondsが本当に経過したかは判定できない
+        // (releaseGraceSeconds未満の間隔で複数キーが解放されると、後発キーが先発キーの
+        // スキャンに巻き込まれて猶予期間を待たずに破棄されてしまう: レビュー指摘のクロスキー早期破棄)。
+        // このタイムスタンプとTime.timeの差で、キー自身の経過時間を検証する。
+        private float[] _imgReleaseTime;
         private int _loadedCount = 0;
 
         private const int MaxWaitersPerSlot = 30;
@@ -120,6 +127,8 @@ namespace ali.eterpix.v2
             _imgPriority = new int[totalSlots];
             _imgGraceGeneration = new int[totalSlots];
             _imgDiscardTargetGeneration = new int[totalSlots];
+            _imgReleaseTime = new float[totalSlots];
+            for (int i = 0; i < totalSlots; i++) _imgReleaseTime[i] = -Mathf.Infinity;
             _waitingMonitorsFlat = new eterpix_monitor[totalSlots * MaxWaitersPerSlot];
             _imageDownloader = new VRC.SDK3.Image.VRCImageDownloader();
 
@@ -405,6 +414,7 @@ namespace ali.eterpix.v2
                 {
                     _imgGraceGeneration[key]++;
                     _imgDiscardTargetGeneration[key] = _imgGraceGeneration[key];
+                    _imgReleaseTime[key] = Time.time;
                     SendCustomEventDelayedSeconds(nameof(TryDiscardSlot), releaseGraceSeconds);
                 }
             }
@@ -420,13 +430,29 @@ namespace ali.eterpix.v2
         // 一度も解放されたことのないキーは_imgGraceGeneration/_imgDiscardTargetGenerationが
         // 共に既定値0で一致してしまうが、そのようなキーはLoaded状態になり得ない(Unrequested/Queued/
         // Downloadingのいずれか)ため、_imgState==Loadedのチェックで誤破棄を防いでいる。
+        //
+        // ただし世代一致だけでは不十分だった(レビュー指摘): 世代一致は「このキーの解放が
+        // その後再リクエストで上書きされていないか」しか見ておらず、「スキャンが今たまたま
+        // 走った」ことと「このキー自身のreleaseGraceSecondsが経過したこと」は別物である。
+        // 例えばキーXがt=0で解放され(t=grace秒後にスキャン予約)、キーYが独立にt=grace-ε秒で
+        // 解放される(t=2*grace-ε秒後にスキャン予約)と、t=grace秒でXのスキャンが走った際に
+        // 世代一致条件だけならYも(まだε秒しか経っていないのに)巻き込んで破棄してしまい、
+        // 猶予期間が実質ゼロに潰れる。これを防ぐため、_imgReleaseTime(このキーが最後に
+        // 参照0になった絶対時刻)からの経過時間が実際にreleaseGraceSeconds以上であることを
+        // 追加で要求する。これにより、他キーのスキャンに巻き込まれた場合はLoadedのまま
+        // 世代も変えずにスキップされるだけなので、そのキー自身に予約されたスキャン(または
+        // それ以降の任意のスキャン)が来た時点で必ず経過時間条件を満たし破棄される。
+        // つまりリーク(Bug1)を再導入することはない: RequestTexture/ReleaseTextureのサイクルが
+        // 続く限り将来のスキャンは必ず発生し続けるため、猶予期限を過ぎた瞬間以降の
+        // 最初のスキャンで確実に回収される。
         public void TryDiscardSlot()
         {
             for (int key = 0; key < _imgState.Length; key++)
             {
                 if (_imgRefCount[key] == 0 &&
                     _imgState[key] == eterpix_v2_image_state.Loaded &&
-                    _imgGraceGeneration[key] == _imgDiscardTargetGeneration[key])
+                    _imgGraceGeneration[key] == _imgDiscardTargetGeneration[key] &&
+                    Time.time - _imgReleaseTime[key] >= releaseGraceSeconds)
                 {
                     DiscardSlot(key);
                 }
