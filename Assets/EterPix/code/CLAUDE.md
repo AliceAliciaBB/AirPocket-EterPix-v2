@@ -41,6 +41,7 @@
 - 画像を「4:3の枠に切らずに全体を収める」表示は`eterpix_monitor`のコードでは行わない。`image`の親に`AspectRatioFitter`(Fit Mode: Fit In Parent)をアタッチし、4:3のコンテナ内に収める形でEditor上で設定する。
 - `eterpix_monitor`(またはInspectorで割り当てた子)にトリガーColliderを追加し、`isTrigger=true`、レイキャストを遮らないレイヤー(例: `Ignore Raycast`)に設定する。そのレイヤーがPlayerLocalと衝突判定する設定になっていることをProject Settings > Physicsで確認する。
 - `eterpix_monitor`に`VRCPortalMarker`を1つ子として持たせ、`portalMarker`に紐付ける。
+- **UdonSharpはコードから`Button.onClick.AddListener()`(メソッドグループもラムダも)をバインドできず、コンパイルエラー(またはコンパイラのクラッシュ)になる。** `prevButton`/`nextButton`/`informationButton`/`openPortalButton`のOnClick()は、Inspector上でこの`eterpix_monitor`コンポーネントを直接ドラッグし、`PagePrev()`/`PageNext()`/`ToggleInformationWindow()`/`OpenPortal()`をそれぞれ手動登録すること(Prefabを使い回す場合はPrefab側で一度登録すればよい)。
 - Play開始前に必ずメニュー`ali/eterpix/Sync URL Lists from requestUrl`(v2対応後、v1の`eterpix_middle_nav`/`eterpix_middle_ring`とv2の`eterpix_requester`の両方を同一メニューで処理する)を実行し、256件のURLが同期されていることを確認する。
 
 ## ビルド・実行コマンド

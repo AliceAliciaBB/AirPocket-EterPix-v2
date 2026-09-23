@@ -89,11 +89,12 @@ namespace ali.eterpix.v2
             // 正しいページ位置をoffsetで上書きしてしまうため反映しない。
             if (offset != 0 && !_hasReceivedSync) _syncedPageIndex = offset;
 
-            if (prevButton != null) prevButton.onClick.AddListener(PagePrev);
-            if (nextButton != null) nextButton.onClick.AddListener(PageNext);
-            if (informationButton != null) informationButton.onClick.AddListener(ToggleInformationWindow);
+            // UdonSharpはUnityEvent.AddListener()(メソッドグループ・ラムダのいずれも)を
+            // バインドできない。各ボタンのOnClick()はコードからではなく、
+            // Unity Inspector上でこのコンポーネントのPagePrev/PageNext/
+            // ToggleInformationWindow/OpenPortalを直接登録すること
+            // (CLAUDE.mdのprefab組み立てメモ参照)。
             if (informationWindowRoot != null) informationWindowRoot.SetActive(false);
-            if (openPortalButton != null) openPortalButton.onClick.AddListener(OpenPortal);
             if (portalMarker != null) portalMarker.gameObject.SetActive(false);
 
             RefreshDisplay();
