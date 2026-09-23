@@ -46,6 +46,13 @@ namespace ali.eterpix.v2
         private int _fetchQueueCount = 0;
         private bool _isFetching = false;
 
+        // タイムアウトで諦めた後に遅れて届く応答が、その時点で「現在のフィード」になっている
+        // 別のフィードを上書きしてしまう(取り違え)のを防ぐための世代カウンタ。
+        // フィードごとに「直近に開始した取得の世代」を記録し、応答到着時に一致するか確認する。
+        private int _fetchGeneration = 0;
+        private int[] _feedFetchGeneration;
+        private int _pendingFetchGeneration = -1;
+
         private void Start()
         {
             GameObject canonical = GameObject.Find(SingletonObjectName);
@@ -70,6 +77,7 @@ namespace ali.eterpix.v2
             _feedRequesters = new eterpix_requester[maxFeeds][];
             _feedRequesterCounts = new int[maxFeeds];
             _fetchQueue = new int[maxFeeds];
+            _feedFetchGeneration = new int[maxFeeds];
             for (int i = 0; i < maxFeeds; i++)
             {
                 _feedRequesters[i] = new eterpix_requester[16];
@@ -180,6 +188,8 @@ namespace ali.eterpix.v2
 
         private void EnqueueFetch(int feedIndex)
         {
+            // RequestJsonが_feedPendingで早期returnするため、通常はここに重複が来ることはない。
+            // 念のための防御的ガード(保険)であり、これ自体が動作の前提ではない。
             for (int i = 0; i < _fetchQueueCount; i++)
             {
                 if (_fetchQueue[i] == feedIndex) return; // 二重登録防止
@@ -202,6 +212,9 @@ namespace ali.eterpix.v2
 
             _isFetching = true;
             _pendingFeedIndex = feedIndex;
+            _fetchGeneration++;
+            _feedFetchGeneration[feedIndex] = _fetchGeneration;
+            _pendingFetchGeneration = _fetchGeneration;
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Fetching JSON for feed {feedIndex}...");
             SendCustomEventDelayedSeconds(nameof(CheckRequestTimeout), RequestTimeoutSeconds);
             VRCStringDownloader.LoadUrl(_feedUrls[feedIndex], (IUdonEventReceiver)this);
@@ -222,7 +235,15 @@ namespace ali.eterpix.v2
         public override void OnStringLoadSuccess(IVRCStringDownload result)
         {
             int feedIndex = _pendingFeedIndex;
-            if (feedIndex < 0 || feedIndex >= _feedCount) return;
+            int generation = _pendingFetchGeneration;
+            if (feedIndex < 0 || feedIndex >= _feedCount || _feedFetchGeneration[feedIndex] != generation)
+            {
+                // タイムアウトで既に諦めてキューが進んだ後に届いた、この取得より古い応答。
+                // ここで_isFetching/キューを触ると、別フィードの取得を二重に進めてしまう
+                // (タイムアウト処理側で既に1回進めている)ので、何もせず捨てる。
+                if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Discarding stale response for feed {feedIndex} (generation mismatch)");
+                return;
+            }
             _feedPending[feedIndex] = false;
             _isFetching = false;
 
@@ -265,7 +286,13 @@ namespace ali.eterpix.v2
         public override void OnStringLoadError(IVRCStringDownload result)
         {
             int feedIndex = _pendingFeedIndex;
-            if (feedIndex < 0 || feedIndex >= _feedCount) return;
+            int generation = _pendingFetchGeneration;
+            if (feedIndex < 0 || feedIndex >= _feedCount || _feedFetchGeneration[feedIndex] != generation)
+            {
+                // OnStringLoadSuccess側と同様、タイムアウト後に遅れて届いた古い応答は捨てる。
+                if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Discarding stale response for feed {feedIndex} (generation mismatch)");
+                return;
+            }
             _feedPending[feedIndex] = false;
             _isFetching = false;
             if (debugLog != null) debugLog.LogError($"[eterpix_downloader] String load error for feed {feedIndex}: {result.Error}");
