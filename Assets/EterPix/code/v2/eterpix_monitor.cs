@@ -59,6 +59,10 @@ namespace ali.eterpix.v2
         private bool _isInViewRange = false;
 
         private DataDictionary _currentPost;
+        // Init()より先にOnDeserialization()で本物の同期値を受け取っていた場合、
+        // offsetで上書きしないためのフラグ(遅れて入ったプレイヤーの初回同期と
+        // Init()の実行順は保証されないため)。
+        private bool _hasReceivedSync = false;
 
         private Vector3[] _baseLocalPositions;
         private Quaternion[] _baseLocalRotations;
@@ -80,11 +84,10 @@ namespace ali.eterpix.v2
             CacheBaseTransforms();
 
             // offset(Inspectorでの開始ページ位置)は[UdonSynced]の_syncedPageIndexへ
-            // Init時に一度だけ反映する。同期はまだ誰も所有権を主張していない初期状態であり、
-            // 全クライアントがInit()をローカルで(同じシーン初期値から)実行するため、
-            // ここで揃えても既存の同期値を壊さない(初回同期が来るまでは各クライアントが
-            // 自分のローカル値をそのまま表示に使う。offset==0なら従来通り0のまま)。
-            if (offset != 0) _syncedPageIndex = offset;
+            // Init時に一度だけ反映する。ただし、Init()より先に本物の初回同期
+            // (OnDeserialization)を受け取っていた場合は、後から入ったプレイヤーの
+            // 正しいページ位置をoffsetで上書きしてしまうため反映しない。
+            if (offset != 0 && !_hasReceivedSync) _syncedPageIndex = offset;
 
             if (prevButton != null) prevButton.onClick.AddListener(PagePrev);
             if (nextButton != null) nextButton.onClick.AddListener(PageNext);
@@ -181,6 +184,7 @@ namespace ali.eterpix.v2
 
         public override void OnDeserialization()
         {
+            _hasReceivedSync = true;
             RefreshDisplay();
         }
 
