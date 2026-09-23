@@ -1,12 +1,15 @@
 using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.StringLoading;
+using VRC.SDK3.Image;
 using VRC.SDKBase;
 using VRC.Udon.Common.Interfaces;
 using VRC.SDK3.Data;
 
 namespace ali.eterpix.v2
 {
+    public enum eterpix_v2_image_state { Unrequested, Queued, Downloading, Loaded }
+
     // v2上位: ダウンローダ。リファクタリング案.md「ダウンローダ」を参照。
     // 1ワールドに1つのみ配置(シングルトン)。複数フィード(JSON URLごと)を管理する。
     [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
@@ -46,6 +49,33 @@ namespace ali.eterpix.v2
         private int _fetchQueueCount = 0;
         private bool _isFetching = false;
 
+        [Header("画像: 同時保持テクスチャの上限枚数(既定8枚≒150MB)")]
+        [SerializeField] private int maxLoadedTextures = 8;
+
+        [Header("画像: 参照0になってから実破棄までの猶予秒数")]
+        [SerializeField] private float releaseGraceSeconds = 10f;
+
+        private ali.eterpix.vrcurllist[] _feedUrlLists; // フィードごとの画像URL表(先着1つ)
+
+        // [feedIndex][slot] の2次元をフラットな1次元(feedIndex * ImageSlotsPerFeed + slot)で管理する
+        // (UdonSharpはジャグ配列も使えるが、フラット配列の方が走査ロジックを単純化できる)
+        private eterpix_v2_image_state[] _imgState;
+        private Texture2D[] _imgTexture;
+        private int[] _imgRefCount;
+        private int[] _imgPriority;
+        private int[] _imgGraceGeneration;
+        private int _loadedCount = 0;
+
+        private const int MaxWaitersPerSlot = 30;
+        private eterpix_monitor[] _waitingMonitorsFlat; // [key * MaxWaitersPerSlot + waiterSlot]
+
+        private VRC.SDK3.Image.VRCImageDownloader _imageDownloader;
+        private bool _isImageDownloading = false;
+        private int _currentDownloadKey = -1;
+
+        private int _pendingDiscardKey;
+        private int _pendingDiscardGeneration;
+
         private void Start()
         {
             GameObject canonical = GameObject.Find(SingletonObjectName);
@@ -74,6 +104,16 @@ namespace ali.eterpix.v2
             {
                 _feedRequesters[i] = new eterpix_requester[16];
             }
+
+            int totalSlots = maxFeeds * ImageSlotsPerFeed;
+            _feedUrlLists = new ali.eterpix.vrcurllist[maxFeeds];
+            _imgState = new eterpix_v2_image_state[totalSlots];
+            _imgTexture = new Texture2D[totalSlots];
+            _imgRefCount = new int[totalSlots];
+            _imgPriority = new int[totalSlots];
+            _imgGraceGeneration = new int[totalSlots];
+            _waitingMonitorsFlat = new eterpix_monitor[totalSlots * MaxWaitersPerSlot];
+            _imageDownloader = new VRC.SDK3.Image.VRCImageDownloader();
 
             ScheduleNextUpdate();
         }
@@ -297,6 +337,203 @@ namespace ali.eterpix.v2
         {
             if (feedIndex < 0 || feedIndex >= _feedCount) return null;
             return _feedWorldData[feedIndex];
+        }
+
+        // ---- 画像スロット管理: URL表登録 ----
+        public void RegisterFeedImageUrls(int feedIndex, ali.eterpix.vrcurllist urlList)
+        {
+            if (feedIndex < 0 || feedIndex >= maxFeeds) return;
+            if (_feedUrlLists[feedIndex] == null) _feedUrlLists[feedIndex] = urlList;
+        }
+
+        private int ToKey(int feedIndex, int slot)
+        {
+            return feedIndex * ImageSlotsPerFeed + slot;
+        }
+
+        private bool ValidateSlot(int feedIndex, int slot)
+        {
+            if (feedIndex < 0 || feedIndex >= maxFeeds || slot < 0 || slot >= ImageSlotsPerFeed)
+            {
+                if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Invalid slot request feed={feedIndex} slot={slot}");
+                return false;
+            }
+            return true;
+        }
+
+        public void RequestTexture(int feedIndex, int slot, int priority, eterpix_monitor caller)
+        {
+            if (!ValidateSlot(feedIndex, slot)) return;
+            int key = ToKey(feedIndex, slot);
+
+            _imgRefCount[key]++;
+            if (priority > _imgPriority[key]) _imgPriority[key] = priority;
+
+            if (_imgState[key] == eterpix_v2_image_state.Loaded)
+            {
+                caller.ApplyTexture(_imgTexture[key]);
+                return;
+            }
+
+            AddWaiter(key, caller);
+            EnsureQueued(key);
+        }
+
+        public void ReleaseTexture(int feedIndex, int slot, eterpix_monitor caller)
+        {
+            if (!ValidateSlot(feedIndex, slot)) return;
+            int key = ToKey(feedIndex, slot);
+
+            _imgRefCount[key] = Mathf.Max(0, _imgRefCount[key] - 1);
+            if (_imgRefCount[key] == 0 && _imgState[key] == eterpix_v2_image_state.Loaded)
+            {
+                _imgGraceGeneration[key]++;
+                _pendingDiscardKey = key;
+                _pendingDiscardGeneration = _imgGraceGeneration[key];
+                SendCustomEventDelayedSeconds(nameof(TryDiscardSlot), releaseGraceSeconds);
+            }
+        }
+
+        public void TryDiscardSlot()
+        {
+            int key = _pendingDiscardKey;
+            int generation = _pendingDiscardGeneration;
+
+            if (_imgRefCount[key] != 0) return;
+            if (_imgGraceGeneration[key] != generation) return;
+
+            DiscardSlot(key);
+        }
+
+        private void DiscardSlot(int key)
+        {
+            if (_imgState[key] != eterpix_v2_image_state.Loaded) return;
+            _imgTexture[key] = null;
+            _imgState[key] = eterpix_v2_image_state.Unrequested;
+            _loadedCount = Mathf.Max(0, _loadedCount - 1);
+            if (debugLog != null) debugLog.Log($"[eterpix_downloader] Discarded key {key}");
+        }
+
+        private void AddWaiter(int key, eterpix_monitor caller)
+        {
+            int baseIndex = key * MaxWaitersPerSlot;
+            for (int i = 0; i < MaxWaitersPerSlot; i++)
+            {
+                if (_waitingMonitorsFlat[baseIndex + i] == null)
+                {
+                    _waitingMonitorsFlat[baseIndex + i] = caller;
+                    return;
+                }
+            }
+            if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Waiter list full for key {key}");
+        }
+
+        private void EnsureQueued(int key)
+        {
+            if (_imgState[key] == eterpix_v2_image_state.Unrequested)
+            {
+                _imgState[key] = eterpix_v2_image_state.Queued;
+            }
+            StartNextImageDownloadIfIdle();
+        }
+
+        // 参照0のスロットがmaxLoadedTexturesを超えて溜まった場合、優先度最低のものから破棄してから
+        // 次のダウンロードに進む(単純なLRU代替: 参照0かつ優先度最低を破棄対象とする)。
+        private void EvictIfOverBudget()
+        {
+            while (_loadedCount > maxLoadedTextures)
+            {
+                int worstKey = -1;
+                int worstPriority = int.MaxValue;
+                for (int i = 0; i < _imgState.Length; i++)
+                {
+                    if (_imgState[i] == eterpix_v2_image_state.Loaded && _imgRefCount[i] == 0 && _imgPriority[i] < worstPriority)
+                    {
+                        worstPriority = _imgPriority[i];
+                        worstKey = i;
+                    }
+                }
+                if (worstKey < 0) return; // 破棄可能な(参照0の)スロットが無い
+                DiscardSlot(worstKey);
+            }
+        }
+
+        private void StartNextImageDownloadIfIdle()
+        {
+            if (_isImageDownloading) return;
+
+            int best = -1;
+            int bestPriority = int.MinValue;
+            for (int i = 0; i < _imgState.Length; i++)
+            {
+                if (_imgState[i] == eterpix_v2_image_state.Queued && _imgPriority[i] > bestPriority)
+                {
+                    bestPriority = _imgPriority[i];
+                    best = i;
+                }
+            }
+            if (best < 0) return;
+
+            int feedIndex = best / ImageSlotsPerFeed;
+            int slot = best % ImageSlotsPerFeed;
+
+            ali.eterpix.vrcurllist urlList = _feedUrlLists[feedIndex];
+            VRCUrl url = urlList != null ? urlList.GetUrl(slot) : null;
+            if (url == null)
+            {
+                if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] URL missing feed={feedIndex} slot={slot}, skipping");
+                _imgState[best] = eterpix_v2_image_state.Unrequested;
+                StartNextImageDownloadIfIdle();
+                return;
+            }
+
+            _imgState[best] = eterpix_v2_image_state.Downloading;
+            _currentDownloadKey = best;
+            _isImageDownloading = true;
+
+            if (debugLog != null) debugLog.Log($"[eterpix_downloader] Downloading feed={feedIndex} slot={slot}: {url}");
+            _imageDownloader.DownloadImage(url, null, (IUdonEventReceiver)this, null);
+        }
+
+        public override void OnImageLoadSuccess(IVRCImageDownload result)
+        {
+            int key = _currentDownloadKey;
+            _isImageDownloading = false;
+
+            _imgTexture[key] = result.Result;
+            _imgState[key] = eterpix_v2_image_state.Loaded;
+            _loadedCount++;
+
+            if (debugLog != null) debugLog.Log($"[eterpix_downloader] Success key={key}: {result.Result.width}x{result.Result.height}");
+
+            NotifyWaiters(key, result.Result);
+            EvictIfOverBudget();
+            StartNextImageDownloadIfIdle();
+        }
+
+        public override void OnImageLoadError(IVRCImageDownload result)
+        {
+            int key = _currentDownloadKey;
+            _isImageDownloading = false;
+
+            if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Image load error key={key}: {result.Error}. Retrying if still referenced.");
+
+            _imgState[key] = _imgRefCount[key] > 0 ? eterpix_v2_image_state.Queued : eterpix_v2_image_state.Unrequested;
+            StartNextImageDownloadIfIdle();
+        }
+
+        private void NotifyWaiters(int key, Texture2D texture)
+        {
+            int baseIndex = key * MaxWaitersPerSlot;
+            for (int i = 0; i < MaxWaitersPerSlot; i++)
+            {
+                eterpix_monitor waiter = _waitingMonitorsFlat[baseIndex + i];
+                if (waiter != null)
+                {
+                    waiter.ApplyTexture(texture);
+                    _waitingMonitorsFlat[baseIndex + i] = null;
+                }
+            }
         }
     }
 }
