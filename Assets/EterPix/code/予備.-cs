@@ -1,0 +1,48 @@
+using TMPro;
+using UdonSharp;
+using UnityEngine;
+using VRC.SDKBase;
+using VRC.SDK3.Components;
+
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
+public class eterpix_porta_resize : UdonSharpBehaviour
+{
+    // VRC_PortalMarker(ポータル)
+    [SerializeField] private VRC_PortalMarker portal;
+    [SerializeField] private TMP_InputField world_id_input;
+    [SerializeField] private TMP_InputField siz;
+    private float siz_value = 0;
+
+    // 自分をparentの子にして、その場所へスナップする(外部用)
+    public void SetParentObject(Transform parent, string roomId)
+    {
+        transform.SetParent(parent);
+        transform.localPosition = Vector3.zero;
+        transform.localRotation = Quaternion.identity;
+
+        if (roomId != "")
+        {
+            world_id_input.text = roomId;
+        }
+
+        portal.roomId = roomId;
+        SendCustomEventDelayedSeconds(nameof(ApplyScale), 0.2f);
+
+        // 表示にする
+        portal.gameObject.SetActive(true);
+    }
+
+    public void but_Update()
+    {
+        siz_value = float.Parse(siz.text);
+        string world_id = world_id_input.text;
+
+        portal.roomId = world_id;
+        SendCustomEventDelayedSeconds(nameof(ApplyScale), 0.2f);
+    }
+
+    public void ApplyScale()
+    {
+        portal.transform.localScale = new Vector3(siz_value, siz_value, siz_value);
+    }
+}
