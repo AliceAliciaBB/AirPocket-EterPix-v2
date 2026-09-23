@@ -73,8 +73,15 @@ namespace ali.eterpix.v2
         private bool _isImageDownloading = false;
         private int _currentDownloadKey = -1;
 
-        private int _pendingDiscardKey;
-        private int _pendingDiscardGeneration;
+        // 破棄予約は「どのキーを見るか」をスケジューリング時の引数として渡せない(UdonSharpの
+        // SendCustomEventDelayedSecondsは引数を運べず、常に同じメソッド名を呼ぶだけ)。
+        // かつ複数キーの猶予期間が同時に進行しうるため、単一のスカラーで次に見るキーを覚える方式では
+        // 「後から解放されたキーが先に解放されたキーの予約を上書きしてしまう」問題(リーク/二重判定)が起きる。
+        // 対策として、TryDiscardSlotは呼ばれるたびに全スロットを走査し、各キー自身が持つ
+        // 「このキーの直近の解放が何世代目か(_imgGraceGeneration)」と「このスケジュール呼び出しが
+        // 待っていた世代(_imgDiscardTargetGeneration)」を突き合わせて判定する。スロット総数は
+        // maxFeeds * ImageSlotsPerFeed(既定で高々1024程度)と小さいため、毎回全走査しても軽い。
+        private int[] _imgDiscardTargetGeneration;
 
         private void Start()
         {
@@ -112,6 +119,7 @@ namespace ali.eterpix.v2
             _imgRefCount = new int[totalSlots];
             _imgPriority = new int[totalSlots];
             _imgGraceGeneration = new int[totalSlots];
+            _imgDiscardTargetGeneration = new int[totalSlots];
             _waitingMonitorsFlat = new eterpix_monitor[totalSlots * MaxWaitersPerSlot];
             _imageDownloader = new VRC.SDK3.Image.VRCImageDownloader();
 
@@ -385,24 +393,44 @@ namespace ali.eterpix.v2
             int key = ToKey(feedIndex, slot);
 
             _imgRefCount[key] = Mathf.Max(0, _imgRefCount[key] - 1);
-            if (_imgRefCount[key] == 0 && _imgState[key] == eterpix_v2_image_state.Loaded)
+            if (_imgRefCount[key] == 0)
             {
-                _imgGraceGeneration[key]++;
-                _pendingDiscardKey = key;
-                _pendingDiscardGeneration = _imgGraceGeneration[key];
-                SendCustomEventDelayedSeconds(nameof(TryDiscardSlot), releaseGraceSeconds);
+                // 誰も見ていないスロットは、猶予破棄が実際に発生するより前に優先度をリセットしておく。
+                // これによりEvictIfOverBudgetの「参照0の中で最低優先度」比較が、
+                // 「過去に高優先度で見られていた」という古い値ではなく「今は誰も欲しがっていない」を
+                // 正しく反映するようになる(参照0チェックの後段なので、Loaded以外の状態でも安全)。
+                _imgPriority[key] = 0;
+
+                if (_imgState[key] == eterpix_v2_image_state.Loaded)
+                {
+                    _imgGraceGeneration[key]++;
+                    _imgDiscardTargetGeneration[key] = _imgGraceGeneration[key];
+                    SendCustomEventDelayedSeconds(nameof(TryDiscardSlot), releaseGraceSeconds);
+                }
             }
         }
 
+        // ReleaseTextureで解放されるたびに(引数を運べないSendCustomEventDelayedSeconds経由で)
+        // 遅延スケジュールされる。呼ばれた時点で全スロットを走査し、「参照0のまま・Loaded状態を維持していて・
+        // このスケジュール呼び出しが待っていた世代(_imgDiscardTargetGeneration)がそのキーの最新の解放世代
+        // (_imgGraceGeneration)と一致する」キーだけを破棄する。世代が一致しないキーは、
+        // 猶予期間中に再リクエストされた(refcountが0でなくなった時点で以後のスキャンから除外される)か、
+        // 再リクエスト後にさらに解放されて新しい猶予タイマーが動いている(世代が進んでいるので、
+        // この古いスキャンは無視して新しいスキャンに任せる)ケースであり、誤って破棄しない。
+        // 一度も解放されたことのないキーは_imgGraceGeneration/_imgDiscardTargetGenerationが
+        // 共に既定値0で一致してしまうが、そのようなキーはLoaded状態になり得ない(Unrequested/Queued/
+        // Downloadingのいずれか)ため、_imgState==Loadedのチェックで誤破棄を防いでいる。
         public void TryDiscardSlot()
         {
-            int key = _pendingDiscardKey;
-            int generation = _pendingDiscardGeneration;
-
-            if (_imgRefCount[key] != 0) return;
-            if (_imgGraceGeneration[key] != generation) return;
-
-            DiscardSlot(key);
+            for (int key = 0; key < _imgState.Length; key++)
+            {
+                if (_imgRefCount[key] == 0 &&
+                    _imgState[key] == eterpix_v2_image_state.Loaded &&
+                    _imgGraceGeneration[key] == _imgDiscardTargetGeneration[key])
+                {
+                    DiscardSlot(key);
+                }
+            }
         }
 
         private void DiscardSlot(int key)
@@ -410,6 +438,7 @@ namespace ali.eterpix.v2
             if (_imgState[key] != eterpix_v2_image_state.Loaded) return;
             _imgTexture[key] = null;
             _imgState[key] = eterpix_v2_image_state.Unrequested;
+            _imgPriority[key] = 0; // 破棄されたスロットの優先度は次の再リクエストへ持ち越さない
             _loadedCount = Mathf.Max(0, _loadedCount - 1);
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Discarded key {key}");
         }
