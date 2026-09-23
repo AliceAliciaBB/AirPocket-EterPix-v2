@@ -63,6 +63,11 @@ namespace ali.eterpix.v2
             _feedIndex = _downloader.RegisterFeed(requestUrl, this);
             if (urlList != null) _downloader.RegisterFeedImageUrls(_feedIndex, urlList);
 
+            // 既に他のリクエスターによってこのフィードのJSONが取得済みの場合、
+            // RegisterFeedの中では(_feedIndexがまだ代入されていないため)キャッチアップ通知を
+            // 送れない。_feedIndex代入が完了したこの時点で改めて確認し、必要なら自分で呼ぶ。
+            if (_downloader.GetFeedPosts(_feedIndex) != null) OnJsonUpdated();
+
             for (int i = 0; i < _monitors.Length; i++)
             {
                 if (_monitors[i] != null) _monitors[i].Init(this, _downloader, _feedIndex);

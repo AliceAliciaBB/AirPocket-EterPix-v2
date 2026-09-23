@@ -79,6 +79,13 @@ namespace ali.eterpix.v2
 
             CacheBaseTransforms();
 
+            // offset(Inspectorでの開始ページ位置)は[UdonSynced]の_syncedPageIndexへ
+            // Init時に一度だけ反映する。同期はまだ誰も所有権を主張していない初期状態であり、
+            // 全クライアントがInit()をローカルで(同じシーン初期値から)実行するため、
+            // ここで揃えても既存の同期値を壊さない(初回同期が来るまでは各クライアントが
+            // 自分のローカル値をそのまま表示に使う。offset==0なら従来通り0のまま)。
+            if (offset != 0) _syncedPageIndex = offset;
+
             if (prevButton != null) prevButton.onClick.AddListener(PagePrev);
             if (nextButton != null) nextButton.onClick.AddListener(PageNext);
             if (informationButton != null) informationButton.onClick.AddListener(ToggleInformationWindow);
@@ -131,6 +138,20 @@ namespace ali.eterpix.v2
             if (!player.isLocal) return;
             _isInViewRange = false;
             ReleaseCurrentTextureIfAny();
+        }
+
+        // オブジェクトの非アクティブ化/破棄(VRChatがOnPlayerTriggerExitを配送し損ねる
+        // テレポート/リスポーン等の境界ケースを含む)で、保持中のテクスチャ参照が
+        // 解放されないまま残ると_imgRefCountが恒久的に0へ戻らず、猶予破棄/EvictIfOverBudget
+        // の両方から永久に除外されてしまう(レビュー指摘)。UdonSharpUdonSharpBehaviourは
+        // Start()等と同様にUnity標準のライフサイクルメッセージをoverrideなしのprivateメソッドで
+        // 受け取れる(OnPlayerTriggerEnter/ExitのようなVRC固有のoverride virtualとは異なる)ため、
+        // このファイル内の他メソッドの宣言スタイル(Start()がoverrideでない)に合わせて
+        // private void として宣言する。
+        private void OnDisable()
+        {
+            ReleaseCurrentTextureIfAny();
+            _isInViewRange = false;
         }
 
         // ---- ページ送り ----
@@ -249,8 +270,15 @@ namespace ali.eterpix.v2
             _hasRequestedTexture = false;
         }
 
-        public void ApplyTexture(Texture2D texture)
+        // feedIndex/slotは、この通知が発行された時点でダウンローダが解決していたキーの内訳。
+        // このモニターが待機している間にページ送り等で別スロットへ切り替わっていた場合、
+        // 呼び出し元(ダウンローダ)の待機リストには古いキーの通知がまだ残っていることがある
+        // (ReleaseTextureは待機リストを積極的には掃除しない: レビュー指摘)。
+        // 現在表示中のフィード/スロットと一致しない通知は、誤って別の画像(R18フィルタを
+        // 経由していない可能性がある)を貼り付けてしまわないよう、ここで安全に無視する。
+        public void ApplyTexture(int feedIndex, int slot, Texture2D texture)
         {
+            if (feedIndex != _feedIndex || slot != _currentSlot) return;
             if (texture != null && image != null)
             {
                 image.material = null;

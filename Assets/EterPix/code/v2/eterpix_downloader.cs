@@ -184,8 +184,14 @@ namespace ali.eterpix.v2
             arr[count] = requester;
             _feedRequesterCounts[feedIndex] = count + 1;
 
-            // 既にJSONが届いているフィードに後から登録された場合は即座に通知する
-            if (_feedPosts[feedIndex] != null) requester.OnJsonUpdated();
+            // 既にJSONが届いているフィードへの後発登録時のキャッチアップ通知は、
+            // ここでは行わない(このメソッドはRegisterFeed内、つまり呼び出し元の
+            // eterpix_requester.FetchDownloaderが_feedIndexへの代入を完了する「前」に
+            // 実行される。この時点でrequester.OnJsonUpdated()を呼ぶとRebuildVisibleIndices
+            // が古い/未初期化の_feedIndexを参照し、表示件数0のまま次回定期更新まで
+            // 復旧しない: レビュー指摘の重大バグ)。
+            // 代わりに、呼び出し元のFetchDownloaderが_feedIndex代入完了後に
+            // 自分自身でGetFeedPosts()を確認してOnJsonUpdated()を呼ぶ方式に変更した。
         }
 
         // ---- 定期自動更新(オーナーが「今取得しろ」の指示のみ全員に同期) ----
@@ -285,8 +291,13 @@ namespace ali.eterpix.v2
         public override void OnStringLoadSuccess(IVRCStringDownload result)
         {
             int feedIndex = _pendingFeedIndex;
-            _feedPending[feedIndex] = false;
             _isFetching = false;
+            if (feedIndex < 0 || feedIndex >= _feedCount)
+            {
+                StartNextFetchIfIdle();
+                return;
+            }
+            _feedPending[feedIndex] = false;
 
             if (!VRCJson.TryDeserializeFromJson(result.Result, out DataToken token) ||
                 token.TokenType != TokenType.DataDictionary)
@@ -327,8 +338,13 @@ namespace ali.eterpix.v2
         public override void OnStringLoadError(IVRCStringDownload result)
         {
             int feedIndex = _pendingFeedIndex;
-            _feedPending[feedIndex] = false;
             _isFetching = false;
+            if (feedIndex < 0 || feedIndex >= _feedCount)
+            {
+                StartNextFetchIfIdle();
+                return;
+            }
+            _feedPending[feedIndex] = false;
             if (debugLog != null) debugLog.LogError($"[eterpix_downloader] String load error for feed {feedIndex}: {result.Error}");
             StartNextFetchIfIdle();
         }
@@ -388,7 +404,7 @@ namespace ali.eterpix.v2
 
             if (_imgState[key] == eterpix_v2_image_state.Loaded)
             {
-                caller.ApplyTexture(_imgTexture[key]);
+                caller.ApplyTexture(feedIndex, slot, _imgTexture[key]);
                 return;
             }
 
@@ -554,6 +570,11 @@ namespace ali.eterpix.v2
         {
             int key = _currentDownloadKey;
             _isImageDownloading = false;
+            if (key < 0 || key >= _imgState.Length)
+            {
+                StartNextImageDownloadIfIdle();
+                return;
+            }
 
             _imgTexture[key] = result.Result;
             _imgState[key] = eterpix_v2_image_state.Loaded;
@@ -570,6 +591,11 @@ namespace ali.eterpix.v2
         {
             int key = _currentDownloadKey;
             _isImageDownloading = false;
+            if (key < 0 || key >= _imgState.Length)
+            {
+                StartNextImageDownloadIfIdle();
+                return;
+            }
 
             if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Image load error key={key}: {result.Error}. Retrying if still referenced.");
 
@@ -579,13 +605,20 @@ namespace ali.eterpix.v2
 
         private void NotifyWaiters(int key, Texture2D texture)
         {
+            int feedIndex = key / ImageSlotsPerFeed;
+            int slot = key % ImageSlotsPerFeed;
             int baseIndex = key * MaxWaitersPerSlot;
             for (int i = 0; i < MaxWaitersPerSlot; i++)
             {
                 eterpix_monitor waiter = _waitingMonitorsFlat[baseIndex + i];
                 if (waiter != null)
                 {
-                    waiter.ApplyTexture(texture);
+                    // waiterがその後別のスロットへページ送りしていた場合でも、ここではキーごとの
+                    // 待機リストから外れないまま残っている(ReleaseTextureは待機リストを
+                    // 積極的には掃除しない)。ApplyTexture側でfeedIndex/slotの一致を検証させ、
+                    // 現在表示中のスロットと異なる場合は安全にno-opさせる(レビュー指摘の
+                    // 「古い待機者が別スロットの画像を上書きする」バグへの対策)。
+                    waiter.ApplyTexture(feedIndex, slot, texture);
                     _waitingMonitorsFlat[baseIndex + i] = null;
                 }
             }

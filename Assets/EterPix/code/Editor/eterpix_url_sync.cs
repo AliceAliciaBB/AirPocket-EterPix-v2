@@ -42,11 +42,34 @@ namespace ali.eterpix
                 SyncOne(ring, "urlList", "requestUrl");
             }
 
-            // v2: eterpix_requester (urlList/requestUrlは同名フィールドのため、既存のSyncOneをそのまま流用できる。
-            // arraySizeは256を想定。既存のGenerateUrlsはX2(2桁16進)生成・256クランプ済みで変更不要)
+            // v2: eterpix_requester (urlList/requestUrlは同名フィールドのため、既存のSyncOneをそのまま流用できる)。
+            // v2は256スロット固定が設計上の前提のため、Inspectorの既定値(16)のまま放置されて
+            // 静かに16件しか生成されない事故(レビュー指摘: v2導入の目的そのものを損なう)を防ぐため、
+            // SyncOneに渡す前にarraySizeを強制的に256へ揃える。v1(nav/ring)側はこの分岐の外なので
+            // 既定値のまま変更されない。
             foreach (var requester in Object.FindObjectsByType<ali.eterpix.v2.eterpix_requester>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
+                ForceArraySize(requester, "urlList", ali.eterpix.v2.eterpix_downloader.ImageSlotsPerFeed);
                 SyncOne(requester, "urlList", "requestUrl");
+            }
+        }
+
+        // SyncOneと同じリフレクション経由のフィールド取得手法で、指定コンポーネントが参照する
+        // vrcurllist.arraySizeを強制的に指定値へ揃える(既存のGenerateUrlsのクランプ処理とは別に、
+        // v2 eterpix_requesterのInspector既定値16を確実に上書きするための専用処理)。
+        private static void ForceArraySize(Object middle, string urlListFieldName, int requiredArraySize)
+        {
+            var type = middle.GetType();
+            var urlListField = type.GetField(urlListFieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (urlListField == null) return;
+
+            var urlList = urlListField.GetValue(middle) as vrcurllist;
+            if (urlList == null) return;
+
+            if (urlList.arraySize != requiredArraySize)
+            {
+                urlList.arraySize = requiredArraySize;
+                EditorUtility.SetDirty(urlList);
             }
         }
 
