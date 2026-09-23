@@ -55,6 +55,7 @@
 - [ ] `eterpix_image_loader` は破棄予約用の一時フィールド(`_pendingDiscardSlot` / `_pendingDiscardGeneration`)を1組しか持たない。10秒の猶予中に別のスロットが解放されると、先に予約したスロットが破棄されずに残る (発見日: 2026-09-23)
 - [ ] `eterpix_image_loader` はReleaseしても待機リストから外さない。参照が0のQueuedスロットもダウンロードされ、Loadedになった後も破棄されずに残る (発見日: 2026-09-23)
 - [ ] `eterpix_json_loader.CheckRequestTimeout` は `_isRequestPending` を戻さない。コールバックが来なかった場合、それ以降のJSON取得がすべてスキップされる (発見日: 2026-09-23)
+- [ ] `eterpix_downloader.CheckRequestTimeout` (v2) も同様に何もしない(あえての制約)。応答が無いフィードは以後取得されず、キューで後ろに並んだ他フィードの取得も進まなくなる (発見日: 2026-09-23)
 - [ ] 中位(nav/ring)に `OnDeserialization` がない。後から入ったプレイヤーが `sharedSeed` を受け取っても、次のJSON更新まで並べ直されない (発見日: 2026-09-23)
 - [ ] `TextureManager.StartDownloadWithTimestamps` は、ダウンロード中に来た要求を保留せずに捨てる。ダウンロードに失敗した場合、待機中のアイテムには通知されない (発見日: 2026-09-23)
 - [ ] `TextureManager` は `cachedTimestamps` をダウンロード成功前に確定させる。URLがnullまたは範囲外でスキップされたスロットは、キャッシュ済みとして残る (発見日: 2026-09-23)
