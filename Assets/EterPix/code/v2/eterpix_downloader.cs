@@ -40,6 +40,12 @@ namespace ali.eterpix.v2
         // 直近リクエストしたフィードIndexを一時保持する(直列ダウンロード前提)。
         private int _pendingFeedIndex = -1;
 
+        // 実際に直列化するためのFIFOキュー(複数フィードへ同時にRequestJsonが呼ばれても、
+        // 実際にLoadUrlするのは1件ずつにする)。
+        private int[] _fetchQueue;
+        private int _fetchQueueCount = 0;
+        private bool _isFetching = false;
+
         private void Start()
         {
             GameObject canonical = GameObject.Find(SingletonObjectName);
@@ -63,6 +69,7 @@ namespace ali.eterpix.v2
             _feedPending = new bool[maxFeeds];
             _feedRequesters = new eterpix_requester[maxFeeds][];
             _feedRequesterCounts = new int[maxFeeds];
+            _fetchQueue = new int[maxFeeds];
             for (int i = 0; i < maxFeeds; i++)
             {
                 _feedRequesters[i] = new eterpix_requester[16];
@@ -158,15 +165,42 @@ namespace ali.eterpix.v2
             RequestJson(feedIndex);
         }
 
-        // ---- JSON取得の実行(各クライアントがローカルで実行。全体で直列にするため、
-        // 実行中のフィードがあれば完了後に取りこぼしなく処理されるようキューは持たず、
-        // 短時間の重複要求は_feedPendingで弾く) ----
+        // ---- JSON取得の実行(各クライアントがローカルで実行。OnStringLoadSuccess/Errorが
+        // どのフィードの応答か判別できないため、実際にLoadUrlするのは常に1件だけになるよう
+        // _fetchQueueで直列化する。短時間の重複要求は_feedPendingで弾く) ----
         private void RequestJson(int feedIndex)
         {
             if (feedIndex < 0 || feedIndex >= _feedCount) return;
             if (_feedPending[feedIndex]) return;
 
             _feedPending[feedIndex] = true;
+            EnqueueFetch(feedIndex);
+            StartNextFetchIfIdle();
+        }
+
+        private void EnqueueFetch(int feedIndex)
+        {
+            for (int i = 0; i < _fetchQueueCount; i++)
+            {
+                if (_fetchQueue[i] == feedIndex) return; // 二重登録防止
+            }
+            _fetchQueue[_fetchQueueCount] = feedIndex;
+            _fetchQueueCount++;
+        }
+
+        private void StartNextFetchIfIdle()
+        {
+            if (_isFetching) return;
+            if (_fetchQueueCount <= 0) return;
+
+            int feedIndex = _fetchQueue[0];
+            for (int i = 1; i < _fetchQueueCount; i++)
+            {
+                _fetchQueue[i - 1] = _fetchQueue[i];
+            }
+            _fetchQueueCount--;
+
+            _isFetching = true;
             _pendingFeedIndex = feedIndex;
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Fetching JSON for feed {feedIndex}...");
             SendCustomEventDelayedSeconds(nameof(CheckRequestTimeout), RequestTimeoutSeconds);
@@ -176,10 +210,12 @@ namespace ali.eterpix.v2
         public void CheckRequestTimeout()
         {
             int feedIndex = _pendingFeedIndex;
-            if (feedIndex >= 0 && feedIndex < _feedCount && _feedPending[feedIndex])
+            if (feedIndex >= 0 && feedIndex < _feedCount && _feedPending[feedIndex] && _isFetching)
             {
                 if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] No response after {RequestTimeoutSeconds}s for feed {feedIndex}");
                 _feedPending[feedIndex] = false;
+                _isFetching = false;
+                StartNextFetchIfIdle();
             }
         }
 
@@ -188,11 +224,13 @@ namespace ali.eterpix.v2
             int feedIndex = _pendingFeedIndex;
             if (feedIndex < 0 || feedIndex >= _feedCount) return;
             _feedPending[feedIndex] = false;
+            _isFetching = false;
 
             if (!VRCJson.TryDeserializeFromJson(result.Result, out DataToken token) ||
                 token.TokenType != TokenType.DataDictionary)
             {
                 if (debugLog != null) debugLog.LogError($"[eterpix_downloader] Failed to parse JSON for feed {feedIndex}");
+                StartNextFetchIfIdle();
                 return;
             }
 
@@ -205,6 +243,7 @@ namespace ali.eterpix.v2
             else
             {
                 if (debugLog != null) debugLog.LogError($"[eterpix_downloader] 'posts' key not found for feed {feedIndex}");
+                StartNextFetchIfIdle();
                 return;
             }
 
@@ -220,6 +259,7 @@ namespace ali.eterpix.v2
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Feed {feedIndex}: {_feedPosts[feedIndex].Count} posts");
 
             NotifyFeedRequesters(feedIndex);
+            StartNextFetchIfIdle();
         }
 
         public override void OnStringLoadError(IVRCStringDownload result)
@@ -227,7 +267,9 @@ namespace ali.eterpix.v2
             int feedIndex = _pendingFeedIndex;
             if (feedIndex < 0 || feedIndex >= _feedCount) return;
             _feedPending[feedIndex] = false;
+            _isFetching = false;
             if (debugLog != null) debugLog.LogError($"[eterpix_downloader] String load error for feed {feedIndex}: {result.Error}");
+            StartNextFetchIfIdle();
         }
 
         private void NotifyFeedRequesters(int feedIndex)
