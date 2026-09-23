@@ -32,6 +32,11 @@ namespace ali.eterpix.v2
         [SerializeField] private TMP_Text worldDescriptionText;
         [SerializeField] private Button openPortalButton;
 
+        [Header("ポータル(1つずつ、押した本人にのみ見える)")]
+        [SerializeField] private VRC.SDK3.Components.VRCPortalMarker portalMarker;
+        [SerializeField] private Transform portalSpawnPoint; // 未指定ならこのtransform
+        [SerializeField] private float portalAutoCloseDistance = 3f;
+
         [Header("情報ウィンドウ (#Information / #Information_window)")]
         [SerializeField] private Button informationButton;
         [SerializeField] private GameObject informationWindowRoot;
@@ -78,6 +83,8 @@ namespace ali.eterpix.v2
             if (nextButton != null) nextButton.onClick.AddListener(PageNext);
             if (informationButton != null) informationButton.onClick.AddListener(ToggleInformationWindow);
             if (informationWindowRoot != null) informationWindowRoot.SetActive(false);
+            if (openPortalButton != null) openPortalButton.onClick.AddListener(OpenPortal);
+            if (portalMarker != null) portalMarker.gameObject.SetActive(false);
 
             RefreshDisplay();
         }
@@ -324,6 +331,40 @@ namespace ali.eterpix.v2
         {
             if (data.TryGetValue(key, out DataToken token) && token.TokenType == TokenType.String) return token.String;
             return fallback;
+        }
+
+        // ---- ポータル ----
+        public void OpenPortal()
+        {
+            if (portalMarker == null || _currentPost == null) return;
+
+            string worldId = ReadString(_currentPost, "world_vrc_id", "");
+            if (string.IsNullOrEmpty(worldId)) return;
+
+            Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
+            portalMarker.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
+            portalMarker.roomId = worldId;
+            portalMarker.gameObject.SetActive(true);
+            portalMarker.RefreshPortal();
+
+            SendCustomEventDelayedSeconds(nameof(CheckPortalDistance), 1f);
+        }
+
+        public void CheckPortalDistance()
+        {
+            if (portalMarker == null || !portalMarker.gameObject.activeSelf) return;
+
+            VRCPlayerApi local = Networking.LocalPlayer;
+            if (local == null) return;
+
+            float distance = Vector3.Distance(local.GetPosition(), portalMarker.transform.position);
+            if (distance > portalAutoCloseDistance)
+            {
+                portalMarker.gameObject.SetActive(false);
+                return;
+            }
+
+            SendCustomEventDelayedSeconds(nameof(CheckPortalDistance), 1f);
         }
     }
 }
