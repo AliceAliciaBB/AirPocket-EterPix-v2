@@ -33,6 +33,16 @@
 - 2×3コラージュのUV計算式と回転の向き(`imgRotation * -90f`)は、`eterpix_item` / `eterpix_photo_vew` / `eterpix_cell` / `eterpix_listener_monitor` で同じ式を使う。1か所だけ変えないこと。
 - VRCStationに着席している間は `SetParent` を使わない(トラッキングの復帰が壊れる)。`TekkotsuLiftController` のように、位置と回転の追従を自前で行う。
 
+## v2 (`code/v2/`) prefab組み立てメモ
+- `EterpixDownloaderV2`という名前のGameObjectに`eterpix_downloader`を1つだけ配置する。
+- `eterpix_requester`ごとに、Inspectorで`requestUrl`(JSON URL)と`urlList`(`vrcurllist`、baseUrlのみ設定・arraySizeは256に統一)を設定する。
+- `eterpix_requester`の子に`eterpix_monitor`を1つ以上配置する(非アクティブでも`GetComponentsInChildren(true)`で拾われる)。
+- `eterpix_monitor`のUIはvrc_uiのhtmlモック(`D:\git\eterpix-v10\vrc_ui\vrcetepixui.html`/`.css`)に合わせてUnity UIを手組みし、`image`/`prevButton`/`nextButton`/`pageLabel`/`userNameText`/`descriptionText`/`worldContextRoot`/`worldNameText`/`worldDescriptionText`/`openPortalButton`/`informationButton`/`informationWindowRoot`をInspectorで紐付ける。
+- 画像を「4:3の枠に切らずに全体を収める」表示は`eterpix_monitor`のコードでは行わない。`image`の親に`AspectRatioFitter`(Fit Mode: Fit In Parent)をアタッチし、4:3のコンテナ内に収める形でEditor上で設定する。
+- `eterpix_monitor`(またはInspectorで割り当てた子)にトリガーColliderを追加し、`isTrigger=true`、レイキャストを遮らないレイヤー(例: `Ignore Raycast`)に設定する。そのレイヤーがPlayerLocalと衝突判定する設定になっていることをProject Settings > Physicsで確認する。
+- `eterpix_monitor`に`VRCPortalMarker`を1つ子として持たせ、`portalMarker`に紐付ける。
+- Play開始前に必ずメニュー`ali/eterpix/Sync URL Lists from requestUrl`(v2対応後、v1の`eterpix_middle_nav`/`eterpix_middle_ring`とv2の`eterpix_requester`の両方を同一メニューで処理する)を実行し、256件のURLが同期されていることを確認する。
+
 ## ビルド・実行コマンド
 - Unity Editor上でPlayする。Play開始時に `eterpix_url_sync` が自動で実行される。
 - 手動でURLを同期する場合はメニューの `ali/eterpix/Sync URL Lists from requestUrl` を使う。

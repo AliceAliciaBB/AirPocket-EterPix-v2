@@ -41,6 +41,13 @@ namespace ali.eterpix
             {
                 SyncOne(ring, "urlList", "requestUrl");
             }
+
+            // v2: eterpix_requester (urlList/requestUrlは同名フィールドのため、既存のSyncOneをそのまま流用できる。
+            // arraySizeは256を想定。既存のGenerateUrlsはX2(2桁16進)生成・256クランプ済みで変更不要)
+            foreach (var requester in Object.FindObjectsByType<ali.eterpix.v2.eterpix_requester>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                SyncOne(requester, "urlList", "requestUrl");
+            }
         }
 
         private static void SyncOne(Object middle, string urlListFieldName, string requestUrlFieldName)
