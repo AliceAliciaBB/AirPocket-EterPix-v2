@@ -71,6 +71,7 @@
 - [ ] `TextureManager` は `cachedTimestamps` をダウンロード成功前に確定させる。URLがnullまたは範囲外でスキップされたスロットは、キャッシュ済みとして残る (発見日: 2026-09-23)
 - [ ] `eterpix_listener_monitor` の回転は `localRotation` を直接上書きしている。セル側と違い、基準回転とpivot補正が入っていない (発見日: 2026-09-23)
 - [ ] `eterpix_porta_resize.Update` に `portal` のnullチェックがない。`eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
+- [ ] `Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
 
 ## うまくいった進め方
 記録形式はグローバルCLAUDE.mdの「記録フォーマット」に従う(PROBLEM/FIX形式)。
