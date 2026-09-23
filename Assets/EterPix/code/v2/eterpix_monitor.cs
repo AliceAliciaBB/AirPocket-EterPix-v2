@@ -104,6 +104,28 @@ namespace ali.eterpix.v2
             RefreshDisplay();
         }
 
+        // ---- トリガーColliderによるオンデマンド画像要求 ----
+        // このGameObject(またはInspectorで割り当てた子)にColliderを持たせ、isTrigger=true、
+        // レイキャストを遮らないレイヤー(Ignore Raycast等)に置く。
+        public override void OnPlayerTriggerEnter(VRCPlayerApi player)
+        {
+            if (!player.isLocal) return;
+            _isInViewRange = true;
+
+            if (_downloader != null && _currentSlot >= 0 && !_hasRequestedTexture)
+            {
+                _hasRequestedTexture = true;
+                _downloader.RequestTexture(_feedIndex, _currentSlot, 100, this);
+            }
+        }
+
+        public override void OnPlayerTriggerExit(VRCPlayerApi player)
+        {
+            if (!player.isLocal) return;
+            _isInViewRange = false;
+            ReleaseCurrentTextureIfAny();
+        }
+
         // ---- ページ送り ----
         public void PageNext()
         {
