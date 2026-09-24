@@ -8,7 +8,7 @@ using VRC.SDK3.Components;
 public class eterpix_porta_resize : UdonSharpBehaviour
 {
     // VRC_PortalMarker(ポータル)
-    [SerializeField] private VRC_PortalMarker portal;
+    [SerializeField] private VRCPortalMarker portal;
     // [SerializeField] private TMP_InputField world_id_input;
     // [SerializeField] private TMP_InputField portal_siz;
     [SerializeField] private string world_id;
@@ -20,6 +20,9 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // ポータルが表示中のみの処理
     void Update()
     {
+        if (portal == null)
+            return;
+
         if (portal.gameObject.activeSelf == true)
         {
             // ローカルユーザーとポータルの距離をDistanceに保存
@@ -41,6 +44,9 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // 自分をparentの子にして、その場所へスナップする(外部用)
     public void SetParentObject(Transform parent, string roomId)
     {
+        if (portal == null)
+            return;
+
         if (roomId != "")
         {
             // 表示にする
@@ -56,7 +62,7 @@ public class eterpix_porta_resize : UdonSharpBehaviour
 
 
             portal.roomId = world_id;
-
+            portal.RefreshPortal();
             SendCustomEventDelayedSeconds(nameof(ApplyScale), 0.2f);
         }
         else

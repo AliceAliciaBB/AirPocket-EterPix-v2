@@ -34,10 +34,12 @@ namespace ali.eterpix.v2
         [SerializeField] private TMP_Text worldDescriptionText;
         [SerializeField] private Button openPortalButton;
 
-        [Header("ポータル(1つずつ、押した本人にのみ見える)")]
-        [SerializeField] private VRC.SDK3.Components.VRCPortalMarker portalMarker;
+        [Header("ポータル(ワールドに1つだけ置いた共通ポータルを呼び寄せる。押した本人にのみ見える)")]
+        // 未指定なら固定名 PortalObjectName のGameObjectから解決する
+        [SerializeField] private eterpix_porta_resize portal;
         [SerializeField] private Transform portalSpawnPoint; // 未指定ならこのtransform
-        [SerializeField] private float portalAutoCloseDistance = 3f;
+
+        public const string PortalObjectName = "EterpixPortal";
 
         [Header("情報ウィンドウ (#Information / #Information_window)")]
         [SerializeField] private Button informationButton;
@@ -97,8 +99,13 @@ namespace ali.eterpix.v2
             // Unity Inspector上でこのコンポーネントのPagePrev/PageNext/
             // ToggleInformationWindow/OpenPortalを直接登録すること
             // (CLAUDE.mdのprefab組み立てメモ参照)。
+            if (portal == null)
+            {
+                GameObject portalObj = GameObject.Find(PortalObjectName);
+                if (portalObj != null) portal = portalObj.GetComponent<eterpix_porta_resize>();
+            }
+
             if (informationWindowRoot != null) informationWindowRoot.SetActive(false);
-            if (portalMarker != null) portalMarker.gameObject.SetActive(false);
 
             RefreshDisplay();
         }
@@ -381,37 +388,17 @@ namespace ali.eterpix.v2
         }
 
         // ---- ポータル ----
+        // 旧系統(eterpix_item/eterpix_photo_vew)と同じく、共通ポータル(eterpix_porta_resize)を
+        // spawn位置へ親付け替えで呼び寄せる。距離による自動非表示・スケール適用はポータル側が行う。
         public void OpenPortal()
         {
-            if (portalMarker == null || _currentPost == null) return;
+            if (portal == null || _currentPost == null) return;
 
             string worldId = ReadString(_currentPost, "world_vrc_id", "");
             if (string.IsNullOrEmpty(worldId)) return;
 
             Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
-            portalMarker.transform.SetPositionAndRotation(spawn.position, spawn.rotation);
-            portalMarker.roomId = worldId;
-            portalMarker.gameObject.SetActive(true);
-            portalMarker.RefreshPortal();
-
-            SendCustomEventDelayedSeconds(nameof(CheckPortalDistance), 1f);
-        }
-
-        public void CheckPortalDistance()
-        {
-            if (portalMarker == null || !portalMarker.gameObject.activeSelf) return;
-
-            VRCPlayerApi local = Networking.LocalPlayer;
-            if (local == null) return;
-
-            float distance = Vector3.Distance(local.GetPosition(), portalMarker.transform.position);
-            if (distance > portalAutoCloseDistance)
-            {
-                portalMarker.gameObject.SetActive(false);
-                return;
-            }
-
-            SendCustomEventDelayedSeconds(nameof(CheckPortalDistance), 1f);
+            portal.SetParentObject(spawn, worldId);
         }
     }
 }

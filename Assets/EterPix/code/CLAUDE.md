@@ -42,7 +42,7 @@
   - 構成は `Panel`(VerticalLayoutGroup) → `Figure`(LayoutElementで4:3の高さを確保。**LayoutGroupは付けない**) → `FigureInner`(AspectRatioFitter: Fit In Parent、anchor全面stretch・pivot中央。縦横比はコードで16:9/9:16に切替) → `PostImage`。
   - `AspectRatioFitter`の直接の親にLayoutGroupがあると、Unityが「A child of a layout group should not have an Aspect Ratio Fitter」と警告し、位置をLayoutGroupが・サイズをFitterが決める競合で画像が上寄せ(下にズレた見た目)になる。Fit In Parentは縦画像も4:3枠に収めるために必要なので、Width Controls Heightには変えない。
 - `eterpix_monitor`(またはInspectorで割り当てた子)にトリガーColliderを追加し、`isTrigger=true`、レイキャストを遮らないレイヤー(例: `Ignore Raycast`)に設定する。そのレイヤーがPlayerLocalと衝突判定する設定になっていることをProject Settings > Physicsで確認する。
-- `eterpix_monitor`に`VRCPortalMarker`を1つ子として持たせ、`portalMarker`に紐付ける。
+- ポータルは旧系統と同じく**共通ポータルを1つだけ置いて呼び寄せる**方式。シーンに`v2/EterpixPortal.prefab`(`eterpix_porta_resize`で`VRCPortalMarker`を包んだもの)を1つ配置し、名前は`EterpixPortal`のままにする(`eterpix_monitor.portal`が未設定なら`GameObject.Find("EterpixPortal")`で解決する)。「ポータルを開く」ボタン(`OpenPortal()`)で`SetParentObject(portalSpawnPoint, world_vrc_id)`が呼ばれ、ポータルがそのモニターの`portalSpawnPoint`(prefab内の`portal`)へ移動する。3m離れると自動で非表示になる。
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
 - **UdonSharpはコードから`Button.onClick.AddListener()`(メソッドグループもラムダも)をバインドできず、コンパイルエラー(またはコンパイラのクラッシュ)になる。** `prevButton`/`nextButton`/`informationButton`/`openPortalButton`のOnClick()は、Inspector上でこの`eterpix_monitor`コンポーネントを直接ドラッグし、`PagePrev()`/`PageNext()`/`ToggleInformationWindow()`/`OpenPortal()`をそれぞれ手動登録すること(Prefabを使い回す場合はPrefab側で一度登録すればよい)。
 - Play開始前に必ずメニュー`ali/eterpix/Sync URL Lists from requestUrl`(v2対応後、v1の`eterpix_middle_nav`/`eterpix_middle_ring`とv2の`eterpix_requester`の両方を同一メニューで処理する)を実行し、256件のURLが同期されていることを確認する。
@@ -74,7 +74,7 @@
 - [ ] `TextureManager.StartDownloadWithTimestamps` は、ダウンロード中に来た要求を保留せずに捨てる。ダウンロードに失敗した場合、待機中のアイテムには通知されない (発見日: 2026-09-23)
 - [ ] `TextureManager` は `cachedTimestamps` をダウンロード成功前に確定させる。URLがnullまたは範囲外でスキップされたスロットは、キャッシュ済みとして残る (発見日: 2026-09-23)
 - [ ] `eterpix_listener_monitor` の回転は `localRotation` を直接上書きしている。セル側と違い、基準回転とpivot補正が入っていない (発見日: 2026-09-23)
-- [ ] `eterpix_porta_resize.Update` に `portal` のnullチェックがない。`eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
+- [ ] `eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
 - [ ] `Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
 
 ## うまくいった進め方
