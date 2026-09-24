@@ -50,6 +50,10 @@ namespace ali.eterpix.v2
         [Header("デバッグログ")]
         [SerializeField] private ali.eterpix.eterpix_debug debugLog;
 
+        [Header("診断用: トリガーColliderの範囲判定を無視して常に画像をリクエストする" +
+            "(画像が読み込まれない不具合の切り分け用。原因特定後はfalseに戻すこと)")]
+        [SerializeField] private bool debugIgnoreTriggerRange = false;
+
         private eterpix_requester _requester;
         private eterpix_downloader _downloader;
         private int _feedIndex = -1;
@@ -235,7 +239,7 @@ namespace ali.eterpix.v2
             ApplyUvRect(imgPos);
 
             _currentSlot = collageId;
-            if (_isInViewRange && _downloader != null && collageId >= 0)
+            if ((_isInViewRange || debugIgnoreTriggerRange) && _downloader != null && collageId >= 0)
             {
                 _hasRequestedTexture = true;
                 _downloader.RequestTexture(_feedIndex, collageId, 100, this);

@@ -415,7 +415,7 @@ MonoBehaviour:
   m_IgnoreLayout: 0
   m_MinWidth: -1
   m_MinHeight: -1
-  m_PreferredWidth: -1
+  m_PreferredWidth: 0
   m_PreferredHeight: -1
   m_FlexibleWidth: 1
   m_FlexibleHeight: -1
@@ -501,7 +501,7 @@ MonoBehaviour:
   m_IgnoreLayout: 0
   m_MinWidth: -1
   m_MinHeight: -1
-  m_PreferredWidth: -1
+  m_PreferredWidth: 0
   m_PreferredHeight: -1
   m_FlexibleWidth: 1
   m_FlexibleHeight: -1
@@ -3518,6 +3518,8 @@ GameObject:
   - component: {fileID: -5637579955018125924}
   - component: {fileID: 6019036488488600841}
   - component: {fileID: 7672307993067004684}
+  - component: {fileID: 5804164429322109105}
+  - component: {fileID: 4412254743514949310}
   m_Layer: 2
   m_Name: EterpixMonitorUI
   m_TagString: Untagged
@@ -3558,7 +3560,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializationData:
-    SerializedFormat: 0
+    SerializedFormat: 2
     SerializedBytes: 
     ReferencedUnityObjects: []
     SerializedBytesString: 
@@ -3585,6 +3587,7 @@ MonoBehaviour:
   informationWindowRoot: {fileID: 4957247721557325861}
   offset: 0
   debugLog: {fileID: 0}
+  debugIgnoreTriggerRange: 0
 --- !u!114 &-5637579955018125924
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3666,3 +3669,33 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 560, y: 716.5, z: 100}
   m_Center: {x: 0, y: -358.25, z: 0}
+--- !u!114 &5804164429322109105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9057616995974210498}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc42784cf147c0c48a680349fa168899, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_IgnoreReversedGraphics: 1
+  m_BlockingObjects: 0
+  m_BlockingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &4412254743514949310
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9057616995974210498}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1533785930, guid: 661092b4961be7145bfbe56e1e62337b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  AllowFocusView: 1
