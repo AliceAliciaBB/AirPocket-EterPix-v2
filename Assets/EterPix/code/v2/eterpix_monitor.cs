@@ -16,6 +16,8 @@ namespace ali.eterpix.v2
         [Header("画像 (figure #post_img)")]
         [SerializeField] private RawImage image;
         [SerializeField] private GameObject[] rotationTargetObjects;
+        [Header("画像の親(4:3枠。AspectRatioFitterで実際の縦横比に合わせて縮める対象)")]
+        [SerializeField] private AspectRatioFitter figureAspectFitter;
 
         [Header("ページ送り (#paging)")]
         [SerializeField] private Button prevButton;
@@ -71,10 +73,6 @@ namespace ali.eterpix.v2
         // Init()の実行順は保証されないため)。
         private bool _hasReceivedSync = false;
 
-        private Vector3[] _baseLocalPositions;
-        private Quaternion[] _baseLocalRotations;
-        private Vector3[] _basePivotToCenter;
-
         // ---- リクエスターからの初期化 ----
         public void Init(eterpix_requester requester, eterpix_downloader downloader, int feedIndex)
         {
@@ -87,8 +85,6 @@ namespace ali.eterpix.v2
                 GameObject debugObj = GameObject.Find(ali.eterpix.eterpix_debug.SingletonObjectName);
                 if (debugObj != null) debugLog = debugObj.GetComponent<ali.eterpix.eterpix_debug>();
             }
-
-            CacheBaseTransforms();
 
             // offset(Inspectorでの開始ページ位置)は[UdonSynced]の_syncedPageIndexへ
             // Init時に一度だけ反映する。ただし、Init()より先に本物の初回同期
@@ -105,21 +101,6 @@ namespace ali.eterpix.v2
             if (portalMarker != null) portalMarker.gameObject.SetActive(false);
 
             RefreshDisplay();
-        }
-
-        private void CacheBaseTransforms()
-        {
-            Transform[] targets = GetRotationTargets();
-            _baseLocalPositions = new Vector3[targets.Length];
-            _baseLocalRotations = new Quaternion[targets.Length];
-            _basePivotToCenter = new Vector3[targets.Length];
-            for (int i = 0; i < targets.Length; i++)
-            {
-                if (targets[i] == null) continue;
-                _baseLocalPositions[i] = targets[i].localPosition;
-                _baseLocalRotations[i] = targets[i].localRotation;
-                _basePivotToCenter[i] = GetPivotToCenter(targets[i]);
-            }
         }
 
         // ---- リクエスターからのJSON更新通知 ----
@@ -326,27 +307,47 @@ namespace ali.eterpix.v2
             return image != null ? new[] { image.transform } : new Transform[0];
         }
 
-        private Vector3 GetPivotToCenter(Transform target)
-        {
-            RectTransform rt = target.GetComponent<RectTransform>();
-            if (rt == null) return Vector3.zero;
-            Vector2 size = rt.rect.size;
-            Vector2 pivot = rt.pivot;
-            return new Vector3(size.x * (0.5f - pivot.x), size.y * (0.5f - pivot.y), 0f);
-        }
-
+        // コラージュの1セルは1024x576(16:9)。img_rotationが奇数(90/270度)のときは
+        // 縦画像として梱包されているため、見た目のアスペクト比は9:16に反転する。
+        // 4:3の枠(Figure)いっぱいにAspectRatioFitterで実際の縦横比まで縮め、
+        // 画像自体もその縮んだ後のサイズに合わせて回転・リサイズすることで、
+        // 「枠からはみ出さず」「引き伸ばさず」全体を収める。
         private void ApplyRotation(int imgRotation)
         {
+            bool isRotated = (((imgRotation % 4) + 4) % 4) % 2 == 1;
+
+            if (figureAspectFitter != null)
+            {
+                figureAspectFitter.aspectRatio = isRotated ? (9f / 16f) : (16f / 9f);
+            }
+
+            // AspectRatioFitterがついているRectTransform(=4:3枠の中で実際に縮んだ箱)の
+            // 直後のサイズを取得するため、直ちにレイアウトを再計算する。
+            RectTransform fitterRect = figureAspectFitter != null ? figureAspectFitter.GetComponent<RectTransform>() : null;
+            if (fitterRect != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(fitterRect);
+            }
+
             Quaternion rotation = Quaternion.Euler(0, 0, imgRotation * -90f);
+            Vector2 containerSize = fitterRect != null ? fitterRect.rect.size : Vector2.zero;
+            Vector2 imageSize = isRotated ? new Vector2(containerSize.y, containerSize.x) : containerSize;
+
             Transform[] targets = GetRotationTargets();
             for (int i = 0; i < targets.Length; i++)
             {
                 if (targets[i] == null) continue;
-                targets[i].localRotation = _baseLocalRotations[i] * rotation;
-
-                Vector3 c = _basePivotToCenter[i];
-                Vector3 shift = _baseLocalRotations[i] * (c - rotation * c);
-                targets[i].localPosition = _baseLocalPositions[i] + shift;
+                RectTransform rt = targets[i].GetComponent<RectTransform>();
+                if (rt != null && fitterRect != null)
+                {
+                    rt.anchorMin = new Vector2(0.5f, 0.5f);
+                    rt.anchorMax = new Vector2(0.5f, 0.5f);
+                    rt.pivot = new Vector2(0.5f, 0.5f);
+                    rt.sizeDelta = imageSize;
+                    rt.anchoredPosition = Vector2.zero;
+                }
+                targets[i].localRotation = rotation;
             }
         }
 
