@@ -28,8 +28,18 @@ ENTER 3 / EXIT 2 / 中にいる 1
 ## シーン上の構成 (20260923-etp)
 
 ```
+Etp_テンプレート/EterpixRequester/EterpixMonitorUI (3)
+└─ BoxCollider(isTrigger, 3.5×5×5m) + ColliderReliabilityChecker  ← 検査対象
+
 コライダーの信頼性チェック
-├─ Cube   … BoxCollider(isTrigger) + ColliderReliabilityChecker
+├─ Cube   … BoxCollider(isTrigger)。予備の検査用
 └─ Canvas … Screen Space - Overlay (デスクトップ確認用。VRでは表示されない)
-   └─ Text (TMP)
+   └─ Text (TMP)  ← ColliderReliabilityChecker の表示先
 ```
+
+## 注意
+
+UdonBehaviour を別の GameObject に移動・追加・削除すると、VRCWorld の Network ID 表と
+食い違ってビルドが `Failed to assign network IDs` で失敗する。
+VRChat SDK > Utilities > Network ID Import and Export Utility で競合を解消するか、
+不要になったエントリを削除すること。
