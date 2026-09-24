@@ -297,6 +297,10 @@ namespace ali.eterpix.v2
             {
                 image.material = null;
                 image.texture = texture;
+                // PostImageは「未読込時は黒いプレースホルダー」として色を黒(0,0,0,1)にしてある。
+                // この色はRawImageのテクスチャに乗算されるため、白に戻さないと実際の写真が
+                // 常に真っ黒に表示されてしまう。
+                image.color = Color.white;
             }
         }
 
