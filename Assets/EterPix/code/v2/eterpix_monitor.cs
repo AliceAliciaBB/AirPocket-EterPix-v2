@@ -107,6 +107,7 @@ namespace ali.eterpix.v2
 
             if (informationWindowRoot != null) informationWindowRoot.SetActive(false);
 
+            BindViewRangeTriggers();
             RefreshDisplay();
         }
 
@@ -118,11 +119,28 @@ namespace ali.eterpix.v2
         }
 
         // ---- トリガーColliderによるオンデマンド画像要求 ----
-        // このGameObject(またはInspectorで割り当てた子)にColliderを持たせ、isTrigger=true、
-        // レイキャストを遮らないレイヤー(Ignore Raycast等)に置く。
-        public override void OnPlayerTriggerEnter(VRCPlayerApi player)
+        // ルートはVRCUiShapeがBoxColliderをUI操作用に管理するため、表示範囲のトリガーは
+        // 子のGameObjectにCollider(isTrigger=true、Ignore Raycast等のレイキャストを遮らない
+        // レイヤー)とeterpix_monitor_triggerを付けて分ける。出入りはそこから中継される。
+        // 中継側からGetComponentInParentで親を探さず、こちらから子を集めて参照を渡す。
+        // Init()がStart()より先に呼ばれる場合があるため、両方から呼ぶ(何度呼んでもよい)。
+        private void Start()
         {
-            if (!player.isLocal) return;
+            BindViewRangeTriggers();
+        }
+
+        private void BindViewRangeTriggers()
+        {
+            eterpix_monitor_trigger[] triggers = GetComponentsInChildren<eterpix_monitor_trigger>(true);
+            for (int i = 0; i < triggers.Length; i++)
+            {
+                triggers[i].SetMonitor(this);
+            }
+        }
+
+        // eterpix_monitor_triggerから、ローカルプレイヤーが表示範囲に入ったときに呼ばれる
+        public void OnViewRangeEnter()
+        {
             _isInViewRange = true;
 
             if (_downloader != null && _currentSlot >= 0 && !_hasRequestedTexture)
@@ -132,9 +150,9 @@ namespace ali.eterpix.v2
             }
         }
 
-        public override void OnPlayerTriggerExit(VRCPlayerApi player)
+        // eterpix_monitor_triggerから、ローカルプレイヤーが表示範囲から出たときに呼ばれる
+        public void OnViewRangeExit()
         {
-            if (!player.isLocal) return;
             _isInViewRange = false;
             ReleaseCurrentTextureIfAny();
         }
