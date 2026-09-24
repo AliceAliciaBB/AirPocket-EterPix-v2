@@ -54,6 +54,9 @@ namespace ali.eterpix.v2
             "(画像が読み込まれない不具合の切り分け用。原因特定後はfalseに戻すこと)")]
         [SerializeField] private bool debugIgnoreTriggerRange = false;
 
+        [Header("診断用: ApplyPost実行時の内部状態(読み取り専用、外部から確認するためのもの)")]
+        public string debugState = "";
+
         private eterpix_requester _requester;
         private eterpix_downloader _downloader;
         private int _feedIndex = -1;
@@ -239,9 +242,11 @@ namespace ali.eterpix.v2
             ApplyUvRect(imgPos);
 
             _currentSlot = collageId;
+            debugState = $"isInViewRange={_isInViewRange} debugIgnore={debugIgnoreTriggerRange} downloaderNull={(_downloader == null)} feedIndex={_feedIndex} collageId={collageId}";
             if ((_isInViewRange || debugIgnoreTriggerRange) && _downloader != null && collageId >= 0)
             {
                 _hasRequestedTexture = true;
+                debugState += " -> RequestTexture called";
                 _downloader.RequestTexture(_feedIndex, collageId, 100, this);
             }
 
