@@ -39,6 +39,8 @@
 - `eterpix_requester`の子に`eterpix_monitor`を1つ以上配置する(非アクティブでも`GetComponentsInChildren(true)`で拾われる)。
 - `eterpix_monitor`のUIはvrc_uiのhtmlモック(`D:\git\eterpix-v10\vrc_ui\vrcetepixui.html`/`.css`)に合わせてUnity UIを手組みし、`image`/`prevButton`/`nextButton`/`pageLabel`/`userNameText`/`descriptionText`/`worldContextRoot`/`worldNameText`/`worldDescriptionText`/`openPortalButton`/`informationButton`/`informationWindowRoot`をInspectorで紐付ける。
 - 画像を「4:3の枠に切らずに全体を収める」表示は`eterpix_monitor`のコードでは行わない。`image`の親に`AspectRatioFitter`(Fit Mode: Fit In Parent)をアタッチし、4:3のコンテナ内に収める形でEditor上で設定する。
+  - 構成は `Panel`(VerticalLayoutGroup) → `Figure`(LayoutElementで4:3の高さを確保。**LayoutGroupは付けない**) → `FigureInner`(AspectRatioFitter: Fit In Parent、anchor全面stretch・pivot中央。縦横比はコードで16:9/9:16に切替) → `PostImage`。
+  - `AspectRatioFitter`の直接の親にLayoutGroupがあると、Unityが「A child of a layout group should not have an Aspect Ratio Fitter」と警告し、位置をLayoutGroupが・サイズをFitterが決める競合で画像が上寄せ(下にズレた見た目)になる。Fit In Parentは縦画像も4:3枠に収めるために必要なので、Width Controls Heightには変えない。
 - `eterpix_monitor`(またはInspectorで割り当てた子)にトリガーColliderを追加し、`isTrigger=true`、レイキャストを遮らないレイヤー(例: `Ignore Raycast`)に設定する。そのレイヤーがPlayerLocalと衝突判定する設定になっていることをProject Settings > Physicsで確認する。
 - `eterpix_monitor`に`VRCPortalMarker`を1つ子として持たせ、`portalMarker`に紐付ける。
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
@@ -80,7 +82,16 @@
 success_count が概ね20に達したら、スラッシュコマンド化や
 Unity.mdなど横断メモへの昇格を検討する。
 
-(まだ記録なし)
+```yaml
+---
+name: aspect_ratio_fitter_under_layout_group
+success_count: 1
+promoted_to:
+---
+
+PROBLEM: FigureInner(AspectRatioFitter: Fit In Parent)の親FigureにHorizontalLayoutGroup(UpperLeft)が付いていて、画像が枠の上に寄り下に余白ができた(「A child of a layout group should not have an Aspect Ratio Fitter」警告)。
+FIX: Figure(LayoutGroup管理される側、LayoutElementのみ)からLayoutGroupを削除し、FigureInnerをanchor全面stretch・pivot(0.5,0.5)にしてFitterだけにサイズを決めさせた。
+```
 
 ---
 
