@@ -23,6 +23,8 @@ EterPix(https://www.eterpix.uk)の投稿写真を VRChat ワールド内に表�
   v2 (`Assets/EterPix`) では `EterpixRequester` の「取得先」ドロップダウンで URL を選び、画像 URL は URL を変えた瞬間に自動で反映される。
   メニューの `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)` は念のための手動作り直し用。
 - 作り直し(v2)の仕様は [Assets/EterPix/code/リファクタリング案.md](Assets/EterPix/code/リファクタリング案.md) にある。
+- BOOTH 配布版(unitypackage と zip)の作成と商品説明の更新は、Claude Code で `/booth-release` を実行する。
+  手順は [.claude/skills/booth-release/SKILL.md](.claude/skills/booth-release/SKILL.md) を参照。出力先は `V:\Etp-vrc-gimmick\`。
 
 ## リポジトリに含めないもの
 - `Library/` などの Unity 自動生成フォルダ
