@@ -307,20 +307,22 @@ namespace ali.eterpix.v2
                 return;
             }
 
+            // v1形式(/api/vrc/v1/...)。投稿配列は"post"、ワールド情報は"woda"。
+            // 知らないkeyは読まずに無視する(v1はkey追加のみ行われるため)。
             DataDictionary rootDict = token.DataDictionary;
 
-            if (rootDict.TryGetValue("posts", out DataToken postToken) && postToken.TokenType == TokenType.DataList)
+            if (rootDict.TryGetValue("post", out DataToken postToken) && postToken.TokenType == TokenType.DataList)
             {
                 _feedPosts[feedIndex] = postToken.DataList;
             }
             else
             {
-                if (debugLog != null) debugLog.LogError($"[eterpix_downloader] 'posts' key not found for feed {feedIndex}");
+                if (debugLog != null) debugLog.LogError($"[eterpix_downloader] 'post' key not found for feed {feedIndex} (v1形式のURL /api/vrc/v1/... か確認)");
                 StartNextFetchIfIdle();
                 return;
             }
 
-            if (rootDict.TryGetValue("world_data", out DataToken worldDataToken) && worldDataToken.TokenType == TokenType.DataDictionary)
+            if (rootDict.TryGetValue("woda", out DataToken worldDataToken) && worldDataToken.TokenType == TokenType.DataDictionary)
             {
                 _feedWorldData[feedIndex] = worldDataToken.DataDictionary;
             }

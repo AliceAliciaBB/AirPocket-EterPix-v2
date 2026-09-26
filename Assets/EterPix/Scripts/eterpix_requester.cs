@@ -113,10 +113,11 @@ namespace ali.eterpix.v2
             {
                 if (!posts.TryGetValue(i, out DataToken postToken) || postToken.TokenType != TokenType.DataDictionary) continue;
 
+                // v1のpo18は1/0の数値(VRCJsonではDouble)。1のときだけR18とみなす
                 bool isR18 = false;
-                if (postToken.DataDictionary.TryGetValue("is_r18", out DataToken isR18Token) && isR18Token.TokenType == TokenType.Boolean)
+                if (postToken.DataDictionary.TryGetValue("po18", out DataToken isR18Token) && isR18Token.TokenType == TokenType.Double)
                 {
-                    isR18 = isR18Token.Boolean;
+                    isR18 = (int)isR18Token.Double == 1;
                 }
 
                 if (isR18 && !showR18Posts) continue;
@@ -147,14 +148,14 @@ namespace ali.eterpix.v2
         {
             DataDictionary entry = ResolveWorldEntry(worldId);
             if (entry == null) return "";
-            return ReadString(entry, "world_name", "");
+            return ReadString(entry, "wona", "");
         }
 
         public string ResolveWorldDescription(string worldId)
         {
             DataDictionary entry = ResolveWorldEntry(worldId);
             if (entry == null) return "";
-            return ReadString(entry, "confirmed_description", "");
+            return ReadString(entry, "wode", "");
         }
 
         private DataDictionary ResolveWorldEntry(string worldId)

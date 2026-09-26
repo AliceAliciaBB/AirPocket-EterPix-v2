@@ -65,7 +65,7 @@ namespace ali.eterpix.v2
         private eterpix_downloader _downloader;
         private int _feedIndex = -1;
 
-        private int _currentSlot = -1; // 現在ApplyTexture済みのcollage_id(=slot)
+        private int _currentSlot = -1; // 現在ApplyTexture済みのcoid(=collage_id=slot)
         private bool _hasRequestedTexture = false;
         private bool _isInViewRange = false;
 
@@ -237,12 +237,14 @@ namespace ali.eterpix.v2
             ReleaseCurrentTextureIfAny();
             _currentPost = data;
 
-            int collageId = ReadInt(data, "collage_id", -1);
-            int imgPos = ReadInt(data, "img_pos", -1);
-            int imgRotation = ReadInt(data, "img_rotation", 0);
-            string description = ReadString(data, "description", "");
-            string userName = ReadString(data, "user_name", "");
-            string worldId = ReadString(data, "world_vrc_id", "");
+            // v1形式のkey(coid=collage_id, copo=img_pos, coro=img_rotation,
+            // pode=description, usna=user_name, woid=world_vrc_id)
+            int collageId = ReadInt(data, "coid", -1);
+            int imgPos = ReadInt(data, "copo", -1);
+            int imgRotation = ReadInt(data, "coro", 0);
+            string description = ReadString(data, "pode", "");
+            string userName = ReadString(data, "usna", "");
+            string worldId = ReadString(data, "woid", "");
 
             ApplyRotation(imgRotation);
             ApplyUvRect(imgPos);
@@ -332,7 +334,7 @@ namespace ali.eterpix.v2
             return image != null ? new[] { image.transform } : new Transform[0];
         }
 
-        // コラージュの1セルは1024x576(16:9)。img_rotationが奇数(90/270度)のときは
+        // コラージュの1セルは1024x576(16:9)。coro(img_rotation)が奇数(90/270度)のときは
         // 縦画像として梱包されているため、見た目のアスペクト比は9:16に反転する。
         // 4:3の枠(Figure)いっぱいにAspectRatioFitterで実際の縦横比まで縮め、
         // 画像自体もその縮んだ後のサイズに合わせて回転・リサイズすることで、
@@ -412,7 +414,7 @@ namespace ali.eterpix.v2
         {
             if (portal == null || _currentPost == null) return;
 
-            string worldId = ReadString(_currentPost, "world_vrc_id", "");
+            string worldId = ReadString(_currentPost, "woid", "");
             if (string.IsNullOrEmpty(worldId)) return;
 
             Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
