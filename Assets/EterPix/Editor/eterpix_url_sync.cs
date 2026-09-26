@@ -6,10 +6,11 @@ using VRC.SDKBase;
 
 namespace ali.eterpix
 {
-    // Play開始前に、eterpix_requesterのrequestUrl(json_URL)を元にvrcurllist.baseUrlを
+    // eterpix_requesterのrequestUrl(json_URL)を元にvrcurllist(img_URL = requestUrl + /00〜/FF)を
     // 自動生成する(img_URLとjson_URLはベースが同一のため、手動の二重入力を避ける)。
+    // requestUrlをInspectorで変えた瞬間(eterpix_requesterEditor)と、Play開始前に自動で実行される。
     // UdonはUdon実行時にVRCUrlを文字列から生成する手段を持たないため、この同期は
-    // Editor時(Play開始前)に行い、生成結果をシーンに保存する。
+    // Editor時に行い、生成結果をシーンに保存する。
     [InitializeOnLoad]
     public static class eterpix_url_sync
     {
@@ -24,7 +25,8 @@ namespace ali.eterpix
             SyncAll();
         }
 
-        [MenuItem("ali/eterpix/Sync URL Lists from requestUrl")]
+        // 自動で反映されるため通常は使わない(念のための手動作り直し用として残している)
+        [MenuItem("ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)")]
         private static void SyncAllMenuItem()
         {
             SyncAll();
@@ -32,15 +34,21 @@ namespace ali.eterpix
 
         private static void SyncAll()
         {
-            // v2は256スロット固定が設計上の前提のため、Inspectorの既定値(16)のまま放置されて
-            // 静かに16件しか生成されない事故(レビュー指摘: v2導入の目的そのものを損なう)を防ぐため、
-            // SyncOneに渡す前にarraySizeを強制的に256へ揃える。
             // (旧系統v1のnav/ringは開発用フォルダのeterpix_url_sync_v1がSyncOneを使って同期する)
             foreach (var requester in Object.FindObjectsByType<ali.eterpix.v2.eterpix_requester>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
-                ForceArraySize(requester, "urlList", ali.eterpix.v2.eterpix_downloader.ImageSlotsPerFeed);
-                SyncOne(requester, "urlList", "requestUrl");
+                SyncRequester(requester);
             }
+        }
+
+        // v2は256スロット固定が設計上の前提のため、Inspectorの既定値(16)のまま放置されて
+        // 静かに16件しか生成されない事故(レビュー指摘: v2導入の目的そのものを損なう)を防ぐため、
+        // SyncOneに渡す前にarraySizeを強制的に256へ揃える。
+        public static void SyncRequester(ali.eterpix.v2.eterpix_requester requester)
+        {
+            if (requester == null) return;
+            ForceArraySize(requester, "urlList", ali.eterpix.v2.eterpix_downloader.ImageSlotsPerFeed);
+            SyncOne(requester, "urlList", "requestUrl");
         }
 
         // SyncOneと同じリフレクション経由のフィールド取得手法で、指定コンポーネントが参照する
@@ -57,8 +65,9 @@ namespace ali.eterpix
 
             if (urlList.arraySize != requiredArraySize)
             {
+                Undo.RecordObject(urlList, "Sync URL List");
                 urlList.arraySize = requiredArraySize;
-                EditorUtility.SetDirty(urlList);
+                MarkChanged(urlList);
             }
         }
 
@@ -81,6 +90,7 @@ namespace ali.eterpix
 
         private static void GenerateUrls(vrcurllist urlList, string newBaseUrl)
         {
+            Undo.RecordObject(urlList, "Sync URL List");
             urlList.baseUrl = newBaseUrl;
 
             if (urlList.arraySize < 1 || urlList.arraySize > 256)
@@ -98,8 +108,19 @@ namespace ali.eterpix
                 urlList.urlArray[i] = new VRCUrl(normalizedBaseUrl + hexValue);
             }
 
-            EditorUtility.SetDirty(urlList);
+            MarkChanged(urlList);
             Debug.Log($"[eterpix_url_sync] {urlList.name}: requestUrlから{urlList.arraySize}個のURLを同期しました(base={normalizedBaseUrl})");
+        }
+
+        // シーン上のprefabインスタンスを直接書き換えた場合、SetDirtyだけではprefabの
+        // オーバーライドとして記録されず、シーン保存時に変更が失われるため明示的に記録する
+        private static void MarkChanged(vrcurllist urlList)
+        {
+            EditorUtility.SetDirty(urlList);
+            if (PrefabUtility.IsPartOfPrefabInstance(urlList))
+            {
+                PrefabUtility.RecordPrefabInstancePropertyModifications(urlList);
+            }
         }
     }
 }

@@ -11,6 +11,10 @@ namespace ali.eterpix.v2
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class eterpix_requester : UdonSharpBehaviour
     {
+        // JSON URLの選択肢(Editor/eterpix_requesterEditor.csのドロップダウンで選ぶ。実行時は未使用)。
+        // 0=パブリック投稿, -1=自分で入力。値はIDとして保存されるため、項目を並べ替えても変えないこと
+        [SerializeField] private int urlPreset = 0;
+
         [Header("JSON URL")]
         [SerializeField] private VRCUrl requestUrl;
 

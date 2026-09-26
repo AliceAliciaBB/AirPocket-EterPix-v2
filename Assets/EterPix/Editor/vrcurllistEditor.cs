@@ -14,18 +14,32 @@ namespace ali.eterpix
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target)) return;
             
             vrcurllist urlList = (vrcurllist)target;
-            
-            EditorGUI.BeginChangeCheck();
-            
-            urlList.baseUrl = EditorGUILayout.TextField("Base URL", urlList.baseUrl);
-            urlList.arraySize = EditorGUILayout.IntSlider("Array Size", urlList.arraySize, 1, 256);
-            
-            bool changed = EditorGUI.EndChangeCheck();
-            
-            EditorGUILayout.Space();
-            if (GUILayout.Button("Generate URLs", GUILayout.Height(30)))
+
+            // eterpix_requesterが参照しているリストはrequestUrlから自動生成されるため編集させない
+            // (旧系統TextureManager用のリストは手動で揃えるため、従来どおり編集できるようにしておく)
+            bool isAutoManaged = IsReferencedByRequester(urlList);
+            if (isAutoManaged)
             {
-                GenerateUrls(urlList);
+                EditorGUILayout.HelpBox("requestUrl から自動で反映されます(requestUrl + /00〜/FF)。触らないでください。", MessageType.Info);
+            }
+
+            EditorGUI.BeginChangeCheck();
+
+            using (new EditorGUI.DisabledScope(isAutoManaged))
+            {
+                urlList.baseUrl = EditorGUILayout.TextField("Base URL", urlList.baseUrl);
+                urlList.arraySize = EditorGUILayout.IntSlider("Array Size", urlList.arraySize, 1, 256);
+            }
+
+            bool changed = EditorGUI.EndChangeCheck();
+
+            EditorGUILayout.Space();
+            using (new EditorGUI.DisabledScope(isAutoManaged))
+            {
+                if (GUILayout.Button("Generate URLs", GUILayout.Height(30)))
+                {
+                    GenerateUrls(urlList);
+                }
             }
             
             if (changed)
@@ -78,6 +92,20 @@ namespace ali.eterpix
             }
         }
         
+        // 同じルート配下(シーン上のprefabインスタンス/prefab編集画面のどちらでも)の
+        // eterpix_requesterのurlListに、このリストが設定されているか
+        private static bool IsReferencedByRequester(vrcurllist urlList)
+        {
+            var requesters = urlList.transform.root.GetComponentsInChildren<ali.eterpix.v2.eterpix_requester>(true);
+            foreach (var requester in requesters)
+            {
+                var so = new SerializedObject(requester);
+                SerializedProperty prop = so.FindProperty("urlList");
+                if (prop != null && prop.objectReferenceValue == urlList) return true;
+            }
+            return false;
+        }
+
         private void GenerateUrls(vrcurllist urlList)
         {
             if (string.IsNullOrEmpty(urlList.baseUrl))

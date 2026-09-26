@@ -20,7 +20,8 @@ EterPix(https://www.eterpix.uk)の投稿写真を VRChat ワールド内に表�
 - ギミック本体は `Assets/EterPix/` にある。スクリプトの構成と注意点は [Assets/EterPix/code/CLAUDE.md](Assets/EterPix/code/CLAUDE.md) を参照。
 - JSON の取得先 URL は、中位スクリプト(`eterpix_middle_nav` / `eterpix_middle_ring`)の `requestUrl` に設定する。
   Play 開始時に、画像 URL の一覧(`vrcurllist`)が `requestUrl` をもとに自動生成される。
-  手動で生成し直す場合は、メニューの `ali/eterpix/Sync URL Lists from requestUrl` を使う。
+  v2 (`Assets/EterPix`) では `EterpixRequester` の「取得先」ドロップダウンで URL を選び、画像 URL は URL を変えた瞬間に自動で反映される。
+  メニューの `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)` は念のための手動作り直し用。
 - 作り直し(v2)の仕様は [Assets/EterPix/code/リファクタリング案.md](Assets/EterPix/code/リファクタリング案.md) にある。
 
 ## リポジトリに含めないもの

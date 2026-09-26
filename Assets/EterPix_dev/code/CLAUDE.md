@@ -52,11 +52,11 @@
 - ポータルは旧系統と同じく**共通ポータルを1つだけ置いて呼び寄せる**方式。シーンに`Assets/EterPix/Prefabs/EterpixPortal.prefab`(`eterpix_porta_resize`で`VRCPortalMarker`を包んだもの)を1つ配置し、名前は`EterpixPortal`のままにする(`eterpix_monitor.portal`が未設定なら`GameObject.Find("EterpixPortal")`で解決する)。「ポータルを開く」ボタン(`OpenPortal()`)で`SetParentObject(portalSpawnPoint, world_vrc_id)`が呼ばれ、ポータルがそのモニターの`portalSpawnPoint`(prefab内の`portal`)へ移動する。3m離れると自動で非表示になる。
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
 - **UdonSharpはコードから`Button.onClick.AddListener()`(メソッドグループもラムダも)をバインドできず、コンパイルエラー(またはコンパイラのクラッシュ)になる。** `prevButton`/`nextButton`/`informationButton`/`openPortalButton`のOnClick()は、Inspector上でこの`eterpix_monitor`コンポーネントを直接ドラッグし、`PagePrev()`/`PageNext()`/`ToggleInformationWindow()`/`OpenPortal()`をそれぞれ手動登録すること(Prefabを使い回す場合はPrefab側で一度登録すればよい)。
-- Play開始前に必ずメニュー`ali/eterpix/Sync URL Lists from requestUrl`(v2の`eterpix_requester`用。v1の`eterpix_middle_nav`/`eterpix_middle_ring`は`ali/eterpix/Sync URL Lists from requestUrl (v1 nav/ring)`に分離した。Play開始時はどちらも自動で実行される)を実行し、256件のURLが同期されていることを確認する。
+- v2の`eterpix_requester`はInspectorの「取得先」ドロップダウン(`Editor/eterpix_requesterEditor.cs`、保存値`urlPreset`: 0=パブリック投稿, -1=自分で入力。IDは並べ替えない)でURLを選び、画像URL表はURL変更時に自動で作り直される。念のためのメニュー`ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)`(v2の`eterpix_requester`用。v1の`eterpix_middle_nav`/`eterpix_middle_ring`は`ali/eterpix/Sync URL Lists from requestUrl (v1 nav/ring)`に分離した。Play開始時はどちらも自動で実行される)もある。Play前に256件のURLが同期されていることを確認する。
 
 ## ビルド・実行コマンド
 - Unity Editor上でPlayする。Play開始時に `eterpix_url_sync` が自動で実行される。
-- 手動でURLを同期する場合はメニューの `ali/eterpix/Sync URL Lists from requestUrl`(v2) / `… (v1 nav/ring)`(v1) を使う。
+- 手動でURLを同期する場合はメニューの `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)`(v2) / `… (v1 nav/ring)`(v1) を使う。
 
 ## 注意が必要な箇所
 - `architecture.md` は現在のコードより古い。回転補正は現在 `localPosition` + `_basePivotToCenter` 方式で、`eterpix_photo_get` はリングバッファ方式に変わっている。仕様はコードを正とする。

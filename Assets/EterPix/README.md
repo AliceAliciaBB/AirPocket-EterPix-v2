@@ -10,9 +10,11 @@
 ## 使い方
 
 1. `Etp_テンプレート.prefab` をシーンに置く
-2. `EterpixRequester` の Inspector で `requestUrl` (投稿 JSON の URL) を設定する(v1形式: `https://api.eterpix.uk/api/vrc/v1/public` など。旧形式 `/api/vrc/...` は非対応)
-3. メニュー `ali/eterpix/Sync URL Lists from requestUrl` を実行し、画像 URL (256 件) を生成する
-   (Play 開始時にも自動で実行される)
+2. `EterpixRequester` の Inspector の「取得先」ドロップダウンで JSON の URL を選ぶ
+   - `パブリック投稿`: `https://api.eterpix.uk/api/vrc/v1/public` が自動で入る
+   - `自分で入力`: フォルダ等のリンクをそのまま貼り付ける(補間しない)。v1 形式 (`/api/vrc/v1/...`) のみ対応
+3. 画像 URL (256 件、`requestUrl` + `/00`〜`/FF`) は URL を変えた瞬間に自動で反映される。
+   メニュー `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)` は念のための手動作り直し用で、通常は触らない
 4. モニターを増やす場合は `Prefabs/EterpixMonitorUI.prefab` を `EterpixRequester` の子に置く
 
 ### 注意
