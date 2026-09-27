@@ -40,6 +40,12 @@ namespace ali.eterpix.v2
         private int[] _visibleIndices = new int[0];
         public int VisibleCount => _visibleIndices.Length;
 
+        // ダウンローダのフィード状態(eterpix_downloader.FeedStatus*)。未登録なら読み込み中扱い
+        public int FeedStatus => (_downloader != null && _feedIndex >= 0) ? _downloader.GetFeedStatus(_feedIndex) : eterpix_downloader.FeedStatusLoading;
+
+        // 一度でも投稿配列を受け取ったか(取得に失敗しても前回のデータがあれば表示を続けるため)
+        public bool HasEverSucceeded => _downloader != null && _feedIndex >= 0 && _downloader.GetFeedPosts(_feedIndex) != null;
+
         private void Start()
         {
             if (debugLog == null)
@@ -70,7 +76,7 @@ namespace ali.eterpix.v2
             // 既に他のリクエスターによってこのフィードのJSONが取得済みの場合、
             // RegisterFeedの中では(_feedIndexがまだ代入されていないため)キャッチアップ通知を
             // 送れない。_feedIndex代入が完了したこの時点で改めて確認し、必要なら自分で呼ぶ。
-            if (_downloader.GetFeedPosts(_feedIndex) != null) OnJsonUpdated();
+            if (_downloader.GetFeedPosts(_feedIndex) != null || _downloader.GetFeedStatus(_feedIndex) != eterpix_downloader.FeedStatusLoading) OnJsonUpdated();
 
             for (int i = 0; i < _monitors.Length; i++)
             {

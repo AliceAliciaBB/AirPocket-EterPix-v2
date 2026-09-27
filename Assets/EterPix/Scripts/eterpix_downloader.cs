@@ -18,6 +18,16 @@ namespace ali.eterpix.v2
         public const string SingletonObjectName = "EterpixDownloaderV2";
         public const int ImageSlotsPerFeed = 256;
 
+        // フィードの取得状態(モニターのエラー表示に使う)
+        public const int FeedStatusLoading = 0;
+        public const int FeedStatusOk = 1;
+        public const int FeedStatusUntrustedUrl = 2;
+        public const int FeedStatusServerError = 3;
+
+        // VRChatの「信頼されていないURLを許可」がOFFのときの result.Error に含まれる文字列
+        // (Tesca BOOTH_Poster と同じ判定)
+        private const string UntrustedUrlErrorMarker = "Not trusted url hit";
+
         [Header("最大フィード数(固定サイズ配列の上限)")]
         [SerializeField] private int maxFeeds = 4;
 
@@ -35,6 +45,7 @@ namespace ali.eterpix.v2
         private DataList[] _feedPosts;       // 生データ(フィルタ前)
         private DataDictionary[] _feedWorldData;
         private bool[] _feedPending;
+        private int[] _feedStatus;
         private eterpix_requester[][] _feedRequesters; // フィードごとに登録されたリクエスター(可変長を模した固定長+件数管理)
         private int[] _feedRequesterCounts;
         private int _feedCount = 0;
@@ -111,6 +122,7 @@ namespace ali.eterpix.v2
             _feedPosts = new DataList[maxFeeds];
             _feedWorldData = new DataDictionary[maxFeeds];
             _feedPending = new bool[maxFeeds];
+            _feedStatus = new int[maxFeeds];
             _feedRequesters = new eterpix_requester[maxFeeds][];
             _feedRequesterCounts = new int[maxFeeds];
             _fetchQueue = new int[maxFeeds];
@@ -303,6 +315,8 @@ namespace ali.eterpix.v2
                 token.TokenType != TokenType.DataDictionary)
             {
                 if (debugLog != null) debugLog.LogError($"[eterpix_downloader] Failed to parse JSON for feed {feedIndex}");
+                _feedStatus[feedIndex] = FeedStatusServerError;
+                NotifyFeedRequesters(feedIndex);
                 StartNextFetchIfIdle();
                 return;
             }
@@ -318,6 +332,8 @@ namespace ali.eterpix.v2
             else
             {
                 if (debugLog != null) debugLog.LogError($"[eterpix_downloader] 'post' key not found for feed {feedIndex} (v1形式のURL /api/vrc/v1/... か確認)");
+                _feedStatus[feedIndex] = FeedStatusServerError;
+                NotifyFeedRequesters(feedIndex);
                 StartNextFetchIfIdle();
                 return;
             }
@@ -333,6 +349,7 @@ namespace ali.eterpix.v2
 
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Feed {feedIndex}: {_feedPosts[feedIndex].Count} posts");
 
+            _feedStatus[feedIndex] = FeedStatusOk;
             NotifyFeedRequesters(feedIndex);
             StartNextFetchIfIdle();
         }
@@ -347,7 +364,14 @@ namespace ali.eterpix.v2
                 return;
             }
             _feedPending[feedIndex] = false;
-            if (debugLog != null) debugLog.LogError($"[eterpix_downloader] String load error for feed {feedIndex}: {result.Error}");
+
+            string error = result.Error;
+            bool isUntrusted = !string.IsNullOrEmpty(error) && error.Contains(UntrustedUrlErrorMarker);
+            _feedStatus[feedIndex] = isUntrusted ? FeedStatusUntrustedUrl : FeedStatusServerError;
+            if (debugLog != null) debugLog.LogError($"[eterpix_downloader] String load error for feed {feedIndex}: {error}");
+
+            // 一度でも成功していれば、requester/モニター側は前回のデータを表示し続ける
+            NotifyFeedRequesters(feedIndex);
             StartNextFetchIfIdle();
         }
 
@@ -372,6 +396,12 @@ namespace ali.eterpix.v2
         {
             if (feedIndex < 0 || feedIndex >= _feedCount) return null;
             return _feedWorldData[feedIndex];
+        }
+
+        public int GetFeedStatus(int feedIndex)
+        {
+            if (feedIndex < 0 || feedIndex >= _feedCount) return FeedStatusLoading;
+            return _feedStatus[feedIndex];
         }
 
         // ---- 画像スロット管理: URL表登録 ----
