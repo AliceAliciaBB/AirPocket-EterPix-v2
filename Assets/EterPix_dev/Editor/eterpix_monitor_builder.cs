@@ -139,6 +139,11 @@ namespace ali.eterpix.dev
                 canvas.additionalShaderChannels = AdditionalCanvasShaderChannels.TexCoord1 | AdditionalCanvasShaderChannels.Normal | AdditionalCanvasShaderChannels.Tangent;
                 screen.AddComponent<GraphicRaycaster>();
                 screen.AddComponent<VRCUiShape>();
+                // VRCUiShapeがUI操作に使うBoxCollider(画面全体、pivotが上端なので中心は高さの半分下)
+                BoxCollider uiBox = screen.AddComponent<BoxCollider>();
+                uiBox.isTrigger = true;
+                uiBox.size = new Vector3(W, h, 1f);
+                uiBox.center = new Vector3(0f, -h / 2f, 0f);
                 RectTransform srt = (RectTransform)screen.transform;
                 srt.anchorMin = new Vector2(0.5f, 0.5f);
                 srt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -306,10 +311,12 @@ namespace ali.eterpix.dev
                 BuildInfoContent(info);
                 info.SetActive(false);
 
-                // ---- ポータル出現位置(旧prefabと同じ値)。表示範囲の判定はEterpixRequesterのトリガーColliderで行う
+                // ---- ポータル出現位置。表示範囲の判定はEterpixRequesterのトリガーColliderで行う
                 GameObject spawn = new GameObject("PortalSpawnPoint");
                 spawn.transform.SetParent(root.transform, false);
-                spawn.transform.localPosition = new Vector3(-233f, -548f, 0f);
+                // 調整済みの値。prefabを手で直した場合はここも合わせる(作り直すとこの値で上書きされる)
+                spawn.transform.localPosition = new Vector3(200f, split ? -750f : -850f, 0f);
+                spawn.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
                 // ---- monitor の参照
                 SerializedObject so = new SerializedObject(monitor);
