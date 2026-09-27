@@ -41,13 +41,9 @@ namespace ali.eterpix.v2
         public bool IsLocalPlayerInRange => _isLocalPlayerInRange;
 
         // OnPlayerTriggerEnterは、Udonの初期化前から範囲内にいた(範囲内でスポーンした)場合に届かないことがある
-        // (ClientSimで確認)。取りこぼしを補うため、一定間隔でプレイヤーの位置が範囲内かを確かめる
-        private const float RangeCheckIntervalSeconds = 1f;
-        // トリガーはプレイヤーのカプセルが触れた時点で反応するため、位置の判定にもその分の余裕を持たせる
-        // (境界でトリガーと位置判定が食い違って出入りを繰り返さないように)
-        private const float RangeCheckMargin = 0.3f;
-        private Collider _rangeCollider;
-        private float _nextRangeCheckTime = -1f;
+        // (ClientSimで確認)。取りこぼしを補うため、ローカルプレイヤーのJoinからこの秒数後に一度だけ、
+        // 範囲の箱と自分の体(PlayerLocalレイヤー)が重なっているかを確かめる
+        private const float JoinRangeCheckDelaySeconds = 2f;
 
         // ダウンローダのjsonArray(新しい順)のうち、表示対象インデックスだけを抽出した表
         private int[] _visibleIndices = new int[0];
@@ -69,10 +65,8 @@ namespace ali.eterpix.v2
 
             // 子のモニターは非アクティブな場合もあるため、GetComponentsInChildren(true)で集める
             _monitors = GetComponentsInChildren<eterpix_monitor>(true);
-            _rangeCollider = GetComponent<Collider>();
 
             SendCustomEventDelayedFrames(nameof(FetchDownloader), 1);
-            ScheduleRangeCheck();
         }
 
         public void FetchDownloader()
@@ -129,38 +123,25 @@ namespace ali.eterpix.v2
             _isLocalPlayerInRange = false;
         }
 
-        // 非アクティブ中に定期確認の予約が捨てられていた場合に、再開する
-        private void OnEnable()
+        public override void OnPlayerJoined(VRCPlayerApi player)
         {
-            if (_rangeCollider != null && Time.time > _nextRangeCheckTime + RangeCheckIntervalSeconds) ScheduleRangeCheck();
-        }
-
-        private void ScheduleRangeCheck()
-        {
-            if (_rangeCollider == null) return;
-            _nextRangeCheckTime = Time.time + RangeCheckIntervalSeconds;
-            SendCustomEventDelayedSeconds(nameof(CheckLocalPlayerInRange), RangeCheckIntervalSeconds);
+            if (!Utilities.IsValid(player) || !player.isLocal) return;
+            SendCustomEventDelayedSeconds(nameof(CheckLocalPlayerInRange), JoinRangeCheckDelaySeconds);
         }
 
         public void CheckLocalPlayerInRange()
         {
-            // OnEnableで予約し直した場合などに重複した古い予約は、ここで捨てる
-            if (Time.time < _nextRangeCheckTime - RangeCheckIntervalSeconds * 0.5f) return;
-            ScheduleRangeCheck();
+            if (!gameObject.activeInHierarchy) return;
+            BoxCollider box = GetComponent<BoxCollider>();
+            if (box == null || !box.enabled) return;
 
-            if (!gameObject.activeInHierarchy || !_rangeCollider.enabled) return;
-            VRCPlayerApi player = Networking.LocalPlayer;
-            if (!Utilities.IsValid(player)) return;
-
-            Vector3 feet = player.GetPosition();
-            Vector3 head = player.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).position;
-            bool inside = IsNearRange(feet) || IsNearRange((feet + head) * 0.5f) || IsNearRange(head);
-            if (inside != _isLocalPlayerInRange) SetLocalPlayerInRange(inside);
-        }
-
-        private bool IsNearRange(Vector3 point)
-        {
-            return Vector3.Distance(_rangeCollider.ClosestPoint(point), point) <= RangeCheckMargin;
+            // 範囲の箱(ワールド座標)と自分の体(PlayerLocalレイヤー)が重なっているか。
+            // Playerレイヤーは他のプレイヤーなので含めない
+            Vector3 center = transform.TransformPoint(box.center);
+            Vector3 halfExtents = Vector3.Scale(box.size, transform.lossyScale) * 0.5f;
+            int layerMask = 1 << LayerMask.NameToLayer("PlayerLocal");
+            bool inside = Physics.CheckBox(center, halfExtents, transform.rotation, layerMask, QueryTriggerInteraction.Collide);
+            SetLocalPlayerInRange(inside);
         }
 
         private void SetLocalPlayerInRange(bool inRange)

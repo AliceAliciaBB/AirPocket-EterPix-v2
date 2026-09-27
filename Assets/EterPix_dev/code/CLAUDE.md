@@ -47,7 +47,7 @@
 - 画像を「4:3の枠に切らずに全体を収める」表示は`eterpix_monitor`のコードでは行わない。`image`の親に`AspectRatioFitter`(Fit Mode: Fit In Parent)をアタッチし、4:3のコンテナ内に収める形でEditor上で設定する。
   - 構成は `Panel`(VerticalLayoutGroup) → `Figure`(LayoutElementで4:3の高さを確保。**LayoutGroupは付けない**) → `FigureInner`(AspectRatioFitter: Fit In Parent、anchor全面stretch・pivot中央。縦横比はコードで16:9/9:16に切替) → `PostImage`。
   - `AspectRatioFitter`の直接の親にLayoutGroupがあると、Unityが「A child of a layout group should not have an Aspect Ratio Fitter」と警告し、位置をLayoutGroupが・サイズをFitterが決める競合で画像が上寄せ(下にズレた見た目)になる。Fit In Parentは縦画像も4:3枠に収めるために必要なので、Width Controls Heightには変えない。
-- 写真を読み込む範囲は**`EterpixRequester`自身のトリガーBoxCollider 1つ**で判定する(モニター個別には持たない。設計: `docs/superpowers/specs/2026-09-27-requester-view-range-design.md`)。`eterpix_requester`が`OnPlayerTriggerEnter/Exit`でローカルプレイヤーの出入りを受け、配下の全モニターへ`SetInViewRange(bool)`を送る。Enterは範囲内でスポーンすると届かないことがあるため、1秒ごとに`Collider.ClosestPoint`で足元・腰・頭の位置が範囲内(余裕0.3m)かも確かめて補う(`CheckLocalPlayerInRange`)。モニターは`Init`/`OnEnable`で`requester.IsLocalPlayerInRange`を読み直す(通知の取りこぼし対策)。Colliderは`isTrigger=true`、レイヤーは`Ignore Raycast`(UIのレーザーを遮らない)。**`EditorOnly`タグを付けない**(ビルドで削除され、範囲判定が効かなくなる)。大きさはワールド制作者が任意に調整する。
+- 写真を読み込む範囲は**`EterpixRequester`自身のトリガーBoxCollider 1つ**で判定する(モニター個別には持たない。設計: `docs/superpowers/specs/2026-09-27-requester-view-range-design.md`)。`eterpix_requester`が`OnPlayerTriggerEnter/Exit`でローカルプレイヤーの出入りを受け、配下の全モニターへ`SetInViewRange(bool)`を送る。Enterは範囲内でスポーンすると届かないことがあるため、ローカルプレイヤーの`OnPlayerJoined`から2秒後に一度だけ、`Physics.CheckBox`(範囲の箱 × PlayerLocalレイヤー)で重なりを確かめて補う(`CheckLocalPlayerInRange`)。Playerレイヤーは他人なので含めない。モニターは`Init`/`OnEnable`で`requester.IsLocalPlayerInRange`を読み直す(通知の取りこぼし対策)。Colliderは`isTrigger=true`、レイヤーは`Ignore Raycast`(UIのレーザーを遮らない)。**`EditorOnly`タグを付けない**(ビルドで削除され、範囲判定が効かなくなる)。大きさはワールド制作者が任意に調整する。
 - UdonBehaviourを別のGameObjectへ移動・追加・削除すると、VRCWorldのNetwork ID表と食い違い、ビルドが`Failed to assign network IDs`で失敗する。VRChat SDKのNetwork IDユーティリティで競合を解消するか、実体の無いエントリを削除する。
 - ポータルは旧系統と同じく**共通ポータルを1つだけ置いて呼び寄せる**方式。シーンに`Assets/EterPix/Prefabs/EterpixPortal.prefab`(`eterpix_porta_resize`で`VRCPortalMarker`を包んだもの)を1つ配置し、名前は`EterpixPortal`のままにする(`eterpix_monitor.portal`が未設定なら`GameObject.Find("EterpixPortal")`で解決する)。「ポータルを開く」ボタン(`OpenPortal()`)で`SetParentObject(portalSpawnPoint, world_vrc_id)`が呼ばれ、ポータルがそのモニターの`portalSpawnPoint`(prefab内の`portal`)へ移動する。`portal_clause_distance`(prefabでは10m)離れると自動で非表示になる。大きさは`siz_value`(prefabでは0.1)。
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
@@ -138,7 +138,7 @@ promoted_to:
 ---
 
 PROBLEM: トリガーColliderの内側でスポーンすると OnPlayerTriggerEnter が届かず(Udon初期化前から重なっていたため)、入室時に写真が読み込まれなかった(ClientSimで確認)。
-FIX: イベントは残したまま、1秒ごとに Networking.LocalPlayer の足元・腰・頭の位置と Collider.ClosestPoint の距離が0.3m以内かで範囲内を判定して補正した。余裕0.3mはトリガー(カプセルが触れたら反応)との食い違いで境界付近の出入りが繰り返さないため。非アクティブ中に予約が捨てられた場合に備え、OnEnableで再予約し、重複した予約は予定時刻で捨てる。
+FIX: イベントは残したまま、ローカルプレイヤーの OnPlayerJoined から2秒後に一度だけ Physics.CheckBox(BoxColliderの中心・サイズ・回転をワールドに変換、layerMaskはPlayerLocalのみ、QueryTriggerInteraction.Collide)で自分の体と範囲が重なっているかを確かめて補正した。CheckBoxはトリガーと同じ「体と箱の重なり」なので境界での食い違いが無い。Playerレイヤーを含めると他人に反応するので含めない。
 ```
 
 ---
