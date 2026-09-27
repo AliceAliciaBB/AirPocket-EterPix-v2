@@ -24,9 +24,10 @@ EterPix(https://www.eterpix.uk)の投稿写真を VRChat ワールド内に表�
   v2 (`Assets/EterPix`) では `EterpixRequester` の「取得先」ドロップダウンで URL を選び、画像 URL は URL を変えた瞬間に自動で反映される。
   メニューの `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)` は念のための手動作り直し用。
 - 作り直し(v2)の仕様は [Assets/EterPix_dev/code/リファクタリング案.md](Assets/EterPix_dev/code/リファクタリング案.md) にある。
-- モニターの prefab(`EterpixMonitor_Stack` / `EterpixMonitor_Split` / `EterpixTheme`)はエディタ拡張
-  `Assets/EterPix_dev/Editor/eterpix_monitor_builder.cs` で生成している。レイアウトやボタンを変えたら、
-  メニュー `ali/eterpix/dev/Build Monitor Prefabs` を実行して prefab を作り直す(手で prefab を編集しない)。
+- モニターの prefab(`EterpixMonitor_Stack` / `EterpixMonitor_Split` / `EterpixTheme`)は **prefab が正**。
+  位置・色・ボタンなどの変更は prefab を直接編集する。
+  最初はエディタ拡張 `Assets/EterPix_dev/Editor/eterpix_monitor_builder.cs` で生成したが、
+  メニュー `ali/eterpix/dev/Build Monitor Prefabs (上書き注意)` を実行すると prefab をゼロから作り直し、手で調整した値がすべて消えるため、通常は使わない。
   - `ali/eterpix/dev/Build Monitor Preview Scene` / `Close Monitor Preview Scene`: 見た目確認用のプレビューシーン(Stack / Split × 5状態)を今のシーンに追加で開く/閉じる
   - `ali/eterpix/dev/Migrate Template To Stack`: テンプレート内の旧モニターを Stack モニターへ置き換え、`EterpixTheme` を追加する(位置・offset 等は引き継ぐ)
 - BOOTH 配布版(unitypackage と zip)の作成と商品説明の更新は、Claude Code で `/booth-release` を実行する。

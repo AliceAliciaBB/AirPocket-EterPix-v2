@@ -59,9 +59,19 @@ namespace ali.eterpix.dev
 
         private static TMP_FontAsset _font;
 
-        [MenuItem("ali/eterpix/dev/Build Monitor Prefabs")]
+        // prefab(Stack / Split / EterpixTheme)が正。手で調整した値(位置・色など)は作り直すと全て消えるため、
+        // 通常は使わない。変更はprefabを直接編集する。
+        [MenuItem("ali/eterpix/dev/Build Monitor Prefabs (上書き注意)")]
         public static void BuildAll()
         {
+            if (!EditorUtility.DisplayDialog("Build Monitor Prefabs",
+                "Stack / Split / EterpixTheme の prefab をゼロから作り直して上書きします。\n" +
+                "prefab を手で調整した値(位置・色など)はすべて消えます。\n\n実行しますか?",
+                "上書きする", "キャンセル"))
+            {
+                return;
+            }
+
             _font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             if (_font == null) throw new System.Exception("Font not found: " + FontPath);
             Material loadingMat = EnsureLoadingMaterial();
