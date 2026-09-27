@@ -546,7 +546,7 @@ namespace ali.eterpix.dev
                 GameObject status = (GameObject)so.FindProperty("statusRoot").objectReferenceValue;
                 TMP_Text statusText = (TMP_Text)so.FindProperty("statusText").objectReferenceValue;
                 status.SetActive(true);
-                statusText.text = so.FindProperty("untrustedUrlMessage").stringValue;
+                statusText.text = eterpix_monitor.UntrustedUrlMessage;
                 SerializedProperty normal = so.FindProperty("normalOnlyObjects");
                 for (int i = 0; i < normal.arraySize; i++) ((GameObject)normal.GetArrayElementAtIndex(i).objectReferenceValue).SetActive(false);
                 ((GameObject)so.FindProperty("worldContextRoot").objectReferenceValue).SetActive(false);

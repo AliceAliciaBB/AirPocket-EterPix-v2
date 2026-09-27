@@ -54,12 +54,14 @@ namespace ali.eterpix.v2
         [SerializeField] private TMP_Text statusText;
         // 通常表示のときだけ出す要素(ページ番号・ページ送り・画像・投稿欄など)
         [SerializeField] private GameObject[] normalOnlyObjects = new GameObject[0];
-        [SerializeField, TextArea(2, 8)] private string loadingMessage = "読み込み中…";
-        [SerializeField, TextArea(2, 8)] private string untrustedUrlMessage =
+
+        // 状態表示の文言はギミック側で固定する(ワールド作者がInspectorで書き換えられないようconstにする)
+        public const string LoadingMessage = "読み込み中…";
+        public const string UntrustedUrlMessage =
             "「信頼されていないURL」が許可されていません\n\n設定 > 快適性とセーフティ >\n「信頼されていないURLを許可」をONにしてください\nONにすると、しばらくして表示されます\n(表示されない場合はワールドに入り直してください)";
-        [SerializeField, TextArea(2, 8)] private string serverErrorMessage =
+        public const string ServerErrorMessage =
             "サーバーに接続できませんでした\nメンテナンス中の可能性があります\n最新情報は X @_alicilia をご確認ください\n\n数分後に自動で再接続します";
-        [SerializeField, TextArea(2, 8)] private string emptyMessage = "表示できる投稿がありません";
+        public const string EmptyMessage = "表示できる投稿がありません";
 
         [Header("画像読み込み中の明滅(LoadingPulseマテリアル。色はテーマのボタン色)")]
         [SerializeField] private Material loadingMaterial;
@@ -147,7 +149,7 @@ namespace ali.eterpix.v2
         {
             BindViewRangeTriggers();
             // requesterから初期化されるまでの間、prefabの見本テキストを見せないよう読み込み中にする
-            if (_requester == null) ShowStatus(loadingMessage);
+            if (_requester == null) ShowStatus(LoadingMessage);
         }
 
         private void BindViewRangeTriggers()
@@ -236,7 +238,7 @@ namespace ali.eterpix.v2
         {
             if (_requester == null)
             {
-                ShowStatus(loadingMessage);
+                ShowStatus(LoadingMessage);
                 return;
             }
 
@@ -245,16 +247,16 @@ namespace ali.eterpix.v2
             if (!_requester.HasEverSucceeded)
             {
                 int status = _requester.FeedStatus;
-                if (status == eterpix_downloader.FeedStatusUntrustedUrl) ShowStatus(untrustedUrlMessage);
-                else if (status == eterpix_downloader.FeedStatusServerError) ShowStatus(serverErrorMessage);
-                else ShowStatus(loadingMessage); // Loading(未取得)。Okは投稿配列の代入後にしか立たないため、ここには来ない
+                if (status == eterpix_downloader.FeedStatusUntrustedUrl) ShowStatus(UntrustedUrlMessage);
+                else if (status == eterpix_downloader.FeedStatusServerError) ShowStatus(ServerErrorMessage);
+                else ShowStatus(LoadingMessage); // Loading(未取得)。Okは投稿配列の代入後にしか立たないため、ここには来ない
                 return;
             }
 
             int count = _requester.VisibleCount;
             if (count <= 0)
             {
-                ShowStatus(emptyMessage);
+                ShowStatus(EmptyMessage);
                 return;
             }
 
@@ -262,7 +264,7 @@ namespace ali.eterpix.v2
             DataDictionary post = _requester.GetVisiblePost(slotInWindow);
             if (post == null)
             {
-                ShowStatus(emptyMessage);
+                ShowStatus(EmptyMessage);
                 return;
             }
 
