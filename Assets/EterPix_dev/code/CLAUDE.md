@@ -87,6 +87,8 @@
 - [ ] `eterpix_listener_monitor` の回転は `localRotation` を直接上書きしている。セル側と違い、基準回転とpivot補正が入っていない (発見日: 2026-09-23)
 - [ ] `eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
 - [ ] `Assets/EterPix/Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
+- [ ] EterpixRequester の範囲の内側でスポーンすると、`OnPlayerTriggerEnter` が届かず範囲外扱いのままになる(一度外に出て入り直すと読み込む)。ClientSim で確認、実機は未確認 (発見日: 2026-09-27)
+- [ ] Play 停止時に `[Image Download] Leaked an IVRCImageDownload!` が出る。`eterpix_downloader` が `VRCImageDownloader` を Dispose していない (発見日: 2026-09-27)
 - [ ] requester が maxFeeds 超過で登録できない場合や、EterpixDownloaderV2 が無い場合、モニターは「読み込み中…」のまま止まる(設定ミスをエラー表示しない) (発見日: 2026-09-27)
 - [ ] モニターのルートに同期モードの違う UdonBehaviour が2つ(eterpix_monitor=Manual / eterpix_monitor_theme=None)ある。2クライアントの Build & Test でページ同期とテーマ切替を未確認 (発見日: 2026-09-27)
 - [ ] LoadingPulse.shader は Mask / RectMask2D(_Stencil, UNITY_UI_CLIP_RECT)に未対応。PostImage をマスク配下に置く場合は対応が必要 (発見日: 2026-09-27)
@@ -116,6 +118,17 @@ promoted_to:
 
 PROBLEM: モニター個別の表示範囲トリガーに EditorOnly タグが付いていてビルドで削除され、回避のため debugIgnoreTriggerRange=true(常に画像を読み込む)のままになっていた。
 FIX: 範囲判定を EterpixRequester 自身のトリガーBoxCollider(タグなし、Ignore Raycast)1つにまとめ、requester が配下モニターへ SetInViewRange を通知する形にした。debugIgnoreTriggerRange は false に戻した。
+```
+
+```yaml
+---
+name: texture_not_discarded_after_leaving_range
+success_count: 1
+promoted_to:
+---
+
+PROBLEM: 範囲から出ても写真が表示されたままで、ダウンローダの猶予破棄も起きず、テクスチャ(2048x1728)がメモリに残った。原因は3つ: (1)モニターが解放時にRawImageからテクスチャを外していない、(2)SendCustomEventDelayedSecondsで予約したTryDiscardSlotがTime.time上わずかに早く届き「経過>=猶予」をぎりぎり満たさず、再スキャンが無いのでLoadedのまま残る、(3)DiscardSlotが参照をnullにするだけでDestroyしていない。
+FIX: (1)ReleaseCurrentTextureIfAnyで解放したらBeginImageLoading()で表示を外し、ApplyTextureは_hasRequestedTextureがfalseなら貼らない。(2)TryDiscardSlotで猶予中のキーが残っていれば残り時間+0.1秒後に再予約。(3)DiscardSlotでDestroy(texture)する(Udonで UnityEngine.Object.Destroy は使える)。確認はResources.FindObjectsOfTypeAll<Texture2D>()で"ImageFrom:"のテクスチャが消えることを見る。
 ```
 
 ---

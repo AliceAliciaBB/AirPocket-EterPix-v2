@@ -493,23 +493,42 @@ namespace ali.eterpix.v2
         // つまりリーク(Bug1)を再導入することはない: RequestTexture/ReleaseTextureのサイクルが
         // 続く限り将来のスキャンは必ず発生し続けるため、猶予期限を過ぎた瞬間以降の
         // 最初のスキャンで確実に回収される。
+        //
+        // 予約した呼び出しが Time.time 上わずかに早く届き、経過時間条件をぎりぎり満たさないことがある
+        // (ClientSimで確認)。その場合に後続の解放が無いと、二度とスキャンされずLoadedのまま残るため、
+        // 猶予中のキーが残っていれば、最も早く期限が来るキーの残り時間後に再スキャンを予約する。
         public void TryDiscardSlot()
         {
+            float soonestRemaining = -1f;
             for (int key = 0; key < _imgState.Length; key++)
             {
-                if (_imgRefCount[key] == 0 &&
-                    _imgState[key] == eterpix_v2_image_state.Loaded &&
-                    _imgGraceGeneration[key] == _imgDiscardTargetGeneration[key] &&
-                    Time.time - _imgReleaseTime[key] >= releaseGraceSeconds)
+                if (_imgRefCount[key] != 0 ||
+                    _imgState[key] != eterpix_v2_image_state.Loaded ||
+                    _imgGraceGeneration[key] != _imgDiscardTargetGeneration[key]) continue;
+
+                float remaining = releaseGraceSeconds - (Time.time - _imgReleaseTime[key]);
+                if (remaining <= 0f)
                 {
                     DiscardSlot(key);
                 }
+                else if (soonestRemaining < 0f || remaining < soonestRemaining)
+                {
+                    soonestRemaining = remaining;
+                }
+            }
+
+            if (soonestRemaining >= 0f)
+            {
+                SendCustomEventDelayedSeconds(nameof(TryDiscardSlot), soonestRemaining + 0.1f);
             }
         }
 
         private void DiscardSlot(int key)
         {
             if (_imgState[key] != eterpix_v2_image_state.Loaded) return;
+            // 参照を捨てるだけではVRCImageDownloaderが作ったテクスチャはメモリに残るため、明示的に破棄する。
+            // 参照0のスロットだけが破棄対象で、モニターは解放時にRawImageからテクスチャを外している
+            if (_imgTexture[key] != null) Destroy(_imgTexture[key]);
             _imgTexture[key] = null;
             _imgState[key] = eterpix_v2_image_state.Unrequested;
             _imgPriority[key] = 0; // 破棄されたスロットの優先度は次の再リクエストへ持ち越さない

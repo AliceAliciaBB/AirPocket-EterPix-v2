@@ -387,6 +387,9 @@ namespace ali.eterpix.v2
             if (_hasRequestedTexture && _downloader != null && _currentSlot >= 0)
             {
                 _downloader.ReleaseTexture(_feedIndex, _currentSlot, this);
+                // RawImageがテクスチャを掴んだままだと、範囲外に出ても写真が表示され続け、
+                // ダウンローダが破棄してもメモリから消えない。解放したら読み込み中の表示に戻す
+                BeginImageLoading();
             }
             _hasRequestedTexture = false;
         }
@@ -431,6 +434,8 @@ namespace ali.eterpix.v2
         public void ApplyTexture(int feedIndex, int slot, Texture2D texture)
         {
             if (feedIndex != _feedIndex || slot != _currentSlot) return;
+            // 読み込み中に範囲外へ出て解放済みの場合は貼らない(参照0のテクスチャはダウンローダが破棄する)
+            if (!_hasRequestedTexture) return;
             if (texture != null && image != null)
             {
                 _isImageLoading = false;
