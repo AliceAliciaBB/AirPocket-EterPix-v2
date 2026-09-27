@@ -44,6 +44,8 @@ namespace ali.eterpix.v2
         private int _monitorCount = 0;
         private int _currentTheme = ThemeBlack;
         private bool _initialized = false;
+        private bool _restored = false;
+        private bool _hasLocalChoice = false;
 
         public bool IsSwitchable => switchMode == ModeSwitchable;
 
@@ -100,12 +102,22 @@ namespace ali.eterpix.v2
             EnsureInitialized();
             _currentTheme = GetNextTheme(_currentTheme);
             ApplyAll();
-            PlayerData.SetInt(PersistenceKey, _currentTheme);
+            _hasLocalChoice = true;
+            // 復元前に押された切替を、復元で巻き戻さないため。復元済みのときだけ保存する
+            if (_restored) PlayerData.SetInt(PersistenceKey, _currentTheme);
         }
 
         public override void OnPlayerRestored(VRCPlayerApi player)
         {
             if (!Utilities.IsValid(player) || !player.isLocal || !IsSwitchable) return;
+            _restored = true;
+            // 復元前に押された切替を、復元で巻き戻さないため。ローカルで選択済みなら
+            // その選択を正としてそのまま保存し、PlayerDataの値では上書きしない
+            if (_hasLocalChoice)
+            {
+                PlayerData.SetInt(PersistenceKey, _currentTheme);
+                return;
+            }
             if (PlayerData.TryGetInt(player, PersistenceKey, out int saved) && IsSelectable(saved))
             {
                 EnsureInitialized();

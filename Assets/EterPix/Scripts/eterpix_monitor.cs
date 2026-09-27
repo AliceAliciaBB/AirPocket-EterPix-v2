@@ -188,6 +188,12 @@ namespace ali.eterpix.v2
             _isInViewRange = false;
         }
 
+        // 非アクティブ中にOnDisableで参照を解放しているため、再表示時に取り直す(解放後にテクスチャが破棄されている可能性がある)
+        private void OnEnable()
+        {
+            if (_requester != null) RefreshDisplay();
+        }
+
         // ---- ページ送り(端でループする) ----
         public void PageNext()
         {
@@ -241,7 +247,7 @@ namespace ali.eterpix.v2
                 int status = _requester.FeedStatus;
                 if (status == eterpix_downloader.FeedStatusUntrustedUrl) ShowStatus(untrustedUrlMessage);
                 else if (status == eterpix_downloader.FeedStatusServerError) ShowStatus(serverErrorMessage);
-                else ShowStatus(loadingMessage);
+                else ShowStatus(loadingMessage); // Loading(未取得)。Okは投稿配列の代入後にしか立たないため、ここには来ない
                 return;
             }
 

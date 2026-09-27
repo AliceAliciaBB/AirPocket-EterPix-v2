@@ -32,10 +32,15 @@
 - 次のオブジェクト名は変更しないこと (スクリプトが名前で探す)
   - `EterpixDownloaderV2` / `EterpixPortal` / `EterpixTheme`
   - (任意) ログを出したい場合は `eterpix_debug` を付けた `EterpixDebug` という名前の GameObject を置く
-- モニターの表示範囲は子の `ViewRange`(旧prefabでは `collider`)(トリガー) で決まる。大きさはこの BoxCollider で調整する
+- モニターの表示範囲トリガー(子の `ViewRange`)は現在ビルドで削除される設定(EditorOnly)のため、実機では常に画像を読み込む(既知の不具合)
+- `EterpixTheme` はワールドに1つだけ有効になる(テンプレートを複数置いた場合、最初に見つかったものの設定が使われ、他は無効になる)
 - UdonBehaviour を別の GameObject へ移動・追加・削除すると、ビルドが
   `Failed to assign network IDs` で失敗することがある。
   VRChat SDK の Network ID ユーティリティで競合を解消すること
+
+## 旧バージョンからの更新
+
+テンプレート内のモニターは `EterpixMonitor_Stack` に置き換わった。シーン上でモニターの位置や offset を変更していた場合、更新後にテンプレートの値へ戻るので、設定し直すか、旧デザインの `Prefabs/Legacy/EterpixMonitorUI.prefab` を使う。更新後は VRChat SDK の Network ID ユーティリティでシーンの Network ID を整理してから保存する。
 
 ## フォルダ構成
 

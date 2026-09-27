@@ -88,6 +88,9 @@
 - [ ] `eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
 - [ ] `Assets/EterPix/Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
 - [ ] 表示範囲トリガー(旧prefabの `collider`、新prefabの `ViewRange`)に `EditorOnly` タグが付いており、ビルド時に削除される。そのため実機では `OnViewRangeEnter` が呼ばれず、`debugIgnoreTriggerRange = true` で常に画像を要求する状態になっている。UIリメイクでは挙動を変えないため同じ値を再現した (発見日: 2026-09-27)
+- [ ] requester が maxFeeds 超過で登録できない場合や、EterpixDownloaderV2 が無い場合、モニターは「読み込み中…」のまま止まる(設定ミスをエラー表示しない) (発見日: 2026-09-27)
+- [ ] モニターのルートに同期モードの違う UdonBehaviour が2つ(eterpix_monitor=Manual / eterpix_monitor_theme=None)ある。2クライアントの Build & Test でページ同期とテーマ切替を未確認 (発見日: 2026-09-27)
+- [ ] LoadingPulse.shader は Mask / RectMask2D(_Stencil, UNITY_UI_CLIP_RECT)に未対応。PostImage をマスク配下に置く場合は対応が必要 (発見日: 2026-09-27)
 
 ## うまくいった進め方
 記録形式はグローバルCLAUDE.mdの「記録フォーマット」に従う(PROBLEM/FIX形式)。
