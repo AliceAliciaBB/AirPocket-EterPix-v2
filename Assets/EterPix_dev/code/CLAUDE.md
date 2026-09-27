@@ -53,6 +53,10 @@
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
 - **UdonSharpはコードから`Button.onClick.AddListener()`(メソッドグループもラムダも)をバインドできず、コンパイルエラー(またはコンパイラのクラッシュ)になる。** `prevButton`/`nextButton`/`informationButton`/`openPortalButton`のOnClick()は、Inspector上でこの`eterpix_monitor`コンポーネントを直接ドラッグし、`PagePrev()`/`PageNext()`/`ToggleInformationWindow()`/`OpenPortal()`をそれぞれ手動登録すること(Prefabを使い回す場合はPrefab側で一度登録すればよい)。
 - v2の`eterpix_requester`はInspectorの「取得先」ドロップダウン(`Editor/eterpix_requesterEditor.cs`、保存値`urlPreset`: 0=パブリック投稿, -1=自分で入力。IDは並べ替えない)でURLを選び、画像URL表はURL変更時に自動で作り直される。念のためのメニュー`ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)`(v2の`eterpix_requester`用。v1の`eterpix_middle_nav`/`eterpix_middle_ring`は`ali/eterpix/Sync URL Lists from requestUrl (v1 nav/ring)`に分離した。Play開始時はどちらも自動で実行される)もある。Play前に256件のURLが同期されていることを確認する。
+- **新モニター(Stack / Split)は手で組まない。** `Assets/EterPix_dev/Editor/eterpix_monitor_builder.cs` のメニュー `ali/eterpix/dev/Build Monitor Prefabs` がコードから組み立てる(同じパスに上書きするのでGUIDは維持)。寸法やボタンの登録はビルダーを直して作り直す。見た目の確認は `Build Monitor Preview Scene` → PreviewCamera のスクリーンショット → `Close Monitor Preview Scene`。
+- 新モニターのルートはCanvasではない(空のGameObject、scale 0.00125 = 1px 1.25mm)。Canvas・GraphicRaycaster・VRCUiShape は子の `Screen` にある。
+- テーマの配色先は子オブジェクト名の接頭辞(`bg_` / `tx_` / `btn_` / `acc_` / `acctx_`)で決まる。要素を足したら `eterpix_monitor_theme` の「子から自動収集」を押す。
+- ボタンの押下色(ColorBlock)はテーマで変えない(U#から ColorBlock を書き換えるのが未検証のため)。塗りを 0.75 倍に暗くするだけ。
 
 ## ビルド・実行コマンド
 - Unity Editor上でPlayする。Play開始時に `eterpix_url_sync` が自動で実行される。
@@ -83,6 +87,7 @@
 - [ ] `eterpix_listener_monitor` の回転は `localRotation` を直接上書きしている。セル側と違い、基準回転とpivot補正が入っていない (発見日: 2026-09-23)
 - [ ] `eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
 - [ ] `Assets/EterPix/Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
+- [ ] 表示範囲トリガー(旧prefabの `collider`、新prefabの `ViewRange`)に `EditorOnly` タグが付いており、ビルド時に削除される。そのため実機では `OnViewRangeEnter` が呼ばれず、`debugIgnoreTriggerRange = true` で常に画像を要求する状態になっている。UIリメイクでは挙動を変えないため同じ値を再現した (発見日: 2026-09-27)
 
 ## うまくいった進め方
 記録形式はグローバルCLAUDE.mdの「記録フォーマット」に従う(PROBLEM/FIX形式)。

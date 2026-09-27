@@ -412,6 +412,69 @@ namespace ali.eterpix.dev
             field.text = InfoUrl;
         }
 
+        // ---------------- template migration ----------------
+        private const string TemplatePath = "Assets/EterPix/Etp_テンプレート.prefab";
+        private const string LegacyMonitorPath = "Assets/EterPix/Prefabs/Legacy/EterpixMonitorUI.prefab";
+
+        // テンプレート内の旧モニター(EterpixMonitorUI)を Stack に差し替え、EterpixTheme を追加する。
+        // 位置・回転・スケール・アクティブ状態・offset を引き継ぐ。
+        [MenuItem("ali/eterpix/dev/Migrate Template To Stack")]
+        public static void MigrateTemplate()
+        {
+            GameObject stack = AssetDatabase.LoadAssetAtPath<GameObject>(StackPath);
+            GameObject themePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ThemePath);
+            GameObject legacy = AssetDatabase.LoadAssetAtPath<GameObject>(LegacyMonitorPath);
+            if (stack == null || themePrefab == null || legacy == null) throw new System.Exception("Build prefabs and move legacy prefab first.");
+
+            GameObject contents = PrefabUtility.LoadPrefabContents(TemplatePath);
+            try
+            {
+                List<GameObject> olds = new List<GameObject>();
+                foreach (Transform t in contents.GetComponentsInChildren<Transform>(true))
+                {
+                    GameObject go = t.gameObject;
+                    if (!PrefabUtility.IsAnyPrefabInstanceRoot(go)) continue;
+                    GameObject source = PrefabUtility.GetCorrespondingObjectFromSource(go);
+                    if (source == legacy) olds.Add(go);
+                }
+
+                int replaced = 0;
+                foreach (GameObject old in olds)
+                {
+                    Transform parent = old.transform.parent;
+                    int sibling = old.transform.GetSiblingIndex();
+                    GameObject inst = (GameObject)PrefabUtility.InstantiatePrefab(stack, parent);
+                    inst.name = old.name.Replace("EterpixMonitorUI", "EterpixMonitor_Stack");
+                    inst.transform.SetSiblingIndex(sibling);
+                    inst.transform.localPosition = old.transform.localPosition;
+                    inst.transform.localRotation = old.transform.localRotation;
+                    inst.transform.localScale = old.transform.localScale;
+                    inst.SetActive(old.activeSelf);
+
+                    SerializedObject oldSo = new SerializedObject(old.GetComponent<eterpix_monitor>());
+                    SerializedObject newSo = new SerializedObject(inst.GetComponent<eterpix_monitor>());
+                    newSo.FindProperty("offset").intValue = oldSo.FindProperty("offset").intValue;
+                    newSo.ApplyModifiedPropertiesWithoutUndo();
+
+                    Object.DestroyImmediate(old);
+                    replaced++;
+                }
+
+                if (contents.transform.Find(eterpix_theme.SingletonObjectName) == null)
+                {
+                    GameObject theme = (GameObject)PrefabUtility.InstantiatePrefab(themePrefab, contents.transform);
+                    theme.name = eterpix_theme.SingletonObjectName;
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(contents, TemplatePath);
+                Debug.Log("[eterpix_monitor_builder] Template migrated. replaced=" + replaced);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+        }
+
         // ---------------- preview ----------------
         // 見た目確認用。Stack(上段)/ Split(下段)× 5状態を並べる。
         // 今開いているシーンを閉じないよう、Additiveで開く(保存はこのシーンだけ)。
