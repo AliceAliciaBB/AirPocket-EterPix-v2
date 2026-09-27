@@ -47,7 +47,7 @@
 - 画像を「4:3の枠に切らずに全体を収める」表示は`eterpix_monitor`のコードでは行わない。`image`の親に`AspectRatioFitter`(Fit Mode: Fit In Parent)をアタッチし、4:3のコンテナ内に収める形でEditor上で設定する。
   - 構成は `Panel`(VerticalLayoutGroup) → `Figure`(LayoutElementで4:3の高さを確保。**LayoutGroupは付けない**) → `FigureInner`(AspectRatioFitter: Fit In Parent、anchor全面stretch・pivot中央。縦横比はコードで16:9/9:16に切替) → `PostImage`。
   - `AspectRatioFitter`の直接の親にLayoutGroupがあると、Unityが「A child of a layout group should not have an Aspect Ratio Fitter」と警告し、位置をLayoutGroupが・サイズをFitterが決める競合で画像が上寄せ(下にズレた見た目)になる。Fit In Parentは縦画像も4:3枠に収めるために必要なので、Width Controls Heightには変えない。
-- 写真を読み込む範囲は**`EterpixRequester`自身のトリガーBoxCollider 1つ**で判定する(モニター個別には持たない。設計: `docs/superpowers/specs/2026-09-27-requester-view-range-design.md`)。`eterpix_requester`が`OnPlayerTriggerEnter/Exit`でローカルプレイヤーの出入りを受け、配下の全モニターへ`SetInViewRange(bool)`を送る。モニターは`Init`/`OnEnable`で`requester.IsLocalPlayerInRange`を読み直す(通知の取りこぼし対策)。Colliderは`isTrigger=true`、レイヤーは`Ignore Raycast`(UIのレーザーを遮らない)。**`EditorOnly`タグを付けない**(ビルドで削除され、範囲判定が効かなくなる)。大きさはワールド制作者が任意に調整する。
+- 写真を読み込む範囲は**`EterpixRequester`自身のトリガーBoxCollider 1つ**で判定する(モニター個別には持たない。設計: `docs/superpowers/specs/2026-09-27-requester-view-range-design.md`)。`eterpix_requester`が`OnPlayerTriggerEnter/Exit`でローカルプレイヤーの出入りを受け、配下の全モニターへ`SetInViewRange(bool)`を送る。Enterは範囲内でスポーンすると届かないことがあるため、1秒ごとに`Collider.ClosestPoint`で足元・腰・頭の位置が範囲内(余裕0.3m)かも確かめて補う(`CheckLocalPlayerInRange`)。モニターは`Init`/`OnEnable`で`requester.IsLocalPlayerInRange`を読み直す(通知の取りこぼし対策)。Colliderは`isTrigger=true`、レイヤーは`Ignore Raycast`(UIのレーザーを遮らない)。**`EditorOnly`タグを付けない**(ビルドで削除され、範囲判定が効かなくなる)。大きさはワールド制作者が任意に調整する。
 - UdonBehaviourを別のGameObjectへ移動・追加・削除すると、VRCWorldのNetwork ID表と食い違い、ビルドが`Failed to assign network IDs`で失敗する。VRChat SDKのNetwork IDユーティリティで競合を解消するか、実体の無いエントリを削除する。
 - ポータルは旧系統と同じく**共通ポータルを1つだけ置いて呼び寄せる**方式。シーンに`Assets/EterPix/Prefabs/EterpixPortal.prefab`(`eterpix_porta_resize`で`VRCPortalMarker`を包んだもの)を1つ配置し、名前は`EterpixPortal`のままにする(`eterpix_monitor.portal`が未設定なら`GameObject.Find("EterpixPortal")`で解決する)。「ポータルを開く」ボタン(`OpenPortal()`)で`SetParentObject(portalSpawnPoint, world_vrc_id)`が呼ばれ、ポータルがそのモニターの`portalSpawnPoint`(prefab内の`portal`)へ移動する。`portal_clause_distance`(prefabでは10m)離れると自動で非表示になる。大きさは`siz_value`(prefabでは0.1)。
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
@@ -87,7 +87,6 @@
 - [ ] `eterpix_listener_monitor` の回転は `localRotation` を直接上書きしている。セル側と違い、基準回転とpivot補正が入っていない (発見日: 2026-09-23)
 - [ ] `eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
 - [ ] `Assets/EterPix/Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
-- [ ] EterpixRequester の範囲の内側でスポーンすると、`OnPlayerTriggerEnter` が届かず範囲外扱いのままになる(一度外に出て入り直すと読み込む)。ClientSim で確認、実機は未確認 (発見日: 2026-09-27)
 - [ ] Play 停止時に `[Image Download] Leaked an IVRCImageDownload!` が出る。`eterpix_downloader` が `VRCImageDownloader` を Dispose していない (発見日: 2026-09-27)
 - [ ] requester が maxFeeds 超過で登録できない場合や、EterpixDownloaderV2 が無い場合、モニターは「読み込み中…」のまま止まる(設定ミスをエラー表示しない) (発見日: 2026-09-27)
 - [ ] モニターのルートに同期モードの違う UdonBehaviour が2つ(eterpix_monitor=Manual / eterpix_monitor_theme=None)ある。2クライアントの Build & Test でページ同期とテーマ切替を未確認 (発見日: 2026-09-27)
@@ -129,6 +128,17 @@ promoted_to:
 
 PROBLEM: 範囲から出ても写真が表示されたままで、ダウンローダの猶予破棄も起きず、テクスチャ(2048x1728)がメモリに残った。原因は3つ: (1)モニターが解放時にRawImageからテクスチャを外していない、(2)SendCustomEventDelayedSecondsで予約したTryDiscardSlotがTime.time上わずかに早く届き「経過>=猶予」をぎりぎり満たさず、再スキャンが無いのでLoadedのまま残る、(3)DiscardSlotが参照をnullにするだけでDestroyしていない。
 FIX: (1)ReleaseCurrentTextureIfAnyで解放したらBeginImageLoading()で表示を外し、ApplyTextureは_hasRequestedTextureがfalseなら貼らない。(2)TryDiscardSlotで猶予中のキーが残っていれば残り時間+0.1秒後に再予約。(3)DiscardSlotでDestroy(texture)する(Udonで UnityEngine.Object.Destroy は使える)。確認はResources.FindObjectsOfTypeAll<Texture2D>()で"ImageFrom:"のテクスチャが消えることを見る。
+```
+
+```yaml
+---
+name: player_trigger_enter_missed_on_spawn
+success_count: 1
+promoted_to:
+---
+
+PROBLEM: トリガーColliderの内側でスポーンすると OnPlayerTriggerEnter が届かず(Udon初期化前から重なっていたため)、入室時に写真が読み込まれなかった(ClientSimで確認)。
+FIX: イベントは残したまま、1秒ごとに Networking.LocalPlayer の足元・腰・頭の位置と Collider.ClosestPoint の距離が0.3m以内かで範囲内を判定して補正した。余裕0.3mはトリガー(カプセルが触れたら反応)との食い違いで境界付近の出入りが繰り返さないため。非アクティブ中に予約が捨てられた場合に備え、OnEnableで再予約し、重複した予約は予定時刻で捨てる。
 ```
 
 ---
