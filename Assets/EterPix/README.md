@@ -19,6 +19,14 @@
    - 大きさはモニターのルートの Scale で変える(子の Scale は変えない)
    - 旧デザインの `Prefabs/Legacy/EterpixMonitorUI.prefab` も引き続き使える(エラー表示・テーマには非対応)
 
+### 再読み込みボタン
+
+- モニター右上の再読み込みボタン(Stack / Split のみ)を押すと、投稿の一覧(JSON)を取り直す
+  - 押した本人にだけ反映される(同期しない)。同じ取得先のモニターはまとめて更新される
+  - 連打防止のため、押した後 10 秒は押せない
+  - 画像は取り直さない(表示中の画像はそのまま使う)
+- アイコンは Material Symbols (Apache License 2.0, `UI/MaterialSymbols_LICENSE.txt`)
+
 ### テーマ(表示色)
 
 - `EterpixTheme`(テンプレートに含まれる。`Prefabs/EterpixTheme.prefab`)の Inspector で設定する
@@ -58,3 +66,4 @@ EterPix/
 ## ライセンス
 
 - `Fonts/NotoSansJP-Bold.ttf` とその SDF は SIL Open Font License 1.1 (`Fonts/OFL.txt`)
+- `UI/icon_reload.png` は Material Symbols の `refresh` を PNG にしたもの。Apache License 2.0 (`UI/MaterialSymbols_LICENSE.txt`)

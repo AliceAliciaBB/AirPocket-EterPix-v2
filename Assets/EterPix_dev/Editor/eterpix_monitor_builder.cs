@@ -30,6 +30,8 @@ namespace ali.eterpix.dev
         private const string FontPath = "Assets/EterPix/Fonts/NotoSansJP-Bold SDF.asset";
         private const string LoadingShaderName = "EterPix/UI/LoadingPulse";
         private const string LoadingMaterialPath = "Assets/EterPix/UI/LoadingPulse.mat";
+        // Material Symbols Rounded "refresh"(Apache 2.0、UI/MaterialSymbols_LICENSE.txt)を白128pxのPNGにしたもの
+        private const string ReloadIconPath = "Assets/EterPix/UI/icon_reload.png";
 
         private const float W = 560f;
         private const float P = 16f;
@@ -50,6 +52,7 @@ namespace ali.eterpix.dev
             "EterPixは、VRChatで撮影した写真を共有できるSNSです。このモニターでは、EterPixに投稿された公開写真を閲覧できます。\n\n" +
             "<b>ページを切り替える</b>\n写真の左右を押すと、前後の投稿に切り替わります。表示中のページは、このインスタンスにいる全員で共有されます。\n\n" +
             "<b>ワールドへ行く</b>\n写真にワールド情報がある場合は「ポータルを開く」を押すと、撮影されたワールドへのポータルが開きます。\n\n" +
+            "<b>再読み込み</b>\n右上の再読み込みボタンで、投稿の一覧を取り直します。あなたにだけ反映されます。一度押すと、しばらくは押せません。\n\n" +
             "<b>表示色を変える</b>\n右上の切替ボタンで、黒・白などの表示色を切り替えられます。切り替えはあなたにだけ反映され、次に来たときも保持されます(ワールドによっては切り替えできません)。\n\n" +
             "<b>写真を投稿する</b>\n投稿はWebから行えます。下のURLをコピーして、ブラウザで開いてください。";
         private const string InfoFooter = "最新情報は X @_alicilia をご確認ください";
@@ -62,9 +65,10 @@ namespace ali.eterpix.dev
             _font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             if (_font == null) throw new System.Exception("Font not found: " + FontPath);
             Material loadingMat = EnsureLoadingMaterial();
+            Sprite reloadIcon = EnsureSprite(ReloadIconPath);
 
-            BuildMonitor(false, loadingMat);
-            BuildMonitor(true, loadingMat);
+            BuildMonitor(false, loadingMat, reloadIcon);
+            BuildMonitor(true, loadingMat, reloadIcon);
             BuildThemePrefab();
 
             AssetDatabase.SaveAssets();
@@ -85,6 +89,23 @@ namespace ali.eterpix.dev
             return mat;
         }
 
+        private static Sprite EnsureSprite(string path)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) throw new System.Exception("Texture not found: " + path);
+            if (importer.textureType != TextureImporterType.Sprite || importer.mipmapEnabled)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.SaveAndReimport();
+            }
+            Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite == null) throw new System.Exception("Sprite not found: " + path);
+            return sprite;
+        }
+
         private static void BuildThemePrefab()
         {
             GameObject go = new GameObject(eterpix_theme.SingletonObjectName);
@@ -99,7 +120,7 @@ namespace ali.eterpix.dev
             }
         }
 
-        private static void BuildMonitor(bool split, Material loadingMat)
+        private static void BuildMonitor(bool split, Material loadingMat, Sprite reloadIcon)
         {
             float h = split ? SplitH : StackH;
             GameObject root = new GameObject(split ? "EterpixMonitor_Split" : "EterpixMonitor_Stack");
@@ -144,7 +165,8 @@ namespace ali.eterpix.dev
                 TextMeshProUGUI pageText = AddText(page, "1 / 12", 16, TextAlignmentOptions.Midline, false);
 
                 GameObject themeBtn = NewUI("btn_ThemeButton", header.transform);
-                Place(themeBtn, PhotoW - 88f, 0, 40, 40);
+                // テーマ切替できないワールドでは非表示になるため、左端に置いて抜けても隙間が目立たないようにする
+                Place(themeBtn, PhotoW - 136f, 0, 40, 40);
                 Button themeButton = AddButton(themeBtn, AddImage(themeBtn, Color.gray, true), true);
                 BindEvent(themeButton, themeUdon, "CycleTheme");
                 // 左半分が塗り、右半分が枠だけの20x20の正方形(長方形4枚)
@@ -152,6 +174,14 @@ namespace ali.eterpix.dev
                 IconRect(themeBtn, "tx_ThemeIconTop", 20, 10, 10, 2);
                 IconRect(themeBtn, "tx_ThemeIconBottom", 20, 28, 10, 2);
                 IconRect(themeBtn, "tx_ThemeIconRight", 28, 10, 2, 20);
+
+                GameObject reloadBtn = NewUI("btn_ReloadButton", header.transform);
+                Place(reloadBtn, PhotoW - 88f, 0, 40, 40);
+                Button reloadButton = AddButton(reloadBtn, AddImage(reloadBtn, Color.gray, true), true);
+                BindEvent(reloadButton, monitorUdon, "ReloadFeed");
+                GameObject reloadIconGo = NewUI("tx_ReloadIcon", reloadBtn.transform);
+                Place(reloadIconGo, 8, 8, 24, 24);
+                AddImage(reloadIconGo, Color.white, false).sprite = reloadIcon;
 
                 GameObject infoBtn = NewUI("btn_InfoButton", header.transform);
                 Place(infoBtn, PhotoW - 40f, 0, 40, 40);
@@ -306,6 +336,7 @@ namespace ali.eterpix.dev
                 SetRef(so, "worldDescriptionText", worldDescription);
                 SetRef(so, "openPortalButton", portalButton);
                 SetRef(so, "portalSpawnPoint", spawn.transform);
+                SetRef(so, "reloadButton", reloadButton);
                 SetRef(so, "informationButton", infoButton);
                 SetRef(so, "informationWindowRoot", info);
                 SetRef(so, "infoIconOpen", iconOpen);

@@ -42,6 +42,11 @@ namespace ali.eterpix.v2
 
         public const string PortalObjectName = "EterpixPortal";
 
+        [Header("再読み込み(押した本人だけJSONを取り直す。連打防止のため押した後しばらく押せなくする)")]
+        [SerializeField] private Button reloadButton;
+        // VRCStringDownloaderは5秒に1回までのため、それより長く空ける
+        public const float ReloadCooldownSeconds = 10f;
+
         [Header("情報ウィンドウ")]
         [SerializeField] private Button informationButton;
         [SerializeField] private GameObject informationWindowRoot;
@@ -58,7 +63,7 @@ namespace ali.eterpix.v2
         // 状態表示の文言はギミック側で固定する(ワールド作者がInspectorで書き換えられないようconstにする)
         public const string LoadingMessage = "読み込み中…";
         public const string UntrustedUrlMessage =
-            "「信頼されていないURL」が許可されていません\n\n設定 > 快適性とセーフティ >\n「信頼されていないURLを許可」をONにしてください\nONにすると、しばらくして表示されます\n(表示されない場合はワールドに入り直してください)";
+            "「信頼されていないURL」が許可されていません\n\n設定 > 快適性とセーフティ >\n「信頼されていないURLを許可」をONにしてください\nONにしたら、右上の再読み込みボタンを押してください\n(表示されない場合はワールドに入り直してください)";
         public const string ServerErrorMessage =
             "サーバーに接続できませんでした\nメンテナンス中の可能性があります\n最新情報は X @_alicilia をご確認ください\n\n数分後に自動で再接続します";
         public const string EmptyMessage = "表示できる投稿がありません";
@@ -92,6 +97,8 @@ namespace ali.eterpix.v2
         private bool _isInViewRange = false;
         private bool _isImageLoading = false;
 
+        private float _reloadAvailableTime = 0f;
+
         private DataDictionary _currentPost;
         // Init()より先にOnDeserialization()で本物の同期値を受け取っていた場合、
         // offsetで上書きしないためのフラグ(遅れて入ったプレイヤーの初回同期と
@@ -121,7 +128,7 @@ namespace ali.eterpix.v2
             // UdonSharpはUnityEvent.AddListener()(メソッドグループ・ラムダのいずれも)を
             // バインドできない。各ボタンのOnClick()はコードからではなく、
             // エディタ上でこのコンポーネントのUdonBehaviourのSendCustomEventに
-            // PagePrev/PageNext/ToggleInformationWindow/OpenPortalを登録してある。
+            // PagePrev/PageNext/ToggleInformationWindow/OpenPortal/ReloadFeedを登録してある。
             if (portal == null)
             {
                 GameObject portalObj = GameObject.Find(PortalObjectName);
@@ -194,6 +201,30 @@ namespace ali.eterpix.v2
         private void OnEnable()
         {
             if (_requester != null) RefreshDisplay();
+            // 非アクティブ中にクールダウンの解除イベントを取りこぼしていても押せるように戻す
+            if (Time.time >= _reloadAvailableTime) SetReloadInteractable(true);
+        }
+
+        // ---- 再読み込み(ローカルのみ。取得結果はOnFeedUpdated経由で同じフィードの全モニターに反映される) ----
+        public void ReloadFeed()
+        {
+            if (_requester == null || Time.time < _reloadAvailableTime) return;
+
+            _reloadAvailableTime = Time.time + ReloadCooldownSeconds;
+            SetReloadInteractable(false);
+            SendCustomEventDelayedSeconds(nameof(EndReloadCooldown), ReloadCooldownSeconds);
+
+            _requester.ManualRefresh();
+        }
+
+        public void EndReloadCooldown()
+        {
+            if (Time.time >= _reloadAvailableTime) SetReloadInteractable(true);
+        }
+
+        private void SetReloadInteractable(bool interactable)
+        {
+            if (reloadButton != null) reloadButton.interactable = interactable;
         }
 
         // ---- ページ送り(端でループする) ----
