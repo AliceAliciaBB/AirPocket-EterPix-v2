@@ -420,5 +420,15 @@ namespace ali.eterpix.v2
             Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
             portal.SetParentObject(spawn, worldId);
         }
+
+        public void OnThemeChanged()
+        {
+        }
+
+#if !COMPILER_UDONSHARP && UNITY_EDITOR
+        public void EditorSetLoadingPreviewColor(Color color)
+        {
+        }
+#endif
     }
 }
