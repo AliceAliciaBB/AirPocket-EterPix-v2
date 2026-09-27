@@ -58,7 +58,7 @@ EterPix/
 ├─ Prefabs/                 … 個別の prefab(Legacy/ に旧モニター)
 ├─ Scripts/                 … UdonSharp スクリプト
 ├─ Editor/                  … URL 同期などのエディタ拡張
-├─ UI/                      … 読み込み中の明滅シェーダー等
+├─ UI/                      … 読み込み中の明滅シェーダー、角丸画像、再読み込みアイコン等
 ├─ Fonts/                   … NotoSansJP-Bold (SIL Open Font License 1.1, OFL.txt)
 └─ テンプレ_シーン/          … 設置例のシーン
 ```

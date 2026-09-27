@@ -14,15 +14,21 @@ EterPix(https://www.eterpix.uk)の投稿写真を VRChat ワールド内に表�
    - `com.vrchat.worlds` / `com.vrchat.base`
    - `net.ureishi.qvpen`
    - `net.kwxxw.yama-stream`
-4. `Assets/Scenes` のシーンを開く。
+4. 設置例のシーン `Assets/EterPix/テンプレ_シーン/` を開く。
 
 ## 使い方
-- ギミック本体は `Assets/EterPix/` にある。スクリプトの構成と注意点は [Assets/EterPix/code/CLAUDE.md](Assets/EterPix/code/CLAUDE.md) を参照。
+- ギミック本体(v2)は `Assets/EterPix/` にある。設置方法・モニターの機能(再読み込みボタン・テーマ)は [Assets/EterPix/README.md](Assets/EterPix/README.md) を参照。
+- 旧版(v1)のスクリプトと設計メモは `Assets/EterPix_dev/code/` にある。構成と注意点は [Assets/EterPix_dev/code/CLAUDE.md](Assets/EterPix_dev/code/CLAUDE.md) を参照。
 - JSON の取得先 URL は、中位スクリプト(`eterpix_middle_nav` / `eterpix_middle_ring`)の `requestUrl` に設定する。
   Play 開始時に、画像 URL の一覧(`vrcurllist`)が `requestUrl` をもとに自動生成される。
   v2 (`Assets/EterPix`) では `EterpixRequester` の「取得先」ドロップダウンで URL を選び、画像 URL は URL を変えた瞬間に自動で反映される。
   メニューの `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)` は念のための手動作り直し用。
-- 作り直し(v2)の仕様は [Assets/EterPix/code/リファクタリング案.md](Assets/EterPix/code/リファクタリング案.md) にある。
+- 作り直し(v2)の仕様は [Assets/EterPix_dev/code/リファクタリング案.md](Assets/EterPix_dev/code/リファクタリング案.md) にある。
+- モニターの prefab(`EterpixMonitor_Stack` / `EterpixMonitor_Split` / `EterpixTheme`)はエディタ拡張
+  `Assets/EterPix_dev/Editor/eterpix_monitor_builder.cs` で生成している。レイアウトやボタンを変えたら、
+  メニュー `ali/eterpix/dev/Build Monitor Prefabs` を実行して prefab を作り直す(手で prefab を編集しない)。
+  - `ali/eterpix/dev/Build Monitor Preview Scene` / `Close Monitor Preview Scene`: 見た目確認用のプレビューシーン(Stack / Split × 5状態)を今のシーンに追加で開く/閉じる
+  - `ali/eterpix/dev/Migrate Template To Stack`: テンプレート内の旧モニターを Stack モニターへ置き換え、`EterpixTheme` を追加する(位置・offset 等は引き継ぐ)
 - BOOTH 配布版(unitypackage と zip)の作成と商品説明の更新は、Claude Code で `/booth-release` を実行する。
   手順は [.claude/skills/booth-release/SKILL.md](.claude/skills/booth-release/SKILL.md) を参照。出力先は `V:\Etp-vrc-gimmick\`。
 
