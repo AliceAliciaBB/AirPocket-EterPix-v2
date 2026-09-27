@@ -47,7 +47,7 @@
 - 画像を「4:3の枠に切らずに全体を収める」表示は`eterpix_monitor`のコードでは行わない。`image`の親に`AspectRatioFitter`(Fit Mode: Fit In Parent)をアタッチし、4:3のコンテナ内に収める形でEditor上で設定する。
   - 構成は `Panel`(VerticalLayoutGroup) → `Figure`(LayoutElementで4:3の高さを確保。**LayoutGroupは付けない**) → `FigureInner`(AspectRatioFitter: Fit In Parent、anchor全面stretch・pivot中央。縦横比はコードで16:9/9:16に切替) → `PostImage`。
   - `AspectRatioFitter`の直接の親にLayoutGroupがあると、Unityが「A child of a layout group should not have an Aspect Ratio Fitter」と警告し、位置をLayoutGroupが・サイズをFitterが決める競合で画像が上寄せ(下にズレた見た目)になる。Fit In Parentは縦画像も4:3枠に収めるために必要なので、Width Controls Heightには変えない。
-- 表示範囲のトリガーColliderは**`eterpix_monitor`のルートではなく子(prefabの`collider`)に分けて付け**、同じ子に`eterpix_monitor_trigger`(中継)を付ける。ルートのBoxColliderは`VRCUiShape`がUI操作用に管理するため共用しない。`OnPlayerTriggerEnter/Exit`はColliderと同じGameObjectにしか届かないので、中継がローカルプレイヤーの出入りを`eterpix_monitor.OnViewRangeEnter/Exit()`へ伝える(参照はモニターが`GetComponentsInChildren(true)`で集めて`SetMonitor(this)`で渡す)。子は`isTrigger=true`、レイキャストを遮らないレイヤー(`Ignore Raycast`)にし、そのレイヤーがPlayerLocalと衝突判定する設定になっていることをProject Settings > Physicsで確認する。
+- 写真を読み込む範囲は**`EterpixRequester`自身のトリガーBoxCollider 1つ**で判定する(モニター個別には持たない。設計: `docs/superpowers/specs/2026-09-27-requester-view-range-design.md`)。`eterpix_requester`が`OnPlayerTriggerEnter/Exit`でローカルプレイヤーの出入りを受け、配下の全モニターへ`SetInViewRange(bool)`を送る。モニターは`Init`/`OnEnable`で`requester.IsLocalPlayerInRange`を読み直す(通知の取りこぼし対策)。Colliderは`isTrigger=true`、レイヤーは`Ignore Raycast`(UIのレーザーを遮らない)。**`EditorOnly`タグを付けない**(ビルドで削除され、範囲判定が効かなくなる)。大きさはワールド制作者が任意に調整する。
 - UdonBehaviourを別のGameObjectへ移動・追加・削除すると、VRCWorldのNetwork ID表と食い違い、ビルドが`Failed to assign network IDs`で失敗する。VRChat SDKのNetwork IDユーティリティで競合を解消するか、実体の無いエントリを削除する。
 - ポータルは旧系統と同じく**共通ポータルを1つだけ置いて呼び寄せる**方式。シーンに`Assets/EterPix/Prefabs/EterpixPortal.prefab`(`eterpix_porta_resize`で`VRCPortalMarker`を包んだもの)を1つ配置し、名前は`EterpixPortal`のままにする(`eterpix_monitor.portal`が未設定なら`GameObject.Find("EterpixPortal")`で解決する)。「ポータルを開く」ボタン(`OpenPortal()`)で`SetParentObject(portalSpawnPoint, world_vrc_id)`が呼ばれ、ポータルがそのモニターの`portalSpawnPoint`(prefab内の`portal`)へ移動する。3m離れると自動で非表示になる。
 - **VRChatのWorld Space UIはCanvasに`GraphicRaycaster`と`VRC.SDK3.Components.VRCUiShape`が無いと、レーザーポインター/インタラクトでボタンを押せない。** `eterpix_monitor`(Canvasを持つルート)に両方アタッチすること。実装時にこれを付け忘れて「ボタンが反応しない」不具合が発生したため、忘れずに確認する(発見日: 2026-09-24)。
@@ -87,7 +87,6 @@
 - [ ] `eterpix_listener_monitor` の回転は `localRotation` を直接上書きしている。セル側と違い、基準回転とpivot補正が入っていない (発見日: 2026-09-23)
 - [ ] `eterpix_photo_vew.pos_reset` に `VRCObjectSync` のnullチェックがない (発見日: 2026-09-23)
 - [ ] `Assets/EterPix/Editor/eterpix_url_sync.cs` の `GenerateUrls` は `X2` フォーマットで大文字16進数(`00`〜`FF`)のURLを生成するが、サーバーのスロットは小文字表記(`00`〜`ff`)の想定。サーバーがURLの大文字小文字を区別する場合、画像取得に失敗する (発見日: 2026-09-23)
-- [ ] 表示範囲トリガー(旧prefabの `collider`、新prefabの `ViewRange`)に `EditorOnly` タグが付いており、ビルド時に削除される。そのため実機では `OnViewRangeEnter` が呼ばれず、`debugIgnoreTriggerRange = true` で常に画像を要求する状態になっている。UIリメイクでは挙動を変えないため同じ値を再現した (発見日: 2026-09-27)
 - [ ] requester が maxFeeds 超過で登録できない場合や、EterpixDownloaderV2 が無い場合、モニターは「読み込み中…」のまま止まる(設定ミスをエラー表示しない) (発見日: 2026-09-27)
 - [ ] モニターのルートに同期モードの違う UdonBehaviour が2つ(eterpix_monitor=Manual / eterpix_monitor_theme=None)ある。2クライアントの Build & Test でページ同期とテーマ切替を未確認 (発見日: 2026-09-27)
 - [ ] LoadingPulse.shader は Mask / RectMask2D(_Stencil, UNITY_UI_CLIP_RECT)に未対応。PostImage をマスク配下に置く場合は対応が必要 (発見日: 2026-09-27)
@@ -106,6 +105,17 @@ promoted_to:
 
 PROBLEM: FigureInner(AspectRatioFitter: Fit In Parent)の親FigureにHorizontalLayoutGroup(UpperLeft)が付いていて、画像が枠の上に寄り下に余白ができた(「A child of a layout group should not have an Aspect Ratio Fitter」警告)。
 FIX: Figure(LayoutGroup管理される側、LayoutElementのみ)からLayoutGroupを削除し、FigureInnerをanchor全面stretch・pivot(0.5,0.5)にしてFitterだけにサイズを決めさせた。
+```
+
+```yaml
+---
+name: view_range_trigger_editoronly
+success_count: 1
+promoted_to:
+---
+
+PROBLEM: モニター個別の表示範囲トリガーに EditorOnly タグが付いていてビルドで削除され、回避のため debugIgnoreTriggerRange=true(常に画像を読み込む)のままになっていた。
+FIX: 範囲判定を EterpixRequester 自身のトリガーBoxCollider(タグなし、Ignore Raycast)1つにまとめ、requester が配下モニターへ SetInViewRange を通知する形にした。debugIgnoreTriggerRange は false に戻した。
 ```
 
 ---

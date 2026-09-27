@@ -81,7 +81,7 @@ namespace ali.eterpix.v2
         [Header("デバッグログ")]
         [SerializeField] private ali.eterpix.eterpix_debug debugLog;
 
-        [Header("診断用: トリガーColliderの範囲判定を無視して常に画像をリクエストする" +
+        [Header("診断用: EterpixRequesterの範囲判定を無視して常に画像をリクエストする" +
             "(画像が読み込まれない不具合の切り分け用。原因特定後はfalseに戻すこと)")]
         [SerializeField] private bool debugIgnoreTriggerRange = false;
 
@@ -137,7 +137,8 @@ namespace ali.eterpix.v2
 
             SetInformationOpen(false);
 
-            BindViewRangeTriggers();
+            // Init前に範囲へ入っていた場合(範囲内でスポーン等)の通知を取りこぼさないよう、現在の状態を読み直す
+            _isInViewRange = requester.IsLocalPlayerInRange;
             RefreshDisplay();
         }
 
@@ -148,43 +149,32 @@ namespace ali.eterpix.v2
             RefreshDisplay();
         }
 
-        // ---- トリガーColliderによるオンデマンド画像要求 ----
-        // 表示範囲のトリガーは子のGameObject(ViewRange)にColliderとeterpix_monitor_triggerを付けて分ける。
-        // 出入りはそこから中継される。中継側からGetComponentInParentで親を探さず、こちらから子を集めて
-        // 参照を渡す。Init()がStart()より先に呼ばれる場合があるため、両方から呼ぶ(何度呼んでもよい)。
         private void Start()
         {
-            BindViewRangeTriggers();
             // requesterから初期化されるまでの間、prefabの見本テキストを見せないよう読み込み中にする
             if (_requester == null) ShowStatus(LoadingMessage);
         }
 
-        private void BindViewRangeTriggers()
+        // ---- 表示範囲によるオンデマンド画像要求 ----
+        // 範囲の判定はeterpix_requester(自身のトリガーCollider)が行い、ローカルプレイヤーの出入りをここへ通知する
+        public void SetInViewRange(bool inRange)
         {
-            eterpix_monitor_trigger[] triggers = GetComponentsInChildren<eterpix_monitor_trigger>(true);
-            for (int i = 0; i < triggers.Length; i++)
-            {
-                triggers[i].SetMonitor(this);
-            }
-        }
+            _isInViewRange = inRange;
 
-        // eterpix_monitor_triggerから、ローカルプレイヤーが表示範囲に入ったときに呼ばれる
-        public void OnViewRangeEnter()
-        {
-            _isInViewRange = true;
+            if (!inRange)
+            {
+                ReleaseCurrentTextureIfAny();
+                return;
+            }
+
+            // 非表示中は要求しない(OnEnableで状態を読み直して要求する)
+            if (!gameObject.activeInHierarchy) return;
 
             if (_downloader != null && _currentSlot >= 0 && !_hasRequestedTexture)
             {
                 _hasRequestedTexture = true;
                 _downloader.RequestTexture(_feedIndex, _currentSlot, 100, this);
             }
-        }
-
-        // eterpix_monitor_triggerから、ローカルプレイヤーが表示範囲から出たときに呼ばれる
-        public void OnViewRangeExit()
-        {
-            _isInViewRange = false;
-            ReleaseCurrentTextureIfAny();
         }
 
         // オブジェクトの非アクティブ化/破棄(VRChatがOnPlayerTriggerExitを配送し損ねる
@@ -198,9 +188,14 @@ namespace ali.eterpix.v2
         }
 
         // 非アクティブ中にOnDisableで参照を解放しているため、再表示時に取り直す(解放後にテクスチャが破棄されている可能性がある)
+        // 非アクティブ中の範囲の出入りは通知されないため、requesterの現在の状態を読み直してから表示する
         private void OnEnable()
         {
-            if (_requester != null) RefreshDisplay();
+            if (_requester != null)
+            {
+                _isInViewRange = _requester.IsLocalPlayerInRange;
+                RefreshDisplay();
+            }
             // 非アクティブ中にクールダウンの解除イベントを取りこぼしていても押せるように戻す
             if (Time.time >= _reloadAvailableTime) SetReloadInteractable(true);
         }

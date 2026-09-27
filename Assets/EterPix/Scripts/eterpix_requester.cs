@@ -36,6 +36,10 @@ namespace ali.eterpix.v2
 
         private eterpix_monitor[] _monitors = new eterpix_monitor[0];
 
+        // ローカルプレイヤーが写真を読み込む範囲(このGameObjectのトリガーCollider)の中にいるか
+        private bool _isLocalPlayerInRange = false;
+        public bool IsLocalPlayerInRange => _isLocalPlayerInRange;
+
         // ダウンローダのjsonArray(新しい順)のうち、表示対象インデックスだけを抽出した表
         private int[] _visibleIndices = new int[0];
         public int VisibleCount => _visibleIndices.Length;
@@ -91,6 +95,37 @@ namespace ali.eterpix.v2
             for (int i = 0; i < _monitors.Length; i++)
             {
                 if (_monitors[i] != null) _monitors[i].OnFeedUpdated();
+            }
+        }
+
+        // ---- 表示範囲(このGameObjectのトリガーCollider)。配下の全モニターへ出入りを通知する ----
+        public override void OnPlayerTriggerEnter(VRCPlayerApi player)
+        {
+            if (!Utilities.IsValid(player) || !player.isLocal) return;
+            SetLocalPlayerInRange(true);
+        }
+
+        public override void OnPlayerTriggerExit(VRCPlayerApi player)
+        {
+            if (!Utilities.IsValid(player) || !player.isLocal) return;
+            SetLocalPlayerInRange(false);
+        }
+
+        // テレポート等でExitが届かないまま非アクティブになった場合の保険。
+        // 配下のモニターも同時に非アクティブになり各自のOnDisableで画像を解放するため、通知はしない
+        private void OnDisable()
+        {
+            _isLocalPlayerInRange = false;
+        }
+
+        private void SetLocalPlayerInRange(bool inRange)
+        {
+            if (_isLocalPlayerInRange == inRange) return;
+            _isLocalPlayerInRange = inRange;
+
+            for (int i = 0; i < _monitors.Length; i++)
+            {
+                if (_monitors[i] != null) _monitors[i].SetInViewRange(inRange);
             }
         }
 

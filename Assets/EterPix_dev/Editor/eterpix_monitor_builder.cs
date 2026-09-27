@@ -306,21 +306,10 @@ namespace ali.eterpix.dev
                 BuildInfoContent(info);
                 info.SetActive(false);
 
-                // ---- ポータル出現位置 / 表示範囲トリガー(旧prefabと同じ値)
+                // ---- ポータル出現位置(旧prefabと同じ値)。表示範囲の判定はEterpixRequesterのトリガーColliderで行う
                 GameObject spawn = new GameObject("PortalSpawnPoint");
                 spawn.transform.SetParent(root.transform, false);
                 spawn.transform.localPosition = new Vector3(-233f, -548f, 0f);
-
-                GameObject range = new GameObject("ViewRange");
-                range.transform.SetParent(root.transform, false);
-                range.transform.localPosition = new Vector3(0f, -h / 2f, 0f);
-                range.layer = 2; // Ignore Raycast
-                range.tag = "EditorOnly";
-                BoxCollider box = range.AddComponent<BoxCollider>();
-                box.isTrigger = true;
-                box.size = new Vector3(700f, 1000f, 1000f);
-                box.center = new Vector3(0f, 0f, -500f);
-                UdonSharpUndo.AddComponent<eterpix_monitor_trigger>(range);
 
                 // ---- monitor の参照
                 SerializedObject so = new SerializedObject(monitor);
@@ -346,7 +335,7 @@ namespace ali.eterpix.dev
                 SetRef(so, "loadingMaterial", loadingMat);
                 SetRef(so, "monitorTheme", monitorTheme);
                 SetArray(so, "normalOnlyObjects", new Object[] { page, prev, next, fitterGo, postRoot });
-                so.FindProperty("debugIgnoreTriggerRange").boolValue = true; // 旧prefabと同じ(挙動を変えない)
+                so.FindProperty("debugIgnoreTriggerRange").boolValue = false; // 範囲の判定はEterpixRequesterで行う
                 so.ApplyModifiedPropertiesWithoutUndo();
 
                 // ---- 配色(黒プリセットで焼き込む)

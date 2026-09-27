@@ -18,6 +18,7 @@
 4. モニターを増やす場合は `Prefabs/EterpixMonitor_Stack.prefab`(縦積み)または `Prefabs/EterpixMonitor_Split.prefab`(下段が横並び)を `EterpixRequester` の子に置く
    - 大きさはモニターのルートの Scale で変える(子の Scale は変えない)
    - 旧デザインの `Prefabs/Legacy/EterpixMonitorUI.prefab` も引き続き使える(エラー表示・テーマには非対応)
+5. 写真は `EterpixRequester` の BoxCollider の範囲内にいるときだけ読み込む。任意でサイズ調整できます
 
 ### 再読み込みボタン
 
@@ -40,7 +41,6 @@
 - 次のオブジェクト名は変更しないこと (スクリプトが名前で探す)
   - `EterpixDownloaderV2` / `EterpixPortal` / `EterpixTheme`
   - (任意) ログを出したい場合は `eterpix_debug` を付けた `EterpixDebug` という名前の GameObject を置く
-- モニターの表示範囲トリガー(子の `ViewRange`)は現在ビルドで削除される設定(EditorOnly)のため、実機では常に画像を読み込む(既知の不具合)
 - `EterpixTheme` はワールドに1つだけ有効になる(テンプレートを複数置いた場合、最初に見つかったものの設定が使われ、他は無効になる)
 - UdonBehaviour を別の GameObject へ移動・追加・削除すると、ビルドが
   `Failed to assign network IDs` で失敗することがある。
