@@ -189,7 +189,17 @@ ONにすると、しばらくして表示されます
 - 読み込み中は PostImage にマテリアルを設定、成功時に `material = null`
 - Udon の Update は使わない
 
-## 11. Tesca から取り入れる実装パターン
+## 11. 実装計画での調整(2026-09-27)
+
+- フォントは NotoSansJP-Bold しか無いため、SemiBold / Regular の指定は使わず、強弱は大きさで付ける
+- ボタン押下色はテーマで変えず、塗りを 0.75 倍に暗くする(U#から ColorBlock を書き換えるのが未検証のため)
+- 読み込み中の明滅は、マテリアルの2色ではなく「RawImage.color(ボタン色)のαを揺らす」方式。背景の上に描くので見た目は同じ
+- URL欄は Tesca の「編集されたら戻す」方式ではなく `TMP_InputField.readOnly` を使う(ランタイムのコード不要)
+- テーマのエディタ反映は OnValidate ではなく Inspector の変更検出で行う
+- 表示範囲トリガーは旧prefabの値(EditorOnly タグ、debugIgnoreTriggerRange=true)を再現する(挙動を変えないため。BUGSに記録)
+- prefab はコード(開発用ビルダー)で生成する
+
+## 12. Tesca から取り入れる実装パターン
 
 - `result.Error.Contains("Not trusted url hit")` による判定
 - 読み取り専用 TMP_InputField
