@@ -26,8 +26,8 @@ EterPix(https://www.eterpix.uk)の投稿写真を VRChat ワールド内に表�
 - 作り直し(v2)の仕様は [Assets/EterPix_dev/code/リファクタリング案.md](Assets/EterPix_dev/code/リファクタリング案.md) にある。
 - モニターの prefab(`EterpixMonitor_Stack` / `EterpixMonitor_Split` / `EterpixTheme`)は **prefab が正**。
   位置・色・ボタンなどの変更は prefab を直接編集する。
-  最初はエディタ拡張 `Assets/EterPix_dev/Editor/eterpix_monitor_builder.cs` で生成したが、
-  メニュー `ali/eterpix/dev/Build Monitor Prefabs (上書き注意)` を実行すると prefab をゼロから作り直し、手で調整した値がすべて消えるため、通常は使わない。
+  最初はエディタ拡張 `Assets/EterPix_dev/Editor/eterpix_monitor_builder.cs` で生成したが、現在は凍結中
+  (作り直すと手で調整した値がすべて消えるため、作り直しメニューは外してある)。
   - `ali/eterpix/dev/Build Monitor Preview Scene` / `Close Monitor Preview Scene`: 見た目確認用のプレビューシーン(Stack / Split × 5状態)を今のシーンに追加で開く/閉じる
   - `ali/eterpix/dev/Migrate Template To Stack`: テンプレート内の旧モニターを Stack モニターへ置き換え、`EterpixTheme` を追加する(位置・offset 等は引き継ぐ)
 - BOOTH 配布版(unitypackage と zip)の作成と商品説明の更新は、Claude Code で `/booth-release` を実行する。

@@ -18,7 +18,7 @@ namespace ali.eterpix.dev
 {
     // EterPixモニターのprefab(Stack / Split)と EterpixTheme をコードから組み立てる開発用ツール。
     // 寸法は docs/superpowers/plans/2026-09-27-eterpix-monitor-ui-remake.md の表のとおり。
-    // prefabを手で直さず、ここを直して作り直すこと(同じパスに上書きするのでGUIDは変わらない)。
+    // 凍結中: prefab本体が正。作り直しメニュー(BuildAll)は外してある。
     public static class eterpix_monitor_builder
     {
         public const string PrefabDir = "Assets/EterPix/Prefabs";
@@ -59,9 +59,10 @@ namespace ali.eterpix.dev
 
         private static TMP_FontAsset _font;
 
-        // prefab(Stack / Split / EterpixTheme)が正。手で調整した値(位置・色など)は作り直すと全て消えるため、
-        // 通常は使わない。変更はprefabを直接編集する。
-        [MenuItem("ali/eterpix/dev/Build Monitor Prefabs (上書き注意)")]
+        // 凍結中: prefab(Stack / Split / EterpixTheme)が正で、変更は常にprefab本体を直接編集する。
+        // 作り直すと手で調整した値(位置・色など)が全て消えるため、メニューを外してある。
+        // ここのコードはprefab本体と一致していない(本体の手調整を反映していない)。
+        // [MenuItem("ali/eterpix/dev/Build Monitor Prefabs (上書き注意)")]
         public static void BuildAll()
         {
             if (!EditorUtility.DisplayDialog("Build Monitor Prefabs",
