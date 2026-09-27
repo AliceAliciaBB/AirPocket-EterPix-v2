@@ -41,9 +41,9 @@ namespace ali.eterpix.v2
         public bool IsLocalPlayerInRange => _isLocalPlayerInRange;
 
         // OnPlayerTriggerEnterは、Udonの初期化前から範囲内にいた(範囲内でスポーンした)場合に届かないことがある
-        // (ClientSimで確認)。取りこぼしを補うため、ローカルプレイヤーのJoinからこの秒数後に一度だけ、
-        // 範囲の箱と自分の体(PlayerLocalレイヤー)が重なっているかを確かめる
-        private const float JoinRangeCheckDelaySeconds = 2f;
+        // (ClientSimで確認)。取りこぼしを補うため、ローカルプレイヤーのJoin直後(次のフレーム)に一度だけ、
+        // 範囲の箱と自分の体(PlayerLocalレイヤー)が重なっているかを確かめる。
+        // Join時点でUdonは初期化済みなので、それ以降に範囲へ入った場合は通常どおりEnterが届く
 
         // ダウンローダのjsonArray(新しい順)のうち、表示対象インデックスだけを抽出した表
         private int[] _visibleIndices = new int[0];
@@ -126,7 +126,7 @@ namespace ali.eterpix.v2
         public override void OnPlayerJoined(VRCPlayerApi player)
         {
             if (!Utilities.IsValid(player) || !player.isLocal) return;
-            SendCustomEventDelayedSeconds(nameof(CheckLocalPlayerInRange), JoinRangeCheckDelaySeconds);
+            SendCustomEventDelayedFrames(nameof(CheckLocalPlayerInRange), 1);
         }
 
         public void CheckLocalPlayerInRange()
