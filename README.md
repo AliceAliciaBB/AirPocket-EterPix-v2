@@ -1,6 +1,6 @@
 # AirPocket-EterPix
 
-EterPix(https://eterpix.com/web/home)の投稿写真を VRChat ワールド内に表示するギミックの Unity プロジェクト。
+EterPix(https://eterpix.com/)の投稿写真を VRChat ワールド内に表示するギミックの Unity プロジェクト。
 サーバーから投稿一覧の JSON と、写真6枚を1枚にまとめたコラージュ画像を取得し、写真・キャプション・ポータルとして表示する。
 
 ## 必要なもの

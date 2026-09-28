@@ -80,7 +80,7 @@ EterPixに投稿された公開写真を閲覧できます。
 EterPixへの写真投稿は、WEBから行えます。
 
 投稿ページ
-https://eterpix.com/web/home
+https://eterpix.com/
 
 VRChatで撮影した写真を、ぜひEterPixに投稿してみてください。
 ```
