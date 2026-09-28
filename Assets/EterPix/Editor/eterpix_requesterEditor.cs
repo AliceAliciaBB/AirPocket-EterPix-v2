@@ -16,7 +16,7 @@ namespace ali.eterpix
         private const int CustomPresetId = -1;
         private static readonly int[] PresetIds = { 0 };
         private static readonly string[] PresetLabels = { "パブリック投稿" };
-        private static readonly string[] PresetUrls = { "https://api.eterpix.uk/api/vrc/v1/public" };
+        private static readonly string[] PresetUrls = { "https://eterpix.com/api/vrc/v1/public" };
         private const string CustomLabel = "自分で入力";
 
         public override void OnInspectorGUI()

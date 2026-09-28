@@ -1919,7 +1919,7 @@ MonoBehaviour:
   m_CaretColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
   m_CustomCaretColor: 0
   m_SelectionColor: {r: 0.65882355, g: 0.80784315, b: 1, a: 0.7529412}
-  m_Text: https://api.eterpix.uk/
+  m_Text: https://eterpix.com/web/home
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 1
@@ -3948,7 +3948,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "https://api.eterpix.uk/\u200B"
+  m_text: "https://eterpix.com/web/home\u200B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 992d118342cbc9e45b934979e771baf1, type: 2}
   m_sharedMaterial: {fileID: 7189310939744648001, guid: 992d118342cbc9e45b934979e771baf1, type: 2}

@@ -1,6 +1,6 @@
 # EterPix
 
-外部サーバー (eterpix.uk) の投稿と写真を、VRChat ワールド内のモニターに表示するギミック。
+外部サーバー (eterpix.com) の投稿と写真を、VRChat ワールド内のモニターに表示するギミック。
 
 ## 必要なもの
 
@@ -11,7 +11,7 @@
 
 1. `Etp_テンプレート.prefab` をシーンに置く
 2. `EterpixRequester` の Inspector の「取得先」ドロップダウンで JSON の URL を選ぶ
-   - `パブリック投稿`: `https://api.eterpix.uk/api/vrc/v1/public` が自動で入る
+   - `パブリック投稿`: `https://eterpix.com/api/vrc/v1/public` が自動で入る
    - `自分で入力`: フォルダ等のリンクをそのまま貼り付ける(補間しない)。v1 形式 (`/api/vrc/v1/...`) のみ対応
 3. 画像 URL (256 件、`requestUrl` + `/00`〜`/FF`) は URL を変えた瞬間に自動で反映される。
    メニュー `ali/eterpix/Sync URL Lists from requestUrl (自動で反映されます・触らないでください)` は念のための手動作り直し用で、通常は触らない

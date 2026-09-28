@@ -179,7 +179,7 @@ ONにすると、しばらくして表示されます
 
 - ヘッダーより下の全体を覆う。背景はテーマの背景色
 - 本文は現行 InfoBody を短く整える。★は使わず見出しは Bold のみ
-- 投稿ページ URL `https://api.eterpix.uk/app` は読み取り専用 TMP_InputField(編集しても即元に戻す、Tesca 方式)
+- 投稿ページ URL `https://eterpix.com/web/home` は読み取り専用 TMP_InputField(編集しても即元に戻す、Tesca 方式)
 - 末尾に「最新情報は X @_alicilia」
 - 高さ固定、溢れる場合は ScrollRect で縦スクロール
 

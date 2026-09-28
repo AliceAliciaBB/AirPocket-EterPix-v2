@@ -288,7 +288,7 @@ namespace ali.eterpix
             if (localPlayer != null && !string.IsNullOrEmpty(_photoUuid))
             {
                 string playerName = localPlayer.displayName;
-                string tpUrl = $"https://www.eterpix.uk/vrc/ingame_api/tp/register/{playerName}/{_photoUuid}";
+                string tpUrl = $"https://eterpix.com/vrc/ingame_api/tp/register/{playerName}/{_photoUuid}";
 
                 if (tpUrlCopySource != null)
                 {

@@ -46,7 +46,7 @@ namespace ali.eterpix.dev
         private const float HitRatio = 0.35f;
         private const float RootScale = 0.00125f;
 
-        private const string InfoUrl = "https://api.eterpix.uk/";
+        private const string InfoUrl = "https://eterpix.com/web/home";
         private const string InfoHeading = "EterPixについて";
         private const string InfoBody =
             "EterPixは、VRChatで撮影した写真を共有できるSNSです。このモニターでは、EterPixに投稿された公開写真を閲覧できます。\n\n" +
