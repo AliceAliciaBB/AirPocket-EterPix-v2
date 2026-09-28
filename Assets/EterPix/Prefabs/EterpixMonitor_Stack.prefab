@@ -2094,7 +2094,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "https://eterpix.com/web/home\u200B"
+  m_text: https://eterpix.com/web/home
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 992d118342cbc9e45b934979e771baf1, type: 2}
   m_sharedMaterial: {fileID: 7189310939744648001, guid: 992d118342cbc9e45b934979e771baf1, type: 2}
