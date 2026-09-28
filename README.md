@@ -37,3 +37,5 @@ EterPix(https://www.eterpix.uk)の投稿写真を VRChat ワールド内に表�
 - `Library/` などの Unity 自動生成フォルダ
 - `Packages/` 配下の VPM パッケージ本体(VCC で復元する)
 - `Assets/アセット(同期しない)/`(購入アセットなど、再配布できないもの)
+- `Assets/Tesca/`(BOOTH_Poster。外部アセットのため各自で導入する)
+- `ClientSimStorage/`(ClientSim のローカル再生データ)

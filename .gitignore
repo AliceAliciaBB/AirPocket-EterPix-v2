@@ -47,3 +47,10 @@ crashlytics-buildtime-config.xml
 # 同期しないアセット(購入アセット等)
 /Assets/アセット(同期しない)/
 /Assets/アセット(同期しない).meta
+
+# 外部アセット(BOOTH_Poster by Tesca)。再配布物のため含めない
+/Assets/Tesca/
+/Assets/Tesca.meta
+
+# ClientSimのローカル再生データ
+/ClientSimStorage/
