@@ -16,7 +16,7 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // ポータルの上にあるUIと重ならないよう、指定座標から下へずらす量(ポータル1倍時の高さ基準)。
     // 実際の移動量は offset × siz_value(大きさに比例する)
     [Tooltip("指定座標から下へずらす量。ポータル1倍時の高さ基準で、実際の移動量は Offset × siz_value")]
-    [SerializeField] private float offset = 0f;
+    [SerializeField] private float offset = 1.5f;
     [SerializeField] private float portal_clause_distance = 3f;
     public float distance;
 
@@ -59,8 +59,6 @@ public class eterpix_porta_resize : UdonSharpBehaviour
             transform.SetParent(parent);
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
-            // 親(モニター)のスケールの影響を受けないよう、ワールド座標で真下へずらす
-            transform.position = parent.position + Vector3.down * (offset * siz_value);
 
 
             world_id = roomId;
@@ -85,8 +83,13 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     //     SendCustomEventDelayedSeconds(nameof(ApplyScale), 0.2f);
     // }
 
+    // 下へずらす処理も大きさと同じフレームで行う(RefreshPortal直後に動かすとポータルの挙動がおかしくなるため)
     public void ApplyScale()
     {
         portal.transform.localScale = new Vector3(siz_value, siz_value, siz_value);
+
+        // 親(モニター)のスケールの影響を受けないよう、ワールド座標で真下へずらす
+        Transform parent = transform.parent;
+        if (parent != null) transform.position = parent.position + Vector3.down * (offset * siz_value);
     }
 }
