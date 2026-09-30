@@ -16,7 +16,7 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // ポータルの上にあるUIと重ならないよう、指定座標から下へずらす量(ポータル1倍時の高さ基準)。
     // 実際の移動量は offset × siz_value(大きさに比例する)
     [Tooltip("指定座標から下へずらす量。ポータル1倍時の高さ基準で、実際の移動量は Offset × siz_value")]
-    [SerializeField] private float offset = 1.5f;
+    [SerializeField] private float offset = 2f;
     [SerializeField] private float portal_clause_distance = 3f;
     public float distance;
 

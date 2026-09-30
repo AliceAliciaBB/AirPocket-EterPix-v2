@@ -58,7 +58,8 @@ MonoBehaviour:
   _udonSharpBackingUdonBehaviour: {fileID: 8662550892616370365}
   portal: {fileID: 1365553218371218349}
   world_id: 
-  siz_value: 0.1
+  siz_value: 0.15
+  offset: 2.5
   portal_clause_distance: 10
   distance: 0
 --- !u!114 &8662550892616370365
