@@ -90,6 +90,8 @@ namespace ali.eterpix.v2
         private VRC.SDK3.Image.VRCImageDownloader _imageDownloader;
         private bool _isImageDownloading = false;
         private int _currentDownloadKey = -1;
+        // 手動更新でフィードの画像を破棄したとき、そのフィードのダウンロードが進行中だった(結果を捨てる)
+        private bool _discardCurrentDownload = false;
 
         // 破棄予約は「どのキーを見るか」をスケジューリング時の引数として渡せない(UdonSharpの
         // SendCustomEventDelayedSecondsは引数を運べず、常に同じメソッド名を呼ぶだけ)。
@@ -234,10 +236,39 @@ namespace ali.eterpix.v2
             for (int i = 0; i < _feedCount; i++) RequestJson(i);
         }
 
-        // ---- リクエスターからの手動更新(そのフィードだけ取り直す) ----
+        // ---- リクエスターからの手動更新(ローカルのみ。そのフィードのJSONと画像を破棄してから取り直す) ----
+        // モニターのページ位置(_syncedPageIndex)は破棄しないため、取得後は各モニターが元のindexで表示し直す。
         public void RequestManualRefresh(int feedIndex)
         {
+            if (feedIndex < 0 || feedIndex >= _feedCount) return;
+            // 取得中(応答待ち)なら、その結果で表示し直されるので何もしない
+            if (_feedPending[feedIndex]) return;
+
+            _feedPosts[feedIndex] = null;
+            _feedWorldData[feedIndex] = null;
+            _feedStatus[feedIndex] = FeedStatusLoading;
+            // 先にモニターを読み込み中表示にして、RawImageからテクスチャを外させ参照を解放させる
+            NotifyFeedRequesters(feedIndex);
+            DiscardFeedTextures(feedIndex);
+
             RequestJson(feedIndex);
+        }
+
+        private void DiscardFeedTextures(int feedIndex)
+        {
+            int start = feedIndex * ImageSlotsPerFeed;
+            for (int key = start; key < start + ImageSlotsPerFeed; key++)
+            {
+                if (_imgState[key] == eterpix_v2_image_state.Loaded)
+                {
+                    DiscardSlot(key);
+                }
+                else if (_imgState[key] == eterpix_v2_image_state.Downloading)
+                {
+                    // 破棄前に始めたダウンロードの結果は使わず、届いたら捨てて取り直す
+                    _discardCurrentDownload = true;
+                }
+            }
         }
 
         // ---- JSON取得の実行(各クライアントがローカルで実行。OnStringLoadSuccess/Errorが
@@ -612,6 +643,7 @@ namespace ali.eterpix.v2
             _imgState[best] = eterpix_v2_image_state.Downloading;
             _currentDownloadKey = best;
             _isImageDownloading = true;
+            _discardCurrentDownload = false;
 
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Downloading feed={feedIndex} slot={slot}: {url}");
             _imageDownloader.DownloadImage(url, null, (IUdonEventReceiver)this, null);
@@ -623,6 +655,16 @@ namespace ali.eterpix.v2
             _isImageDownloading = false;
             if (key < 0 || key >= _imgState.Length)
             {
+                StartNextImageDownloadIfIdle();
+                return;
+            }
+
+            if (_discardCurrentDownload)
+            {
+                // 手動更新より前に始めたダウンロード。古い画像の可能性があるため捨て、見ている人がいれば取り直す
+                _discardCurrentDownload = false;
+                if (result.Result != null) Destroy(result.Result);
+                _imgState[key] = _imgRefCount[key] > 0 ? eterpix_v2_image_state.Queued : eterpix_v2_image_state.Unrequested;
                 StartNextImageDownloadIfIdle();
                 return;
             }
@@ -642,6 +684,7 @@ namespace ali.eterpix.v2
         {
             int key = _currentDownloadKey;
             _isImageDownloading = false;
+            _discardCurrentDownload = false;
             if (key < 0 || key >= _imgState.Length)
             {
                 StartNextImageDownloadIfIdle();

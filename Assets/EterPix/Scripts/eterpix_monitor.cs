@@ -42,7 +42,7 @@ namespace ali.eterpix.v2
 
         public const string PortalObjectName = "EterpixPortal";
 
-        [Header("再読み込み(押した本人だけJSONを取り直す。連打防止のため押した後しばらく押せなくする)")]
+        [Header("再読み込み(押した本人だけJSONと画像を破棄して取り直す。連打防止のため押した後しばらく押せなくする)")]
         [SerializeField] private Button reloadButton;
         // VRCStringDownloaderは5秒に1回までのため、それより長く空ける
         public const float ReloadCooldownSeconds = 10f;
@@ -200,7 +200,8 @@ namespace ali.eterpix.v2
             if (Time.time >= _reloadAvailableTime) SetReloadInteractable(true);
         }
 
-        // ---- 再読み込み(ローカルのみ。取得結果はOnFeedUpdated経由で同じフィードの全モニターに反映される) ----
+        // ---- 再読み込み(ローカルのみ。フィードのJSONと画像を破棄して取り直す。同じフィードの全モニターが
+        // OnFeedUpdated経由でいったん読み込み中になり、取得後は各自のページ位置(_syncedPageIndex)のまま表示し直す) ----
         public void ReloadFeed()
         {
             if (_requester == null || Time.time < _reloadAvailableTime) return;
