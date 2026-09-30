@@ -213,9 +213,17 @@ namespace ali.eterpix.v2
             _requester.ManualRefresh();
         }
 
+        // 予約した呼び出しが Time.time 上わずかに早く届き、時刻の判定をぎりぎり満たさないことがある
+        // (ダウンローダのTryDiscardSlotと同じ)。その場合は押せないまま残るため、残り時間後に予約し直す
         public void EndReloadCooldown()
         {
-            if (Time.time >= _reloadAvailableTime) SetReloadInteractable(true);
+            float remaining = _reloadAvailableTime - Time.time;
+            if (remaining <= 0f)
+            {
+                SetReloadInteractable(true);
+                return;
+            }
+            SendCustomEventDelayedSeconds(nameof(EndReloadCooldown), remaining + 0.1f);
         }
 
         private void SetReloadInteractable(bool interactable)

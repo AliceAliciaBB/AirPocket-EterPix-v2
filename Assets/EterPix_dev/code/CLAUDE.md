@@ -132,6 +132,17 @@ FIX: (1)ReleaseCurrentTextureIfAnyで解放したらBeginImageLoading()で表示
 
 ```yaml
 ---
+name: delayed_event_arrives_early
+success_count: 2
+promoted_to:
+---
+
+PROBLEM: SendCustomEventDelayedSeconds(X秒)で予約した呼び出しが Time.time 上わずかに早く届き、「予約時刻+X <= Time.time」の判定をぎりぎり満たさず処理が行われないまま残った(ダウンローダの猶予破棄、再読み込みボタンのクールダウン解除で色が戻らず押せないまま)。
+FIX: 判定を満たさなかったら、残り時間+0.1秒後に同じイベントを予約し直す(TryDiscardSlot / EndReloadCooldown)。
+```
+
+```yaml
+---
 name: player_trigger_enter_missed_on_spawn
 success_count: 1
 promoted_to:
