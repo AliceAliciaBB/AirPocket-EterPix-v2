@@ -87,7 +87,8 @@ public class eterpix_porta_resize : UdonSharpBehaviour
             portal.gameObject.SetActive(true);
 
             // 親の移動が完了してから前のopenerに通知する
-            if (prevOpener != null) prevOpener.SendCustomEvent("OnPortalStateChanged");
+            // 同じモニターが自分のポータルを再表示する場合は通知しない(_portalShouldBeOpenを壊さないため)
+            if (prevOpener != null && prevOpener != opener) prevOpener.SendCustomEvent("OnPortalStateChanged");
 
             _opener = opener;
 
