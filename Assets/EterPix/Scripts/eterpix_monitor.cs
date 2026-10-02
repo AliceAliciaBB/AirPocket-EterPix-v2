@@ -39,6 +39,7 @@ namespace ali.eterpix.v2
         // 未指定なら固定名 PortalObjectName のGameObjectから解決する
         [SerializeField] private eterpix_porta_resize portal;
         [SerializeField] private Transform portalSpawnPoint; // 未指定ならこのtransform
+        [SerializeField] private TMP_Text portalLabel; // 「ポータルを開く」/「ポータルを閉じる」
 
         public const string PortalObjectName = "EterpixPortal";
 
@@ -98,6 +99,9 @@ namespace ali.eterpix.v2
         private bool _isImageLoading = false;
 
         private float _reloadAvailableTime = 0f;
+
+        // ポータルを「開いている意図」を記憶する。ワールド情報が一時的にない間も維持し、戻ったら再表示する
+        private bool _portalShouldBeOpen = false;
 
         private DataDictionary _currentPost;
         // Init()より先にOnDeserialization()で本物の同期値を受け取っていた場合、
@@ -313,9 +317,15 @@ namespace ali.eterpix.v2
             if (pageLabel != null) pageLabel.text = $"{slotInWindow + 1} / {count}";
         }
 
+        public const string PortalLabelOpen = "ポータルを開く";
+        public const string PortalLabelClose = "ポータルを閉じる";
+
         // ---- 状態表示 ----
         private void ShowStatus(string message)
         {
+            // 状態表示中はポータルを一時非表示(_portalShouldBeOpen は維持してデータ復帰時に再表示)
+            if (portal != null) portal.HideTemporarily();
+
             ReleaseCurrentTextureIfAny();
             _currentSlot = -1;
             _currentPost = null;
@@ -349,6 +359,8 @@ namespace ali.eterpix.v2
         private void ApplyPost(DataDictionary data)
         {
             ReleaseCurrentTextureIfAny();
+            // ページ変化前の woid を先に読む(後で_currentPostを上書きするため)
+            string prevWorldId = _currentPost != null ? ReadString(_currentPost, "woid", "") : "";
             _currentPost = data;
 
             // v1形式のkey(coid=collage_id, copo=img_pos, coro=img_rotation,
@@ -378,17 +390,53 @@ namespace ali.eterpix.v2
             if (userNameText != null) userNameText.text = userName;
             if (descriptionText != null) descriptionText.text = description;
 
-            ApplyWorldContext(worldId);
+            ApplyWorldContext(worldId, prevWorldId);
         }
 
-        private void ApplyWorldContext(string worldId)
+        private void ApplyWorldContext(string worldId, string prevWorldId)
         {
             bool hasWorld = !string.IsNullOrEmpty(worldId);
             if (worldContextRoot != null) worldContextRoot.SetActive(hasWorld);
+
+            // ページが変わったときのポータル制御
+            Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
+            if (portal != null && _portalShouldBeOpen)
+            {
+                if (!hasWorld)
+                {
+                    // ワールド情報なし → 一時非表示(_portalShouldBeOpen は維持)
+                    portal.HideTemporarily();
+                }
+                else if (portal.IsOpenAt(spawn))
+                {
+                    // 開いている → world_id だけ差し替え(同じワールドなら何もしない)
+                    if (worldId != prevWorldId) portal.ChangeWorld(worldId);
+                }
+                else
+                {
+                    // 一時非表示から復帰 → 再表示
+                    portal.SetParentObjectWithOpener(spawn, worldId, this);
+                }
+            }
+            UpdatePortalLabel();
+
             if (!hasWorld) return;
 
             if (worldNameText != null) worldNameText.text = _requester.ResolveWorldName(worldId);
             if (worldDescriptionText != null) worldDescriptionText.text = _requester.ResolveWorldDescription(worldId);
+        }
+
+        private void UpdatePortalLabel()
+        {
+            if (portalLabel == null) return;
+            portalLabel.text = _portalShouldBeOpen ? PortalLabelClose : PortalLabelOpen;
+        }
+
+        // eterpix_porta_resize から SendCustomEvent で呼ばれる(距離で消えた/別モニターが開いた/Close)
+        public void OnPortalStateChanged()
+        {
+            _portalShouldBeOpen = false;
+            UpdatePortalLabel();
         }
 
         private void ReleaseCurrentTextureIfAny()
@@ -561,7 +609,7 @@ namespace ali.eterpix.v2
         // ---- ポータル ----
         // 旧系統(eterpix_item/eterpix_photo_vew)と同じく、共通ポータル(eterpix_porta_resize)を
         // spawn位置へ親付け替えで呼び寄せる。距離による自動非表示・スケール適用はポータル側が行う。
-        public void OpenPortal()
+        public void TogglePortal()
         {
             if (portal == null || _currentPost == null) return;
 
@@ -569,7 +617,17 @@ namespace ali.eterpix.v2
             if (string.IsNullOrEmpty(worldId)) return;
 
             Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
-            portal.SetParentObject(spawn, worldId);
+            if (_portalShouldBeOpen)
+            {
+                _portalShouldBeOpen = false;
+                portal.Close();
+            }
+            else
+            {
+                _portalShouldBeOpen = true;
+                portal.SetParentObjectWithOpener(spawn, worldId, this);
+            }
+            UpdatePortalLabel();
         }
 
         #region Editor
