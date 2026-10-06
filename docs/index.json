@@ -18,7 +18,10 @@
           },
           "url": "https://github.com/AliceAliciaBB/AirPocket-EterPix-v2/releases/download/v2.0.0/com.aliciliabb.eterpix-2.0.0.zip",
           "license": "MIT",
-          "dependencies": {},
+          "dependencies": {
+            "com.vrchat.worlds": "3.7.0",
+            "com.vrchat.base": "3.7.0"
+          },
           "vpmDependencies": {
             "com.vrchat.worlds": ">=3.4.0"
           },
@@ -26,7 +29,8 @@
             "vrchat",
             "udonsharp",
             "eterpix"
-          ]
+          ],
+          "zipSHA256": "91691b36e5fccf532d1c2d51f0f4914fcb8a22732f5f5e63453cd0637eaf7c38"
         }
       }
     }
