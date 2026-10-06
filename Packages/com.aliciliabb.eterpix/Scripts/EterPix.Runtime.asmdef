@@ -2,7 +2,9 @@
     "name": "EterPix.Runtime",
     "references": [
         "UdonSharp.Runtime",
-        "VRC.Udon"
+        "VRC.Udon",
+        "VRC.SDKBase",
+        "VRC.SDK3"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
