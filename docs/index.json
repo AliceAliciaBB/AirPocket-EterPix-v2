@@ -109,6 +109,32 @@
             "eterpix"
           ],
           "zipSHA256": "73540d70d35860765c620589a2e3ffbf2f76b5b98e40304ff44bd9264b33f189"
+        },
+        "2.1.2": {
+          "name": "com.aliciliabb.eterpix",
+          "version": "2.1.2",
+          "displayName": "eterpix_in_world",
+          "description": "EterPix の投稿写真を VRChat ワールド内に表示するギミック。写真・キャプション・ポータルを表示します。",
+          "unity": "2022.3",
+          "author": {
+            "name": "AliceAliciaBB",
+            "url": "https://github.com/AliceAliciaBB"
+          },
+          "url": "https://github.com/AliceAliciaBB/AirPocket-EterPix-v2/releases/download/v2.1.2/com.aliciliabb.eterpix-2.1.2.zip",
+          "license": "MIT",
+          "dependencies": {
+            "com.vrchat.worlds": "3.7.0",
+            "com.vrchat.base": "3.7.0"
+          },
+          "vpmDependencies": {
+            "com.vrchat.worlds": ">=3.4.0"
+          },
+          "keywords": [
+            "vrchat",
+            "udonsharp",
+            "eterpix"
+          ],
+          "zipSHA256": "43b8ae0467fc41a4aa831b6dd39c9c7fd2b3176ca3c80025f93c4f548071a9bb"
         }
       }
     }
