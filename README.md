@@ -7,14 +7,22 @@ EterPix(https://eterpix.com/)の投稿写真を VRChat ワールド内に表示�
 - Unity 2022.3.22f1(`ProjectSettings/ProjectVersion.txt`)
 - VRChat Creator Companion (VCC)
 
-## セットアップ
+## VCC でのインストール (推奨)
+
+1. VCC の「Settings → Packages → Add Repository」で以下の URL を追加する:
+   ```
+   https://alicealiciabb.github.io/AirPocket-EterPix-v2/index.json
+   ```
+2. VCC のプロジェクト画面で「EterPix VRChat Gimmick」を追加する。
+
+## 開発環境セットアップ (クローンして使う場合)
 1. このリポジトリをクローンする。
 2. VCC の「Add Existing Project」でクローンしたフォルダを追加する。
 3. VCC でプロジェクトを開くと、`Packages/vpm-manifest.json` に書かれたパッケージが自動で復元される。
    - `com.vrchat.worlds` / `com.vrchat.base`
    - `net.ureishi.qvpen`
    - `net.kwxxw.yama-stream`
-4. 設置例のシーン `Assets/EterPix/テンプレ_シーン/` を開く。
+4. 設置例のシーン `Packages/com.aliciliabb.eterpix/テンプレ_シーン/` を開く。
 
 ## 使い方
 - ギミック本体(v2)は `Assets/EterPix/` にある。設置方法・モニターの機能(再読み込みボタン・テーマ)は [Assets/EterPix/README.md](Assets/EterPix/README.md) を参照。
