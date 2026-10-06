@@ -43,6 +43,7 @@ crashlytics-buildtime-config.xml
 !/Packages/manifest.json
 !/Packages/packages-lock.json
 !/Packages/vpm-manifest.json
+!/Packages/com.aliciliabb.eterpix/
 
 # 同期しないアセット(購入アセット等)
 /Assets/アセット(同期しない)/
