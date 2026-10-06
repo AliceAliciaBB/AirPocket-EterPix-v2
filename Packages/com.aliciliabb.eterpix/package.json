@@ -1,6 +1,6 @@
 {
   "name": "com.aliciliabb.eterpix",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "displayName": "eterpix_in_world",
   "description": "EterPix の投稿写真を VRChat ワールド内に表示するギミック。写真・キャプション・ポータルを表示します。",
   "unity": "2022.3",
