@@ -1,13 +1,15 @@
 {
-    "name": "EterPixEditor",
+    "name": "EterPix.Runtime",
     "references": [
-        "UdonSharp.Editor",
         "UdonSharp.Runtime",
-        "EterPix.Runtime"
+        "VRC.Udon",
+        "VRC.SDKBase",
+        "VRC.SDK3",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "VRC.Udon.Serialization.OdinSerializer"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
