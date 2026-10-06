@@ -1,5 +1,14 @@
 {
   "dependencies": {
+    "com.aliciliabb.eterpix": {
+      "version": "file:com.aliciliabb.eterpix",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.vrchat.worlds": "3.7.0",
+        "com.vrchat.base": "3.7.0"
+      }
+    },
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
       "depth": 0,
