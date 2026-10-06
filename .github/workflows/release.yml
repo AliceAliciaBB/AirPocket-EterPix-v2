@@ -28,9 +28,9 @@ jobs:
           ZIP_NAME="${PACKAGE_ID}-${VERSION}.zip"
           REPO_URL="https://github.com/${{ github.repository }}"
           RELEASE_URL="${REPO_URL}/releases/download/v${VERSION}/${ZIP_NAME}"
-          cd Packages
-          zip -r "../$ZIP_NAME" "${PACKAGE_ID}/"
-          cd ..
+          cd "Packages/${PACKAGE_ID}"
+          zip -r "../../$ZIP_NAME" .
+          cd ../..
           ZIP_SIZE=$(stat -c%s "$ZIP_NAME")
           ZIP_SHA256=$(sha256sum "$ZIP_NAME" | cut -d' ' -f1)
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
