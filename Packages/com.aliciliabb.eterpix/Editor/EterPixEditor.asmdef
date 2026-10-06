@@ -2,8 +2,7 @@
     "name": "EterPixEditor",
     "references": [
         "UdonSharp.Editor",
-        "UdonSharp.Runtime",
-        "EterPix.Runtime"
+        "UdonSharp.Runtime"
     ],
     "includePlatforms": [
         "Editor"
