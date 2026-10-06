@@ -1,0 +1,110 @@
+name: Release VPM Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Create package zip
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          PACKAGE_ID="com.aliciliabb.eterpix"
+          ZIP_NAME="${PACKAGE_ID}-${VERSION}.zip"
+          cd Packages
+          zip -r "../$ZIP_NAME" "${PACKAGE_ID}/"
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_PATH=$(pwd)/../$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Upload release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+
+      - name: Update VPM repository index
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          PACKAGE_ID="com.aliciliabb.eterpix"
+          ZIP_NAME="${PACKAGE_ID}-${VERSION}.zip"
+          REPO_URL="https://github.com/${{ github.repository }}"
+          RELEASE_URL="${REPO_URL}/releases/download/v${VERSION}/${ZIP_NAME}"
+          ZIP_SIZE=$(stat -c%s "$ZIP_NAME")
+          ZIP_SHA256=$(sha256sum "$ZIP_NAME" | cut -d' ' -f1)
+
+          python3 - <<'PYEOF'
+          import json, os, sys
+          from datetime import datetime, timezone
+
+          version = os.environ['VERSION']
+          package_id = os.environ['PACKAGE_ID']
+          release_url = os.environ['RELEASE_URL']
+          zip_size = int(os.environ['ZIP_SIZE'])
+          zip_sha256 = os.environ['ZIP_SHA256']
+
+          index_path = 'docs/index.json'
+          with open(index_path, 'r', encoding='utf-8') as f:
+              index = json.load(f)
+
+          with open(f'Packages/{package_id}/package.json', 'r', encoding='utf-8') as f:
+              pkg = json.load(f)
+
+          pkg['url'] = release_url
+          pkg['zipSHA256'] = zip_sha256
+
+          pkgs = index.setdefault('packages', {}).setdefault(package_id, {})
+          pkgs.setdefault('versions', {})[version] = pkg
+
+          with open(index_path, 'w', encoding='utf-8') as f:
+              json.dump(index, f, ensure_ascii=False, indent=2)
+
+          print(f'Updated {index_path} with version {version}')
+          PYEOF
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          PACKAGE_ID: com.aliciliabb.eterpix
+          RELEASE_URL: ${{ env.RELEASE_URL }}
+          ZIP_SIZE: ${{ env.ZIP_SIZE }}
+          ZIP_SHA256: ${{ env.ZIP_SHA256 }}
+
+      - name: Commit updated index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.json
+          git diff --staged --quiet || git commit -m "chore: update VPM index for v${{ steps.version.outputs.VERSION }}"
+          git push origin HEAD:main
+
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

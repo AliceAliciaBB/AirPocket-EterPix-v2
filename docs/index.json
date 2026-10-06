@@ -1,0 +1,11 @@
+{
+  "name": "AliceAliciaBB VPM Repository",
+  "id": "com.aliciliabb.vpm",
+  "url": "https://alicealiciabb.github.io/AirPocket-EterPix-v2/index.json",
+  "author": "AliceAliciaBB",
+  "packages": {
+    "com.aliciliabb.eterpix": {
+      "versions": {}
+    }
+  }
+}
