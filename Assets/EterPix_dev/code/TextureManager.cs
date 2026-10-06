@@ -66,6 +66,9 @@ namespace ali.eterpix
         private int pendingDownloadCount = 0;
         private int currentPendingIndex = 0;
 
+        // ダウンロード成功後に cachedTimestamps へ反映する新タイムスタンプの一時保存先
+        private string[] _pendingNewTimestamps;
+
         private void Start()
         {
             // 初期化
@@ -73,6 +76,7 @@ namespace ali.eterpix
             downloadCompleted = new bool[maxTextures];
             cachedTimestamps = new string[maxTextures];
             pendingDownloadIndices = new int[maxTextures];
+            _pendingNewTimestamps = new string[maxTextures];
 
             // 各set_indexごとに最大50個のアイテムを想定
             waitingItems = new eterpix_item[maxTextures][];
@@ -207,18 +211,15 @@ namespace ali.eterpix
             }
             Debug.Log("[TextureManager] Download order sorted by newest timestamp first");
 
-            // 新しいタイムスタンプを保存（ダウンロード成功後に使用）
-            for (int i = 0; i < checkCount; i++)
+            // ダウンロード対象スロットの新タイムスタンプを一時保存し、
+            // 成功時に OnImageLoadSuccess で cachedTimestamps へ反映する。
+            // ここで先書きすると、サーバー側の画像生成が完了する前に
+            // ダウンロードして白画像がキャッシュされた場合に再取得されなくなるため。
+            for (int i = 0; i < maxTextures; i++) _pendingNewTimestamps[i] = null;
+            for (int j = 0; j < pendingDownloadCount; j++)
             {
-                // ダウンロード対象のみ更新
-                for (int j = 0; j < pendingDownloadCount; j++)
-                {
-                    if (pendingDownloadIndices[j] == i)
-                    {
-                        cachedTimestamps[i] = newTimestamps[i];
-                        break;
-                    }
-                }
+                int idx = pendingDownloadIndices[j];
+                _pendingNewTimestamps[idx] = newTimestamps[idx];
             }
 
             currentPendingIndex = 0;
@@ -355,6 +356,14 @@ namespace ali.eterpix
             // テクスチャを保存
             textures[downloadedIndex] = result.Result;
             downloadCompleted[downloadedIndex] = true;
+
+            // 成功したスロットのタイムスタンプをここで確定（StartDownloadWithTimestamps では先書きしない）
+            if (_pendingNewTimestamps != null && downloadedIndex < _pendingNewTimestamps.Length
+                && _pendingNewTimestamps[downloadedIndex] != null)
+            {
+                cachedTimestamps[downloadedIndex] = _pendingNewTimestamps[downloadedIndex];
+                _pendingNewTimestamps[downloadedIndex] = null;
+            }
 
             Texture2D tex = result.Result;
             Debug.Log($"[TextureManager] Success [{downloadedIndex:X2}]: {tex.width}x{tex.height}");
