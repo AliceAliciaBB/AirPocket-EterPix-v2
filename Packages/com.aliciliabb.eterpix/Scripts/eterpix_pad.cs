@@ -80,6 +80,8 @@ namespace ali.eterpix.v2
 
         [Header("リセット(誰かが掴んでいる間は「利用中です」を数秒出す)")]
         [SerializeField] private TMP_Text busyText;
+        [Tooltip("初期位置に固定したリセットボタンの横の「利用中です」(Padが持ち去られても元の場所からリセットするため)")]
+        [SerializeField] private TMP_Text stationBusyText;
 
         [Header("初期位置(ビルド時にEditorが焼き込む。K-44)")]
         [SerializeField] private bool hasInitialPose = false;
@@ -176,6 +178,7 @@ namespace ali.eterpix.v2
 
             if (r18ConfirmText != null) r18ConfirmText.text = R18ConfirmMessage;
             if (busyText != null) busyText.gameObject.SetActive(false);
+            if (stationBusyText != null) stationBusyText.gameObject.SetActive(false);
             if (uiPanelRoot != null) uiPanelRoot.SetActive(true); // 初期状態は表示(K-36)
             ClearContent();
 
@@ -229,9 +232,10 @@ namespace ali.eterpix.v2
                 CheckLocalPlayerInRange();
             }
 
-            if (busyText != null && busyText.gameObject.activeSelf && Time.time >= _busyHideTime)
+            if (Time.time >= _busyHideTime)
             {
-                busyText.gameObject.SetActive(false);
+                if (busyText != null && busyText.gameObject.activeSelf) busyText.gameObject.SetActive(false);
+                if (stationBusyText != null && stationBusyText.gameObject.activeSelf) stationBusyText.gameObject.SetActive(false);
             }
         }
 
@@ -729,11 +733,19 @@ namespace ali.eterpix.v2
             FlushScaleSync();
         }
 
+        // パネル内と固定ボタン横の両方に出す(どちらのボタンで押されたかは区別できないため)
         private void ShowBusy()
         {
-            if (busyText == null) return;
-            busyText.text = BusyMessage;
-            busyText.gameObject.SetActive(true);
+            if (busyText != null)
+            {
+                busyText.text = BusyMessage;
+                busyText.gameObject.SetActive(true);
+            }
+            if (stationBusyText != null)
+            {
+                stationBusyText.text = BusyMessage;
+                stationBusyText.gameObject.SetActive(true);
+            }
             _busyHideTime = Time.time + BusyMessageSeconds;
         }
 
