@@ -62,8 +62,10 @@ namespace ali.eterpix.v2
         [SerializeField] private GameObject r18ConfirmRoot;
         [SerializeField] private TMP_Text r18ConfirmText;
 
-        [Header("左下のUIパネル(Interactで表示/非表示。ローカル)")]
+        [Header("左下のUIパネル(写真を押すと表示/非表示。ローカル)")]
         [SerializeField] private GameObject uiPanelRoot;
+        [Tooltip("投稿情報が無い間のパネルの高さ(URL入力と大きさの2段。パネルは下から積み、pivotは左下)")]
+        [SerializeField] private float panelCompactHeight = 96f;
 
         [Header("投稿情報(EterPixの投稿のときだけ出す)")]
         [SerializeField] private GameObject postInfoRoot;
@@ -146,6 +148,10 @@ namespace ali.eterpix.v2
 
         private float _busyHideTime = 0f;
 
+        private RectTransform _panelRect;
+        private BoxCollider _panelCollider;
+        private float _panelFullHeight;
+
         private void Start()
         {
             if (debugLog == null)
@@ -179,7 +185,13 @@ namespace ali.eterpix.v2
             if (r18ConfirmText != null) r18ConfirmText.text = R18ConfirmMessage;
             if (busyText != null) busyText.gameObject.SetActive(false);
             if (stationBusyText != null) stationBusyText.gameObject.SetActive(false);
-            if (uiPanelRoot != null) uiPanelRoot.SetActive(true); // 初期状態は表示(K-36)
+            if (uiPanelRoot != null)
+            {
+                uiPanelRoot.SetActive(true); // 初期状態は表示(K-36)
+                _panelRect = uiPanelRoot.GetComponent<RectTransform>();
+                _panelCollider = uiPanelRoot.GetComponent<BoxCollider>();
+                if (_panelRect != null) _panelFullHeight = _panelRect.sizeDelta.y;
+            }
             ClearContent();
 
             // downloaderのStart(配列の用意)が済んでから使うため、1フレーム遅らせる(requesterと同じ)
@@ -537,7 +549,7 @@ namespace ali.eterpix.v2
         {
             string worldId = ReadString(_currentPost, "woid", "");
 
-            if (postInfoRoot != null) postInfoRoot.SetActive(true);
+            SetPostInfoVisible(true);
             if (userNameText != null) userNameText.text = ReadString(_currentPost, "usna", "");
             if (descriptionText != null) descriptionText.text = ReadString(_currentPost, "pode", "");
             if (dateText != null) dateText.text = FormatDate(_currentPost);
@@ -577,7 +589,7 @@ namespace ali.eterpix.v2
             ReleaseTexture();
             _currentPost = null;
             _currentWorldData = null;
-            if (postInfoRoot != null) postInfoRoot.SetActive(false);
+            SetPostInfoVisible(false);
             if (r18ConfirmRoot != null) r18ConfirmRoot.SetActive(false);
             HideStatus();
             HidePortalTemporarily();
@@ -591,8 +603,25 @@ namespace ali.eterpix.v2
             // 投稿が決まる前のエラーではテキスト・ポータルも出さない
             if (_currentPost == null)
             {
-                if (postInfoRoot != null) postInfoRoot.SetActive(false);
+                SetPostInfoVisible(false);
                 HidePortalTemporarily();
+            }
+        }
+
+        // 投稿情報が無い間は、パネルをURL入力と大きさの2段に縮める(背景とUI操作の判定も縮め、
+        // 空いた写真の部分を押してUIを切り替えられるようにする)。パネルは下から積んであり、pivotは左下
+        private void SetPostInfoVisible(bool visible)
+        {
+            if (postInfoRoot != null) postInfoRoot.SetActive(visible);
+            if (_panelRect == null) return;
+
+            float height = visible ? _panelFullHeight : Mathf.Min(panelCompactHeight, _panelFullHeight);
+            _panelRect.sizeDelta = new Vector2(_panelRect.sizeDelta.x, height);
+            if (_panelCollider != null)
+            {
+                Vector3 size = _panelCollider.size;
+                _panelCollider.size = new Vector3(size.x, height, size.z);
+                _panelCollider.center = new Vector3(_panelCollider.center.x, height / 2f, _panelCollider.center.z);
             }
         }
 
