@@ -50,7 +50,28 @@ namespace ali.eterpix
 
             GameObjectUtility.SetParentAndAlign(instance, parent);
             Undo.RegisterCreatedObjectUndo(instance, "Place EterPix Pad");
+            EnsurePadRequester();
             Selection.activeObject = instance;
+        }
+
+        // Padの取得はワールドに1つの要求者が受け持つ(K-61)。シーンに無ければシーン直下に置く
+        private const string PadRequesterPrefabPath = "Packages/com.aliciliabb.eterpix/Prefabs/EterpixPadRequester.prefab";
+
+        private static void EnsurePadRequester()
+        {
+            var existing = Object.FindObjectsByType<ali.eterpix.v2.eterpix_pad_requester>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (existing.Length > 0) return;
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PadRequesterPrefabPath);
+            if (prefab == null)
+            {
+                Debug.LogError($"[EterPix] Pad要求者のPrefabが見つかりません: {PadRequesterPrefabPath}");
+                return;
+            }
+
+            var requester = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            requester.name = ali.eterpix.v2.eterpix_pad_requester.SingletonObjectName;
+            Undo.RegisterCreatedObjectUndo(requester, "Place EterPix Pad Requester");
         }
     }
 }

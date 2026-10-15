@@ -103,21 +103,21 @@ namespace ali.eterpix.v2
         // maxFeeds * ImageSlotsPerFeed(既定で高々1024程度)と小さいため、毎回全走査しても軽い。
         private int[] _imgDiscardTargetGeneration;
 
-        // ---- Pad(eterpix_pad)の優先取得(EtrPix-Pad K-12) ----
+        // ---- Pad用要求者(eterpix_pad_requester)の優先取得(EtrPix-Pad K-12・K-61) ----
         // Padは入力されたURL 1本で、文字列取得ならJSON、画像取得なら写真を受け取る。
         // フィード・256スロットの管理には乗せず、専用のキューに積んで既存のフィード/画像より先に処理する
         // (VRChatへ投げる順番を先にするだけ。VRChat側のキューの順番までは制御できない)。
-        // 受け取った写真はPadへそのまま渡し、破棄もPad側で行う(_loadedCountにも数えない)。
-        // 1台のPadにつきキューには1件だけ置き、同じPadからの再要求はURLを差し替える
-        private eterpix_pad[] _padStringPads = new eterpix_pad[0];
+        // 相手はPadではなく要求者で、同じURLの重複は要求者がまとめるため、ここでは受けた順に積むだけ。
+        // 受け取った写真は要求者へそのまま渡し、破棄も要求者側で行う(_loadedCountにも数えない)
+        private eterpix_pad_requester[] _padStringReceivers = new eterpix_pad_requester[0];
         private VRCUrl[] _padStringUrls = new VRCUrl[0];
         private int _padStringCount = 0;
-        private eterpix_pad _pendingPad; // 応答待ちの文字列取得がPadのものなら、そのPad
+        private eterpix_pad_requester _pendingPadReceiver; // 応答待ちの文字列取得がPad用のものなら、その要求者
 
-        private eterpix_pad[] _padImagePads = new eterpix_pad[0];
+        private eterpix_pad_requester[] _padImageReceivers = new eterpix_pad_requester[0];
         private VRCUrl[] _padImageUrls = new VRCUrl[0];
         private int _padImageCount = 0;
-        private eterpix_pad _currentPadImage; // 進行中の画像取得がPadのものなら、そのPad
+        private eterpix_pad_requester _currentPadImageReceiver; // 進行中の画像取得がPad用のものなら、その要求者
 
         private void Start()
         {
@@ -319,14 +319,14 @@ namespace ali.eterpix.v2
             // Padの要求を先に処理する(K-12)
             if (_padStringCount > 0)
             {
-                eterpix_pad pad = _padStringPads[0];
+                eterpix_pad_requester receiver = _padStringReceivers[0];
                 VRCUrl padUrl = _padStringUrls[0];
-                RemovePadEntryAt(_padStringPads, _padStringUrls, 0, _padStringCount);
+                RemovePadEntryAt(_padStringReceivers, _padStringUrls, 0, _padStringCount);
                 _padStringCount--;
 
                 _isFetching = true;
                 _pendingFeedIndex = -1;
-                _pendingPad = pad;
+                _pendingPadReceiver = receiver;
                 if (debugLog != null) debugLog.Log($"[eterpix_downloader] Fetching pad JSON: {padUrl}");
                 VRCStringDownloader.LoadUrl(padUrl, (IUdonEventReceiver)this);
                 return;
@@ -366,12 +366,12 @@ namespace ali.eterpix.v2
 
         public override void OnStringLoadSuccess(IVRCStringDownload result)
         {
-            if (_pendingPad != null)
+            if (_pendingPadReceiver != null)
             {
-                eterpix_pad pad = _pendingPad;
-                _pendingPad = null;
+                eterpix_pad_requester receiver = _pendingPadReceiver;
+                _pendingPadReceiver = null;
                 _isFetching = false;
-                pad.OnPadStringSuccess(result.Url.Get(), result.Result);
+                receiver.OnTransportStringSuccess(result.Url.Get(), result.Result);
                 StartNextFetchIfIdle();
                 return;
             }
@@ -430,13 +430,13 @@ namespace ali.eterpix.v2
 
         public override void OnStringLoadError(IVRCStringDownload result)
         {
-            if (_pendingPad != null)
+            if (_pendingPadReceiver != null)
             {
-                eterpix_pad pad = _pendingPad;
-                _pendingPad = null;
+                eterpix_pad_requester receiver = _pendingPadReceiver;
+                _pendingPadReceiver = null;
                 _isFetching = false;
                 if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Pad string load error: {result.Error}");
-                pad.OnPadStringError(result.Url.Get(), result.ErrorCode, result.Error);
+                receiver.OnTransportStringError(result.Url.Get(), result.ErrorCode, result.Error);
                 StartNextFetchIfIdle();
                 return;
             }
@@ -470,98 +470,84 @@ namespace ali.eterpix.v2
             }
         }
 
-        // ---- Padからの優先取得の受付(K-12) ----
-        // 結果はPadのOnPadStringSuccess/OnPadStringErrorで返す。どのURLの結果かも渡すので、
-        // Pad側は今表示したいURLと違う(古い)結果を捨てる
-        public void RequestPadString(VRCUrl url, eterpix_pad pad)
+        // ---- Pad用要求者からの優先取得の受付(K-12・K-61) ----
+        // 結果は要求者のOnTransportStringSuccess/OnTransportStringErrorで、どのURLの結果かと一緒に返す。
+        // 同じURLの重複は要求者がまとめるため、ここでは受けた順に積むだけ
+        public void RequestPadString(VRCUrl url, eterpix_pad_requester receiver)
         {
-            if (url == null || pad == null) return;
+            if (url == null || receiver == null) return;
 
-            int index = FindPadEntry(_padStringPads, _padStringCount, pad);
-            if (index >= 0)
+            if (_padStringCount >= _padStringReceivers.Length)
             {
-                _padStringUrls[index] = url;
+                _padStringReceivers = GrowReceiverArray(_padStringReceivers);
+                _padStringUrls = GrowUrlArray(_padStringUrls);
             }
-            else
-            {
-                if (_padStringCount >= _padStringPads.Length)
-                {
-                    _padStringPads = GrowPadArray(_padStringPads);
-                    _padStringUrls = GrowUrlArray(_padStringUrls);
-                }
-                _padStringPads[_padStringCount] = pad;
-                _padStringUrls[_padStringCount] = url;
-                _padStringCount++;
-            }
+            _padStringReceivers[_padStringCount] = receiver;
+            _padStringUrls[_padStringCount] = url;
+            _padStringCount++;
             StartNextFetchIfIdle();
         }
 
-        // 受け取った写真はOnPadImageSuccessでPadへ渡す。破棄はPad側で行う
-        public void RequestPadImage(VRCUrl url, eterpix_pad pad)
+        // 受け取った写真はOnTransportImageSuccessで要求者へ渡す。破棄は要求者側で行う
+        public void RequestPadImage(VRCUrl url, eterpix_pad_requester receiver)
         {
-            if (url == null || pad == null) return;
+            if (url == null || receiver == null) return;
 
-            int index = FindPadEntry(_padImagePads, _padImageCount, pad);
-            if (index >= 0)
+            if (_padImageCount >= _padImageReceivers.Length)
             {
-                _padImageUrls[index] = url;
+                _padImageReceivers = GrowReceiverArray(_padImageReceivers);
+                _padImageUrls = GrowUrlArray(_padImageUrls);
             }
-            else
-            {
-                if (_padImageCount >= _padImagePads.Length)
-                {
-                    _padImagePads = GrowPadArray(_padImagePads);
-                    _padImageUrls = GrowUrlArray(_padImageUrls);
-                }
-                _padImagePads[_padImageCount] = pad;
-                _padImageUrls[_padImageCount] = url;
-                _padImageCount++;
-            }
+            _padImageReceivers[_padImageCount] = receiver;
+            _padImageUrls[_padImageCount] = url;
+            _padImageCount++;
             StartNextImageDownloadIfIdle();
         }
 
-        // まだVRChatへ投げていない要求だけを取り消す(範囲外へ出た時など)。投げ済みの結果はPad側が捨てる
-        public void CancelPadRequests(eterpix_pad pad)
+        // まだVRChatへ投げていない要求だけをURLで取り消す。取り消せたらtrue
+        // (falseなら投げ済みで、結果はあとで要求者に届く)
+        public bool CancelPadString(string url)
         {
-            int index = FindPadEntry(_padStringPads, _padStringCount, pad);
-            if (index >= 0)
-            {
-                RemovePadEntryAt(_padStringPads, _padStringUrls, index, _padStringCount);
-                _padStringCount--;
-            }
-
-            index = FindPadEntry(_padImagePads, _padImageCount, pad);
-            if (index >= 0)
-            {
-                RemovePadEntryAt(_padImagePads, _padImageUrls, index, _padImageCount);
-                _padImageCount--;
-            }
+            int index = FindPadEntryByUrl(_padStringUrls, _padStringCount, url);
+            if (index < 0) return false;
+            RemovePadEntryAt(_padStringReceivers, _padStringUrls, index, _padStringCount);
+            _padStringCount--;
+            return true;
         }
 
-        private int FindPadEntry(eterpix_pad[] pads, int count, eterpix_pad pad)
+        public bool CancelPadImage(string url)
+        {
+            int index = FindPadEntryByUrl(_padImageUrls, _padImageCount, url);
+            if (index < 0) return false;
+            RemovePadEntryAt(_padImageReceivers, _padImageUrls, index, _padImageCount);
+            _padImageCount--;
+            return true;
+        }
+
+        private int FindPadEntryByUrl(VRCUrl[] urls, int count, string url)
         {
             for (int i = 0; i < count; i++)
             {
-                if (pads[i] == pad) return i;
+                if (urls[i] != null && urls[i].Get() == url) return i;
             }
             return -1;
         }
 
         // index番目を詰めて消す(件数の更新は呼び出し側で行う)
-        private void RemovePadEntryAt(eterpix_pad[] pads, VRCUrl[] urls, int index, int count)
+        private void RemovePadEntryAt(eterpix_pad_requester[] receivers, VRCUrl[] urls, int index, int count)
         {
             for (int i = index + 1; i < count; i++)
             {
-                pads[i - 1] = pads[i];
+                receivers[i - 1] = receivers[i];
                 urls[i - 1] = urls[i];
             }
-            pads[count - 1] = null;
+            receivers[count - 1] = null;
             urls[count - 1] = null;
         }
 
-        private eterpix_pad[] GrowPadArray(eterpix_pad[] arr)
+        private eterpix_pad_requester[] GrowReceiverArray(eterpix_pad_requester[] arr)
         {
-            eterpix_pad[] bigger = new eterpix_pad[arr.Length + 8];
+            eterpix_pad_requester[] bigger = new eterpix_pad_requester[arr.Length + 8];
             for (int i = 0; i < arr.Length; i++) bigger[i] = arr[i];
             return bigger;
         }
@@ -775,15 +761,15 @@ namespace ali.eterpix.v2
             // Padの要求を先に処理する(K-12)
             if (_padImageCount > 0)
             {
-                eterpix_pad pad = _padImagePads[0];
+                eterpix_pad_requester receiver = _padImageReceivers[0];
                 VRCUrl padUrl = _padImageUrls[0];
-                RemovePadEntryAt(_padImagePads, _padImageUrls, 0, _padImageCount);
+                RemovePadEntryAt(_padImageReceivers, _padImageUrls, 0, _padImageCount);
                 _padImageCount--;
 
                 if (_imageDownloader == null) _imageDownloader = new VRC.SDK3.Image.VRCImageDownloader();
                 _isImageDownloading = true;
                 _currentDownloadKey = -1;
-                _currentPadImage = pad;
+                _currentPadImageReceiver = receiver;
                 if (debugLog != null) debugLog.Log($"[eterpix_downloader] Downloading pad image: {padUrl}");
                 _imageDownloader.DownloadImage(padUrl, null, (IUdonEventReceiver)this, null);
                 return;
@@ -828,12 +814,12 @@ namespace ali.eterpix.v2
 
         public override void OnImageLoadSuccess(IVRCImageDownload result)
         {
-            if (_currentPadImage != null)
+            if (_currentPadImageReceiver != null)
             {
-                eterpix_pad pad = _currentPadImage;
-                _currentPadImage = null;
+                eterpix_pad_requester receiver = _currentPadImageReceiver;
+                _currentPadImageReceiver = null;
                 _isImageDownloading = false;
-                pad.OnPadImageSuccess(result.Url.Get(), result.Result);
+                receiver.OnTransportImageSuccess(result.Url.Get(), result.Result);
                 StartNextImageDownloadIfIdle();
                 return;
             }
@@ -869,13 +855,13 @@ namespace ali.eterpix.v2
 
         public override void OnImageLoadError(IVRCImageDownload result)
         {
-            if (_currentPadImage != null)
+            if (_currentPadImageReceiver != null)
             {
-                eterpix_pad pad = _currentPadImage;
-                _currentPadImage = null;
+                eterpix_pad_requester receiver = _currentPadImageReceiver;
+                _currentPadImageReceiver = null;
                 _isImageDownloading = false;
                 if (debugLog != null) debugLog.LogWarning($"[eterpix_downloader] Pad image load error: {result.ErrorMessage}");
-                pad.OnPadImageError(result.Url.Get(), result.ErrorMessage);
+                receiver.OnTransportImageError(result.Url.Get(), result.ErrorMessage);
                 StartNextImageDownloadIfIdle();
                 return;
             }

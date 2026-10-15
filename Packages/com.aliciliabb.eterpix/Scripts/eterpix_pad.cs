@@ -5,15 +5,13 @@ using TMPro;
 using VRC.SDKBase;
 using VRC.SDK3.Components;
 using VRC.SDK3.Data;
-using VRC.SDK3.Image;
-using VRC.SDK3.StringLoading;
-using VRC.Udon.Common.Interfaces;
 
 namespace ali.eterpix.v2
 {
     // EtrPix-Pad: 手に持つタブレット型のギミック。計画書は eterpix_integrated_management の
     // docs/plans/etrpix-pad-plan.md (K-番号はそこの確定事項)。
     // プレイヤーが入力したURL 1本で、文字列取得ならJSON、画像取得なら写真を受け取り、1枚だけ表示する。
+    // 役割は1台ぶんの表示・UI・同期だけ。取得と写真の共有はワールドに1つの eterpix_pad_requester が受け持つ(K-61)。
     //
     // このコンポーネントは「範囲用のトリガーBoxCollider」と同じGameObjectに置く
     // (OnPlayerTriggerEnter/ExitはColliderと同じGameObjectにしか届かないため)。
@@ -123,8 +121,7 @@ namespace ali.eterpix.v2
         [UdonSynced] private VRCUrl _syncedUrl = VRCUrl.Empty;
         [UdonSynced] private float _syncedScale = 1f;
 
-        private eterpix_downloader _downloader;
-        private VRCImageDownloader _ownImageDownloader; // downloaderが無いワールド用(K-48)
+        private eterpix_pad_requester _requester;
         private bool _initialized = false;
 
         private bool _isInRange = false;
@@ -198,16 +195,16 @@ namespace ali.eterpix.v2
             }
             ClearContent();
 
-            // downloaderのStart(配列の用意)が済んでから使うため、1フレーム遅らせる(requesterと同じ)
+            // 要求者のStart(重複の判定)が済んでから探すため、1フレーム遅らせる(requesterと同じ)
             SendCustomEventDelayedFrames(nameof(Initialize), 1);
         }
 
         public void Initialize()
         {
-            GameObject downloaderObj = GameObject.Find(eterpix_downloader.SingletonObjectName);
-            if (downloaderObj != null) _downloader = downloaderObj.GetComponent<eterpix_downloader>();
-            // downloaderが無ければPadが自分で直接取得する(K-48)
-            if (_downloader == null) _ownImageDownloader = new VRCImageDownloader();
+            // 取得はワールドに1つの要求者に頼む(K-61。同じURLを読むPad同士で取得と写真を共有する)
+            GameObject requesterObj = GameObject.Find(eterpix_pad_requester.SingletonObjectName);
+            if (requesterObj != null) _requester = requesterObj.GetComponent<eterpix_pad_requester>();
+            if (_requester == null) Debug.LogError($"[eterpix_pad] {eterpix_pad_requester.SingletonObjectName} が見つかりません。「GameObject/EterPix/Padを配置」で置くか、Prefabs/EterpixPadRequester をワールドに1つ置いてください");
 
             // 拡大の起点(本体の左下)を、掴むColliderのローカル座標で覚える。本体はPickupの子ではなく
             // VRCParentConstraintで追従する(K-59)ため、Constraintが一度効いた後(このフレーム)に測る
@@ -228,11 +225,6 @@ namespace ali.eterpix.v2
             bool wasInRange = _isInRange;
             CheckLocalPlayerInRange();
             if (wasInRange && _isInRange) BeginLoad();
-        }
-
-        private void OnDestroy()
-        {
-            if (_ownImageDownloader != null) _ownImageDownloader.Dispose();
         }
 
         private void Update()
@@ -313,8 +305,7 @@ namespace ali.eterpix.v2
             }
             else
             {
-                // 範囲外の人には何も出さず、写真も解放する(K-30・K-46)
-                if (_downloader != null) _downloader.CancelPadRequests(this);
+                // 範囲外の人には何も出さず、写真も手放す(K-30・K-46。要求者への返却はClearContentの中)
                 ClearContent();
             }
         }
@@ -406,38 +397,17 @@ namespace ali.eterpix.v2
 
         private void RequestString(VRCUrl url)
         {
-            if (_downloader != null) _downloader.RequestPadString(url, this);
-            else VRCStringDownloader.LoadUrl(url, (IUdonEventReceiver)this);
+            if (_requester != null) _requester.RequestString(url, this);
+            else ShowStatus(LoadFailedMessage);
         }
 
         private void RequestImage(VRCUrl url)
         {
-            if (_downloader != null) _downloader.RequestPadImage(url, this);
-            else if (_ownImageDownloader != null) _ownImageDownloader.DownloadImage(url, null, (IUdonEventReceiver)this, null);
+            if (_requester != null) _requester.RequestImage(url, this);
+            else ShowStatus(LoadFailedMessage);
         }
 
-        // ---- downloaderが無いときの直接取得のコールバック(K-48) ----
-        public override void OnStringLoadSuccess(IVRCStringDownload result)
-        {
-            OnPadStringSuccess(result.Url.Get(), result.Result);
-        }
-
-        public override void OnStringLoadError(IVRCStringDownload result)
-        {
-            OnPadStringError(result.Url.Get(), result.ErrorCode, result.Error);
-        }
-
-        public override void OnImageLoadSuccess(IVRCImageDownload result)
-        {
-            OnPadImageSuccess(result.Url.Get(), result.Result);
-        }
-
-        public override void OnImageLoadError(IVRCImageDownload result)
-        {
-            OnPadImageError(result.Url.Get(), result.ErrorMessage);
-        }
-
-        // ---- 取得結果(downloader経由・直接取得の両方からここへ来る) ----
+        // ---- 取得結果(要求者から、同じURLを待っているPad全員に届く) ----
         public void OnPadStringSuccess(string url, string text)
         {
             if (!IsCurrentRequest(url)) return;
@@ -500,14 +470,11 @@ namespace ali.eterpix.v2
 
         public void OnPadImageSuccess(string url, Texture2D texture)
         {
-            // 古い要求の結果・範囲外に出た後の結果・R18の確認前の結果は貼らずに破棄する
-            if (!IsCurrentRequest(url) || (_isPadUrl && _currentPost == null))
-            {
-                if (texture != null) Destroy(texture);
-                return;
-            }
+            // 古い要求の結果・範囲外に出た後の結果・R18の確認前の結果は貼らない。
+            // 写真は要求者が他のPadと共有しているため、ここでは破棄しない(手放すのはReleaseTextureでまとめて行う)
+            if (!IsCurrentRequest(url) || (_isPadUrl && _currentPost == null)) return;
 
-            ReleaseTexture();
+            DetachTexture();
             _texture = texture;
             if (image != null)
             {
@@ -634,14 +601,22 @@ namespace ali.eterpix.v2
             if (statusRoot != null) statusRoot.SetActive(false);
         }
 
+        // 写真と取得中の要求を要求者へまとめて返す(URLを変えた時・範囲を出た時)。
+        // 写真は他のPadと共有しているため自分では破棄せず、誰も使わなくなった時に要求者が破棄する(K-61)
         private void ReleaseTexture()
+        {
+            DetachTexture();
+            if (_requester != null) _requester.ReleaseAll(this);
+        }
+
+        // RawImageから外すだけ(共有の写真なので破棄はしない)
+        private void DetachTexture()
         {
             if (image != null)
             {
                 image.texture = null;
                 image.enabled = false;
             }
-            if (_texture != null) Destroy(_texture);
             _texture = null;
         }
 
