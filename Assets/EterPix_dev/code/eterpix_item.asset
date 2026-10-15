@@ -688,7 +688,7 @@ MonoBehaviour:
       Data: 45|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: eterpix_porta_resize, Assembly-CSharp
+      Data: eterpix_porta_resize, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 

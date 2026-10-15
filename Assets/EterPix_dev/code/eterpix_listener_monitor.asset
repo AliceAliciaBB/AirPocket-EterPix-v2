@@ -181,7 +181,7 @@ MonoBehaviour:
       Data: 11|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.eterpix_debug, Assembly-CSharp
+      Data: ali.eterpix.eterpix_debug, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 

@@ -511,7 +511,7 @@ MonoBehaviour:
       Data: 30|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.v2.eterpix_monitor_theme[], Assembly-CSharp
+      Data: ali.eterpix.v2.eterpix_monitor_theme[], EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 

@@ -790,7 +790,7 @@ MonoBehaviour:
       Data: 50|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: eterpix_porta_resize, Assembly-CSharp
+      Data: eterpix_porta_resize, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
@@ -1516,7 +1516,7 @@ MonoBehaviour:
       Data: 96|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.v2.eterpix_monitor_theme, Assembly-CSharp
+      Data: ali.eterpix.v2.eterpix_monitor_theme, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
@@ -1711,7 +1711,7 @@ MonoBehaviour:
       Data: 109|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.eterpix_debug, Assembly-CSharp
+      Data: ali.eterpix.eterpix_debug, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
@@ -1915,7 +1915,7 @@ MonoBehaviour:
       Data: 123|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.v2.eterpix_requester, Assembly-CSharp
+      Data: ali.eterpix.v2.eterpix_requester, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
@@ -1970,7 +1970,7 @@ MonoBehaviour:
       Data: 126|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.v2.eterpix_downloader, Assembly-CSharp
+      Data: ali.eterpix.v2.eterpix_downloader, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 

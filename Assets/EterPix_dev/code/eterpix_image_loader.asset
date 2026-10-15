@@ -61,7 +61,7 @@ MonoBehaviour:
       Data: 3|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.vrcurllist, Assembly-CSharp
+      Data: ali.eterpix.vrcurllist, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
@@ -121,7 +121,7 @@ MonoBehaviour:
       Data: 7|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.eterpix_debug, Assembly-CSharp
+      Data: ali.eterpix.eterpix_debug, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 

@@ -199,7 +199,7 @@ MonoBehaviour:
       Data: 13|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.v2.eterpix_monitor, Assembly-CSharp
+      Data: ali.eterpix.v2.eterpix_monitor, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
@@ -619,7 +619,7 @@ MonoBehaviour:
       Data: 40|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: ali.eterpix.v2.eterpix_theme, Assembly-CSharp
+      Data: ali.eterpix.v2.eterpix_theme, EterPix.Runtime
     - Name: 
       Entry: 8
       Data: 
