@@ -22,8 +22,8 @@ namespace ali.eterpix.v2
     //
     // ボタン・スライダー・入力欄のイベントはAddListenerできないため、Inspectorで
     // このUdonBehaviourのSendCustomEventに次を登録する:
-    //   入力欄(onEndEdit)=OnUrlEntered / 大きさスライダー=OnSizeSliderChanged / リセット=ResetPose /
-    //   ポータル=TogglePortal / R18のOK=ConfirmR18 / UIの表示切替=ToggleUiPanel
+    //   入力欄(onEndEdit)=OnUrlEntered / 大きさスライダー=OnSizeSliderChanged / 最小/最大=ToggleSize /
+    //   初期位置に固定したリセット=ResetPose / ポータル=TogglePortal / R18のOK=ConfirmR18 / UIの表示切替=ToggleUiPanel
     [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class eterpix_pad : UdonSharpBehaviour
     {
@@ -48,6 +48,8 @@ namespace ali.eterpix.v2
         [SerializeField] private Slider sizeSlider;
         [Tooltip("最大倍率(起動時の大きさが1倍。1未満は1にする)")]
         [SerializeField] private float maxScale = 3f;
+        [Tooltip("最小/最大ボタンの文字(1倍より大きければ「最小」、1倍なら「最大」。K-60)")]
+        [SerializeField] private TMP_Text sizeToggleLabel;
 
         [Header("範囲(このGameObjectのトリガーBoxCollider。未指定なら自分のBoxCollider)")]
         [SerializeField] private BoxCollider rangeCollider;
@@ -104,6 +106,8 @@ namespace ali.eterpix.v2
         public const string BusyMessage = "利用中です";
         public const string EnterUrlMessage = "URLを入力してください";
         public const string NoWorldMessage = "ワールド情報なし";
+        public const string SizeLabelMin = "最小";
+        public const string SizeLabelMax = "最大";
         public const string PortalLabelOpen = "ポータルを開く";
         public const string PortalLabelClose = "ポータルを閉じる";
 
@@ -677,8 +681,25 @@ namespace ali.eterpix.v2
         public void OnSizeSliderChanged()
         {
             if (_suppressSliderEvent || sizeSlider == null) return;
+            SetScaleByLocalPlayer(sizeSlider.value);
+        }
 
-            float value = Mathf.Clamp(sizeSlider.value, 1f, maxScale);
+        // 最小/最大ボタン(K-60): 1倍より少しでも大きければ1倍に、1倍なら最大倍率にする
+        public void ToggleSize()
+        {
+            SetScaleByLocalPlayer(IsMinScale() ? maxScale : 1f);
+            UpdateSliderValue();
+        }
+
+        private bool IsMinScale()
+        {
+            return _appliedScale <= 1f + 0.001f;
+        }
+
+        // 操作した人がオーナーになって書き換える(K-34)
+        private void SetScaleByLocalPlayer(float requested)
+        {
+            float value = Mathf.Clamp(requested, 1f, maxScale);
             if (Mathf.Approximately(value, _syncedScale)) return;
 
             if (!Networking.IsOwner(Networking.LocalPlayer, gameObject))
@@ -715,6 +736,7 @@ namespace ali.eterpix.v2
             _appliedScale = value;
             if (scaleRoot != null) scaleRoot.localScale = _baseScale * value;
             _colliderDirty = true;
+            if (sizeToggleLabel != null) sizeToggleLabel.text = IsMinScale() ? SizeLabelMax : SizeLabelMin;
         }
 
         private void ApplyColliderSize()
@@ -762,7 +784,7 @@ namespace ali.eterpix.v2
             FlushScaleSync();
         }
 
-        // パネル内と固定ボタン横の両方に出す(どちらのボタンで押されたかは区別できないため)
+        // 指定されている欄すべてに出す(現在のprefabでは固定ボタン横のstationBusyTextだけ)
         private void ShowBusy()
         {
             if (busyText != null)
