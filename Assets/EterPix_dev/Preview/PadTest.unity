@@ -131,6 +131,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1951712014845533130, guid: a750e6856f0b3ac4988a2d7466e4359c, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1951712014845533130, guid: a750e6856f0b3ac4988a2d7466e4359c, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1951712014845533130, guid: a750e6856f0b3ac4988a2d7466e4359c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 180
+      objectReference: {fileID: 0}
     - target: {fileID: 2674598896632946849, guid: a750e6856f0b3ac4988a2d7466e4359c, type: 3}
       propertyPath: m_Name
       value: EterpixPad
