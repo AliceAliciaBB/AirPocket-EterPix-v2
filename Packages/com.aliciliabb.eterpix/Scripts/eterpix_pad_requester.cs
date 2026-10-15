@@ -9,7 +9,8 @@ namespace ali.eterpix.v2
 {
     // EtrPix-Pad の統合要求者(計画書 K-61)。1ワールドに1つだけ置く(シングルトン。2つ目以降は自分を止める)。
     // 既存モニターの「downloader ← requester ← monitor」と同じく、「downloader ← pad_requester ← pad」の中位を受け持つ。
-    //   - URL単位の相乗り: 同じURLの文字列取得は1回にまとめ、待っているPad全員に結果を配る(結果はキャッシュしない)
+    //   - URL単位の相乗り: 同じURLの文字列取得は1回にまとめ、待っているPad全員に結果を配る。
+    //     そのURLを使っているPadがいる間はJSONの文字列も保持し、後から同じURLを読むPadにはすぐ渡す
     //   - 写真の共有: URLごとにテクスチャを1枚だけ持ち、使っているPadの数で管理する。0になったら破棄する
     //   - 取得の通り道: ワールドにdownloaderがあればその優先キューに積み(K-12)、無ければ自分で直接取得する(K-48)
     // Padは1度に1つのURLしか持たないため、URLを変えた時・範囲を出た時はReleaseAllでまとめて手放す。
@@ -29,8 +30,10 @@ namespace ali.eterpix.v2
         private string[] _keys = new string[0];
         private VRCUrl[] _urls = new VRCUrl[0];
         private bool[] _stringLoading = new bool[0];
-        private eterpix_pad[][] _stringWaiters = new eterpix_pad[0][];
-        private int[] _stringWaiterCounts = new int[0];
+        private bool[] _stringHasResult = new bool[0];
+        private string[] _stringResults = new string[0]; // 使われている間だけ保持するJSON
+        private eterpix_pad[][] _stringUsers = new eterpix_pad[0][]; // JSONを待っている/受け取って使っているPad
+        private int[] _stringUserCounts = new int[0];
         private int[] _imageState = new int[0];
         private Texture2D[] _textures = new Texture2D[0];
         private eterpix_pad[][] _imageHolders = new eterpix_pad[0][]; // 写真を待っている/表示しているPad
@@ -80,7 +83,13 @@ namespace ali.eterpix.v2
             int index = GetOrAddEntry(url);
             if (index < 0) return;
 
-            AddPad(_stringWaiters, _stringWaiterCounts, index, pad);
+            AddPad(_stringUsers, _stringUserCounts, index, pad);
+            if (_stringHasResult[index])
+            {
+                // 他のPadが使っている間に保持しているJSONをすぐ渡す(取得し直さない)
+                pad.OnPadStringSuccess(_keys[index], _stringResults[index]);
+                return;
+            }
             if (_stringLoading[index]) return; // 取得中の要求に相乗りする
 
             _stringLoading[index] = true;
@@ -116,13 +125,13 @@ namespace ali.eterpix.v2
             for (int i = 0; i < _keys.Length; i++)
             {
                 if (_keys[i] == null) continue;
-                RemovePad(_stringWaiters, _stringWaiterCounts, i, pad);
+                RemovePad(_stringUsers, _stringUserCounts, i, pad);
                 RemovePad(_imageHolders, _imageHolderCounts, i, pad);
 
                 // 誰も待たなくなった要求は、downloaderでまだ未送信なら取り消す(送信済みなら結果が届いてから片付ける)
                 if (_downloader != null)
                 {
-                    if (_stringLoading[i] && _stringWaiterCounts[i] == 0 && _downloader.CancelPadString(_keys[i])) _stringLoading[i] = false;
+                    if (_stringLoading[i] && _stringUserCounts[i] == 0 && _downloader.CancelPadString(_keys[i])) _stringLoading[i] = false;
                     if (_imageState[i] == ImageLoading && _imageHolderCounts[i] == 0 && _downloader.CancelPadImage(_keys[i])) _imageState[i] = ImageNone;
                 }
                 CleanupEntry(i);
@@ -135,12 +144,15 @@ namespace ali.eterpix.v2
             int index = FindEntry(url);
             if (index < 0) return;
             _stringLoading[index] = false;
+            _stringHasResult[index] = true;
+            _stringResults[index] = text;
 
-            eterpix_pad[] waiters = TakePads(_stringWaiters, _stringWaiterCounts, index);
+            // 受け取ったPadは使っている間そのまま一覧に残る(ReleaseAllで外れる)
+            eterpix_pad[] users = CopyPads(_stringUsers, _stringUserCounts, index);
             CleanupEntry(index);
-            for (int i = 0; i < waiters.Length; i++)
+            for (int i = 0; i < users.Length; i++)
             {
-                if (waiters[i] != null) waiters[i].OnPadStringSuccess(url, text);
+                if (users[i] != null) users[i].OnPadStringSuccess(url, text);
             }
         }
 
@@ -151,11 +163,12 @@ namespace ali.eterpix.v2
             _stringLoading[index] = false;
             if (debugLog != null) debugLog.LogWarning($"[eterpix_pad_requester] String load error ({errorCode}): {error}");
 
-            eterpix_pad[] waiters = TakePads(_stringWaiters, _stringWaiterCounts, index);
+            // 失敗は保持しない。待っていたPadは一覧に残り、URLの入れ直しで取り直す
+            eterpix_pad[] users = CopyPads(_stringUsers, _stringUserCounts, index);
             CleanupEntry(index);
-            for (int i = 0; i < waiters.Length; i++)
+            for (int i = 0; i < users.Length; i++)
             {
-                if (waiters[i] != null) waiters[i].OnPadStringError(url, errorCode, error);
+                if (users[i] != null) users[i].OnPadStringError(url, errorCode, error);
             }
         }
 
@@ -254,14 +267,17 @@ namespace ali.eterpix.v2
             _keys[index] = key;
             _urls[index] = url;
             _stringLoading[index] = false;
-            _stringWaiterCounts[index] = 0;
+            _stringHasResult[index] = false;
+            _stringResults[index] = null;
+            _stringUserCounts[index] = 0;
             _imageState[index] = ImageNone;
             _textures[index] = null;
             _imageHolderCounts[index] = 0;
             return index;
         }
 
-        // 誰も待っておらず使ってもいない記録を空ける(写真は破棄する)。取得中のものは結果が届くまで残す
+        // 誰も待っておらず使ってもいない記録を空ける(写真は破棄し、保持していたJSONも捨てる)。
+        // 取得中のものは結果が届くまで残す
         private void CleanupEntry(int index)
         {
             if (_imageHolderCounts[index] == 0 && _imageState[index] == ImageLoaded)
@@ -273,10 +289,12 @@ namespace ali.eterpix.v2
             }
 
             if (_stringLoading[index] || _imageState[index] == ImageLoading) return;
-            if (_stringWaiterCounts[index] > 0 || _imageHolderCounts[index] > 0) return;
+            if (_stringUserCounts[index] > 0 || _imageHolderCounts[index] > 0) return;
 
             _keys[index] = null;
             _urls[index] = null;
+            _stringHasResult[index] = false;
+            _stringResults[index] = null;
         }
 
         private void GrowEntries(int size)
@@ -284,8 +302,10 @@ namespace ali.eterpix.v2
             string[] keys = new string[size];
             VRCUrl[] urls = new VRCUrl[size];
             bool[] stringLoading = new bool[size];
-            eterpix_pad[][] stringWaiters = new eterpix_pad[size][];
-            int[] stringWaiterCounts = new int[size];
+            bool[] stringHasResult = new bool[size];
+            string[] stringResults = new string[size];
+            eterpix_pad[][] stringUsers = new eterpix_pad[size][];
+            int[] stringUserCounts = new int[size];
             int[] imageState = new int[size];
             Texture2D[] textures = new Texture2D[size];
             eterpix_pad[][] imageHolders = new eterpix_pad[size][];
@@ -298,8 +318,10 @@ namespace ali.eterpix.v2
                     keys[i] = _keys[i];
                     urls[i] = _urls[i];
                     stringLoading[i] = _stringLoading[i];
-                    stringWaiters[i] = _stringWaiters[i];
-                    stringWaiterCounts[i] = _stringWaiterCounts[i];
+                    stringHasResult[i] = _stringHasResult[i];
+                    stringResults[i] = _stringResults[i];
+                    stringUsers[i] = _stringUsers[i];
+                    stringUserCounts[i] = _stringUserCounts[i];
                     imageState[i] = _imageState[i];
                     textures[i] = _textures[i];
                     imageHolders[i] = _imageHolders[i];
@@ -307,7 +329,7 @@ namespace ali.eterpix.v2
                 }
                 else
                 {
-                    stringWaiters[i] = new eterpix_pad[4];
+                    stringUsers[i] = new eterpix_pad[4];
                     imageHolders[i] = new eterpix_pad[4];
                 }
             }
@@ -315,8 +337,10 @@ namespace ali.eterpix.v2
             _keys = keys;
             _urls = urls;
             _stringLoading = stringLoading;
-            _stringWaiters = stringWaiters;
-            _stringWaiterCounts = stringWaiterCounts;
+            _stringHasResult = stringHasResult;
+            _stringResults = stringResults;
+            _stringUsers = stringUsers;
+            _stringUserCounts = stringUserCounts;
             _imageState = imageState;
             _textures = textures;
             _imageHolders = imageHolders;
@@ -363,15 +387,6 @@ namespace ali.eterpix.v2
             int count = counts[index];
             eterpix_pad[] copy = new eterpix_pad[count];
             for (int i = 0; i < count; i++) copy[i] = lists[index][i];
-            return copy;
-        }
-
-        private eterpix_pad[] TakePads(eterpix_pad[][] lists, int[] counts, int index)
-        {
-            eterpix_pad[] copy = CopyPads(lists, counts, index);
-            eterpix_pad[] list = lists[index];
-            for (int i = 0; i < counts[index]; i++) list[i] = null;
-            counts[index] = 0;
             return copy;
         }
     }
