@@ -164,9 +164,6 @@ namespace ali.eterpix.v2
             {
                 _baseColliderSize = pickupCollider.size;
                 _baseColliderCenter = pickupCollider.center;
-                _scalePivotInCollider = scaleRoot != null
-                    ? pickupCollider.transform.InverseTransformPoint(scaleRoot.position)
-                    : _baseColliderCenter;
             }
             if (sizeSlider != null)
             {
@@ -192,6 +189,15 @@ namespace ali.eterpix.v2
             if (downloaderObj != null) _downloader = downloaderObj.GetComponent<eterpix_downloader>();
             // downloaderが無ければPadが自分で直接取得する(K-48)
             if (_downloader == null) _ownImageDownloader = new VRCImageDownloader();
+
+            // 拡大の起点(本体の左下)を、掴むColliderのローカル座標で覚える。本体はPickupの子ではなく
+            // VRCParentConstraintで追従する(K-59)ため、Constraintが一度効いた後(このフレーム)に測る
+            if (pickupCollider != null)
+            {
+                _scalePivotInCollider = scaleRoot != null
+                    ? pickupCollider.transform.InverseTransformPoint(scaleRoot.position)
+                    : _baseColliderCenter;
+            }
 
             _initialized = true;
             _appliedUrl = GetEffectiveUrlString();
