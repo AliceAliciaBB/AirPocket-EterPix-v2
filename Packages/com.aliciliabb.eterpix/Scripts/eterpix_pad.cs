@@ -623,7 +623,8 @@ namespace ali.eterpix.v2
             bool rotatedByPoro = rotation % 2 == 1;
             float shownW = rotatedByPoro ? h : w;
             float shownH = rotatedByPoro ? w : h;
-            if ((shownW >= shownH) != (frame.x >= frame.y)) rotation = (rotation + 1) % 4;
+            // 足す90°は反時計回り。poroが奇数のとき、時計回りに足すと合計180°(上下逆さ)になるため
+            if ((shownW >= shownH) != (frame.x >= frame.y)) rotation = (rotation + 3) % 4;
 
             bool rotated = rotation % 2 == 1;
             float fitW = rotated ? h : w;
