@@ -2978,8 +2978,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: EterPix-Beta
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 992d118342cbc9e45b934979e771baf1, type: 2}
-  m_sharedMaterial: {fileID: 7189310939744648001, guid: 992d118342cbc9e45b934979e771baf1, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: b0633f2b0f34c294ab6d6504fab38cd1, type: 2}
+  m_sharedMaterial: {fileID: 4245558308734871056, guid: b0633f2b0f34c294ab6d6504fab38cd1, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -3013,7 +3013,7 @@ MonoBehaviour:
   m_HorizontalAlignment: 1
   m_VerticalAlignment: 4096
   m_textAlignment: 65535
-  m_characterSpacing: 0
+  m_characterSpacing: 5
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0

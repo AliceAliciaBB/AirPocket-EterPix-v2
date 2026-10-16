@@ -59,11 +59,12 @@ EterPix/
 ├─ Scripts/                 … UdonSharp スクリプト
 ├─ Editor/                  … URL 同期などのエディタ拡張
 ├─ UI/                      … 読み込み中の明滅シェーダー、角丸画像、再読み込みアイコン等
-├─ Fonts/                   … NotoSansJP-Bold (SIL Open Font License 1.1, OFL.txt)
+├─ Fonts/                   … NotoSansJP-Bold (SIL Open Font License 1.1, OFL.txt) / ロゴ用 StackSansNotch-Bold (SIL Open Font License 1.1, OFL-StackSansNotch.txt)
 └─ テンプレ_シーン/          … 設置例のシーン
 ```
 
 ## ライセンス
 
 - `Fonts/NotoSansJP-Bold.ttf` とその SDF は SIL Open Font License 1.1 (`Fonts/OFL.txt`)
+- `Fonts/StackSansNotch-Bold.ttf` とその SDF は SIL Open Font License 1.1 (`Fonts/OFL-StackSansNotch.txt`)。サイトのロゴと同じ書体 Stack Sans Notch (Google Fonts) の可変フォントから、太さ 700 に固定して ASCII の文字だけに絞ったもの
 - `UI/icon_reload.png` は Material Symbols の `refresh` を PNG にしたもの。Apache License 2.0 (`UI/MaterialSymbols_LICENSE.txt`)
