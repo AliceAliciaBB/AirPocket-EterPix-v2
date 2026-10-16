@@ -30,14 +30,14 @@
 
 ### ボタン列(モニターの一番下)
 
-- Stack / Split の一番下に、ボタンだけを並べる列 `Screen/ActionBar` がある。左から次の 3 つ
-  - `ポータルを開く`: 写真にワールド情報があるときだけ出る(ワールド情報が無い投稿では消え、残りが左に詰まる)
+- Stack / Split の一番下に、ボタンだけを並べる列 `Screen/ActionBar` がある。右寄せで、`ポータルを開く` は常に一番右。左から次の 3 つ
   - `Pad用のURLを表示`: 表示中の投稿の Pad 用 URL(`https://eterpix.com/api/vrc/v1/pad/<投稿ID>`)を VRChat の入力 UI に出す。コピーして Pad の URL 欄に貼ると、同じ投稿を Pad で見られる
   - `WebページのURLを表示`: 表示中の投稿の Web ページ(`https://eterpix.com/web/post/<投稿ID>`)の URL を出す。ブラウザで開いてもらう
+  - `ポータルを開く`: 写真にワールド情報があるときだけ出る(ワールド情報が無い投稿では消え、残りが右に寄る)
   - URL のドメインは `EterpixRequester` の取得先 URL から取る。同期はしない(表示中のページは同期済みのため、各自で作る)
-- ボタンを増やすときは `ActionBar` の子に置くだけで左から並ぶ(`HorizontalLayoutGroup`)。幅は各ボタンの `LayoutElement` の Preferred Width で決める(文字の幅 + 左右 10)
+- ボタンを増やすときは `ActionBar` の子に置くだけで並ぶ(`HorizontalLayoutGroup`。右寄せ)。ポータルより左に来るよう、`acc_PortalButton` より上(兄弟の順で前)に置く。幅は各ボタンの `LayoutElement` の Preferred Width で決める(文字の幅 + 左右 10)
   - 今の 3 つで列の幅 528 をほぼ使い切っている。4 つ目を足すときは、文言を短くするか文字を小さくする
-  - 名前の接頭辞 `acc_`(ボタン)/ `acctx_`(ボタンの文字)を付けると、テーマの色が当たる(`eterpix_monitor_theme` の「子から自動収集」で登録)
+  - ボタンの背景は名前の接頭辞 `acc_` でテーマのアクセント色が当たる(`eterpix_monitor_theme` の「子から自動収集」で登録)。ボタンの文字はテーマに関わらず白に固定するため、接頭辞を付けない(`Label`)
 - URL を表示するボタンは、読み取り専用の `TMP_InputField`(インフォメーションウィンドウの `https://eterpix.com/` 欄と同じ作り)。URL の文字は透明にして、見出しの文字を重ねている
 
 ### テーマ(表示色)
