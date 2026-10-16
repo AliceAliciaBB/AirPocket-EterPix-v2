@@ -453,10 +453,13 @@ namespace ali.eterpix.v2
             SetShareField(webUrlField, hasPost, site + WebPostPath + postId);
         }
 
+        // 入力欄はボタンの枠(背景と見出し)の中に重ねてあるため、枠ごと出し入れする
         private void SetShareField(TMP_InputField field, bool visible, string url)
         {
             if (field == null) return;
-            field.gameObject.SetActive(visible);
+            Transform frame = field.transform.parent;
+            if (frame != null) frame.gameObject.SetActive(visible);
+            else field.gameObject.SetActive(visible);
             if (visible) field.text = url;
         }
 

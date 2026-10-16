@@ -38,7 +38,7 @@
 - ボタンを増やすときは `ActionBar` の子に置くだけで左から並ぶ(`HorizontalLayoutGroup`)。`acc_PortalButton` は `LayoutElement` の Ignore Layout で並びから外して右端に固定し、列の右の余白(Padding Right = ポータルの幅 + 8)でポータルと重ならないようにしている。幅は各ボタンの `LayoutElement` の Preferred Width で決める(文字の幅 + 左右 10)
   - 今の 3 つで列の幅 528 をほぼ使い切っている。4 つ目を足すときは、文言を短くするか文字を小さくする
   - ボタンの背景は名前の接頭辞 `acc_` でテーマのアクセント色が当たる(`eterpix_monitor_theme` の「子から自動収集」で登録)。ボタンの文字はテーマに関わらず黒に固定するため、接頭辞を付けない(`Label`)
-- URL を表示するボタンは、読み取り専用の `TMP_InputField`(インフォメーションウィンドウの `https://eterpix.com/` 欄と同じ作り)。URL の文字は透明にして、見出しの文字を重ねている
+- URL を表示するボタンは、背景(`acc_`)と見出し(`Label`)の枠の中に、インフォメーションウィンドウの `https://eterpix.com/` 欄(`btn_UrlField`)をそのまま複製した読み取り専用の `TMP_InputField`(`UrlField`)を重ねている。URL の文字と欄の背景は透明。入力欄にレイアウトや色の変化などを足すと VRChat で押しても開かなくなったため、欄そのものは複製元から変えないこと
 
 ### テーマ(表示色)
 
