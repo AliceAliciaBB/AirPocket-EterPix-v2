@@ -27,6 +27,10 @@ namespace ali.eterpix.v2
         [Header("R18投稿を表示するか(ゲーム内から変更不可)")]
         [SerializeField] private bool showR18Posts = false;
 
+        [Header("配下のモニターから開くポータルの大きさ(倍率。0ならポータル側の siz_value)")]
+        [SerializeField] private float portalSize = 0f;
+        public float PortalSize => portalSize;
+
         [Header("デバッグログ")]
         [SerializeField] private ali.eterpix.eterpix_debug debugLog;
 

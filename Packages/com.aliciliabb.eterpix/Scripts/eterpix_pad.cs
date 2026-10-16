@@ -797,7 +797,7 @@ namespace ali.eterpix.v2
             else
             {
                 _portalShouldBeOpen = true;
-                portal.SetParentObjectWithOpener(GetPortalSpawn(), worldId, this);
+                portal.SetParentObjectWithOpenerSized(GetPortalSpawn(), worldId, this, GetPortalSize());
             }
             UpdatePortalLabel();
         }
@@ -829,7 +829,7 @@ namespace ali.eterpix.v2
                 }
                 else
                 {
-                    portal.SetParentObjectWithOpener(spawn, worldId, this);
+                    portal.SetParentObjectWithOpenerSized(spawn, worldId, this, GetPortalSize());
                 }
             }
             _shownWorldId = worldId;
@@ -845,6 +845,12 @@ namespace ali.eterpix.v2
         private Transform GetPortalSpawn()
         {
             return portalSpawnPoint != null ? portalSpawnPoint : transform;
+        }
+
+        // ポータルの大きさはワールドに1つの要求者の Inspector で決める(0ならポータル側の siz_value)
+        private float GetPortalSize()
+        {
+            return _requester != null ? _requester.PortalSize : 0f;
         }
 
         private void UpdatePortalLabel()

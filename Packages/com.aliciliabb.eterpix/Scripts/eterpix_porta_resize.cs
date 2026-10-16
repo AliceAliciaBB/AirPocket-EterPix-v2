@@ -24,6 +24,9 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // 現在このポータルを開いたv2モニター(旧系統はnull)
     private UdonSharpBehaviour _opener;
 
+    // 今開いているポータルの大きさ。呼んだ側が指定しなければ siz_value
+    private float _openSize = 0f;
+
     // ポータルが表示中のみの処理
     void Update()
     {
@@ -66,8 +69,17 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // 自分をparentの子にして、その場所へスナップする(v2モニター用。openerに状態変化を通知する)
     public void SetParentObjectWithOpener(Transform parent, string roomId, UdonSharpBehaviour opener)
     {
+        SetParentObjectWithOpenerSized(parent, roomId, opener, 0f);
+    }
+
+    // 大きさを指定して開く(呼んだ側の要求者の portalSize。0以下なら siz_value)。
+    // 下へずらす量(offset × 大きさ)とApplyScaleも、この大きさで計算する
+    public void SetParentObjectWithOpenerSized(Transform parent, string roomId, UdonSharpBehaviour opener, float size)
+    {
         if (portal == null)
             return;
+
+        _openSize = size > 0f ? size : siz_value;
 
         // SetParent より先に通知すると、前のopenerがIsOpenAtで「まだ自分の下」と誤判定するため
         // 先にparentを移動してから通知する
@@ -81,7 +93,7 @@ public class eterpix_porta_resize : UdonSharpBehaviour
             transform.localRotation = Quaternion.identity;
 
             // SetActive より前に Y オフセットをセット(出現時から正しい位置にするため)
-            if (offsetY != null) offsetY.localPosition = Vector3.down * (offset * siz_value);
+            if (offsetY != null) offsetY.localPosition = Vector3.down * (offset * _openSize);
 
             // 表示にする
             portal.gameObject.SetActive(true);
@@ -145,6 +157,7 @@ public class eterpix_porta_resize : UdonSharpBehaviour
     // Y オフセットは offsetY.localPosition で開く直前にセット済みのため、ここでは位置を触らない
     public void ApplyScale()
     {
-        portal.transform.localScale = new Vector3(siz_value, siz_value, siz_value);
+        float size = _openSize > 0f ? _openSize : siz_value;
+        portal.transform.localScale = new Vector3(size, size, size);
     }
 }

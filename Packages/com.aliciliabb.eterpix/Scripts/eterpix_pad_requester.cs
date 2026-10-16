@@ -23,6 +23,10 @@ namespace ali.eterpix.v2
         private const int ImageLoading = 1;
         private const int ImageLoaded = 2;
 
+        [Header("Padから開くポータルの大きさ(倍率。0ならポータル側の siz_value)")]
+        [SerializeField] private float portalSize = 0f;
+        public float PortalSize => portalSize;
+
         [Header("デバッグログ")]
         [SerializeField] private ali.eterpix.eterpix_debug debugLog;
 

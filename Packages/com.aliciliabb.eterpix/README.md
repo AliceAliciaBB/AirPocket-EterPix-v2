@@ -36,6 +36,15 @@
   - `カスタム` の色は自由に入力できる
 - モニターの `eterpix_monitor_theme` で `直接編集` を ON にすると、そのモニターはテーマの対象外になる(各 Image / TMP の色を直接編集する)
 
+### ポータルの大きさ
+
+- ポータル本体(`EterpixPortal`)は 1 つを共有し、開いたモニター/Pad の場所へ移動する
+- 開く時の大きさ(倍率)は要求者の Inspector の `Portal Size` で決める
+  - `EterpixRequester`: 配下のモニターから開く時の大きさ
+  - `EterpixPadRequester`: Pad から開く時の大きさ
+  - `0`(既定)なら `EterpixPortal` の `siz_value` を使う(従来どおり)
+- 開く位置から下へずらす量(`EterpixPortal` の `offset`)も、開いた大きさに比例する
+
 ### 注意
 
 - 次のオブジェクト名は変更しないこと (スクリプトが名前で探す)

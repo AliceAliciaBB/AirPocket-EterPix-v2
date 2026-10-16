@@ -415,7 +415,7 @@ namespace ali.eterpix.v2
                 else
                 {
                     // 一時非表示から復帰 → 再表示
-                    portal.SetParentObjectWithOpener(spawn, worldId, this);
+                    portal.SetParentObjectWithOpenerSized(spawn, worldId, this, GetPortalSize());
                 }
             }
             UpdatePortalLabel();
@@ -625,9 +625,15 @@ namespace ali.eterpix.v2
             else
             {
                 _portalShouldBeOpen = true;
-                portal.SetParentObjectWithOpener(spawn, worldId, this);
+                portal.SetParentObjectWithOpenerSized(spawn, worldId, this, GetPortalSize());
             }
             UpdatePortalLabel();
+        }
+
+        // ポータルの大きさは配下にしている要求者の Inspector で決める(0ならポータル側の siz_value)
+        private float GetPortalSize()
+        {
+            return _requester != null ? _requester.PortalSize : 0f;
         }
 
         #region Editor
