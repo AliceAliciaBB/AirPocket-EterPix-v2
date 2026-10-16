@@ -6,7 +6,7 @@ namespace ali.eterpix
 {
     public static class eterpix_menu
     {
-        private const string TemplatePrefabPath = "Packages/com.aliciliabb.eterpix/Etp_テンプレート.prefab";
+        private const string TemplatePrefabPath = "Assets/EterPix/Etp_テンプレート.prefab";
 
         [MenuItem("GameObject/EterPix/テンプレートを配置", false, 10)]
         static void PlaceTemplate(MenuCommand command)
@@ -32,7 +32,7 @@ namespace ali.eterpix
 
         // EtrPix-Pad (K-49): Pad本体と範囲Collider(Range)を一組にしたprefabを置く。
         // 範囲の指定は済んでおり、初期位置はビルド時に自動で焼き込まれる(eterpix_pad_pose_baker)
-        private const string PadPrefabPath = "Packages/com.aliciliabb.eterpix/Prefabs/EterpixPad.prefab";
+        private const string PadPrefabPath = "Assets/EterPix/Prefabs/EterpixPad.prefab";
 
         [MenuItem("GameObject/EterPix/Padを配置", false, 11)]
         static void PlacePad(MenuCommand command)
@@ -55,7 +55,7 @@ namespace ali.eterpix
         }
 
         // Padの取得はワールドに1つの要求者が受け持つ(K-61)。シーンに無ければシーン直下に置く
-        private const string PadRequesterPrefabPath = "Packages/com.aliciliabb.eterpix/Prefabs/EterpixPadRequester.prefab";
+        private const string PadRequesterPrefabPath = "Assets/EterPix/Prefabs/EterpixPadRequester.prefab";
 
         private static void EnsurePadRequester()
         {
