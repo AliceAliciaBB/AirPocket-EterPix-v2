@@ -31,7 +31,7 @@
 ### ボタン列(モニターの一番下)
 
 - Stack / Split の一番下に、ボタンだけを並べる列 `Screen/ActionBar` がある。ボタンは左詰めで、`ポータルを開く` だけは常に一番右に固定。左から次の 3 つ
-  - `Pad用のURLを表示`: 表示中の投稿の Pad 用 URL(`https://eterpix.com/api/vrc/v1/pad/<投稿ID>`)を VRChat の入力 UI に出す。コピーして Pad の URL 欄に貼ると、同じ投稿を Pad で見られる
+  - `Pad用URLを表示`: 表示中の投稿の Pad 用 URL(`https://eterpix.com/api/vrc/v1/pad/<投稿ID>`)を VRChat の入力 UI に出す。コピーして Pad の URL 欄に貼ると、同じ投稿を Pad で見られる
   - `WebページのURLを表示`: 表示中の投稿の Web ページ(`https://eterpix.com/web/post/<投稿ID>`)の URL を出す。ブラウザで開いてもらう
   - `ポータルを開く`: 写真にワールド情報があるときだけ出る(ワールド情報が無い投稿では消え、右端が空く)
   - URL のドメインは `EterpixRequester` の取得先 URL から取る。同期はしない(表示中のページは同期済みのため、各自で作る)
