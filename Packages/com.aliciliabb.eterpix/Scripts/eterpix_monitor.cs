@@ -43,6 +43,17 @@ namespace ali.eterpix.v2
 
         public const string PortalObjectName = "EterpixPortal";
 
+        [Header("ボタン列(一番下。ボタンは子に置くだけで左から並ぶ)")]
+        [Tooltip("表示中の投稿のPad用URLを入れる読み取り専用の入力欄。押すとVRChatの入力UIが開き、URLをコピーできる")]
+        [SerializeField] private TMP_InputField padUrlField;
+        [Tooltip("表示中の投稿のWebページのURLを入れる読み取り専用の入力欄")]
+        [SerializeField] private TMP_InputField webUrlField;
+
+        public const string PadUrlPath = "/api/vrc/v1/pad/";
+        public const string WebPostPath = "/web/post/";
+        // 取得先URLからサイトのアドレスを取れないときに使う
+        public const string DefaultSiteBase = "https://eterpix.com";
+
         [Header("再読み込み(押した本人だけJSONと画像を破棄して取り直す。連打防止のため押した後しばらく押せなくする)")]
         [SerializeField] private Button reloadButton;
         // VRCStringDownloaderは5秒に1回までのため、それより長く空ける
@@ -334,6 +345,8 @@ namespace ali.eterpix.v2
             if (userNameText != null) userNameText.text = "";
             if (descriptionText != null) descriptionText.text = "";
             if (worldContextRoot != null) worldContextRoot.SetActive(false);
+            if (openPortalButton != null) openPortalButton.gameObject.SetActive(false);
+            ApplyShareUrls("");
             if (pageLabel != null) pageLabel.text = "";
             SetNormalObjectsActive(false);
 
@@ -371,7 +384,9 @@ namespace ali.eterpix.v2
             string description = ReadString(data, "pode", "");
             string userName = ReadString(data, "usna", "");
             string worldId = ReadString(data, "woid", "");
+            string postId = ReadString(data, "poid", "");
 
+            ApplyShareUrls(postId);
             ApplyRotation(imgRotation);
             ApplyUvRect(imgPos);
             // 前の投稿の写真を残さないよう、読み込みが終わるまで明滅表示にする
@@ -397,6 +412,8 @@ namespace ali.eterpix.v2
         {
             bool hasWorld = !string.IsNullOrEmpty(worldId);
             if (worldContextRoot != null) worldContextRoot.SetActive(hasWorld);
+            // ポータルのボタンはボタン列にあり、ワールド情報の領域とは別に隠す
+            if (openPortalButton != null) openPortalButton.gameObject.SetActive(hasWorld);
 
             // ページが変わったときのポータル制御
             Transform spawn = portalSpawnPoint != null ? portalSpawnPoint : transform;
@@ -424,6 +441,31 @@ namespace ali.eterpix.v2
 
             if (worldNameText != null) worldNameText.text = _requester.ResolveWorldName(worldId);
             if (worldDescriptionText != null) worldDescriptionText.text = _requester.ResolveWorldDescription(worldId);
+        }
+
+        // ---- Pad用URL / WebページのURL(ボタン列。押すとVRChatの入力UIでURLをコピーできる) ----
+        // 投稿ID(poid)が無い投稿では隠す。同期しない(表示中のページは同期済みのため各自で作る)
+        private void ApplyShareUrls(string postId)
+        {
+            bool hasPost = !string.IsNullOrEmpty(postId);
+            string site = hasPost ? GetSiteBase() : "";
+            SetShareField(padUrlField, hasPost, site + PadUrlPath + postId);
+            SetShareField(webUrlField, hasPost, site + WebPostPath + postId);
+        }
+
+        private void SetShareField(TMP_InputField field, bool visible, string url)
+        {
+            if (field == null) return;
+            field.gameObject.SetActive(visible);
+            if (visible) field.text = url;
+        }
+
+        // 取得先URL(例 https://eterpix.com/api/vrc/v1/public)の /api/ より前
+        private string GetSiteBase()
+        {
+            string url = _requester != null ? _requester.RequestUrlString : "";
+            int index = string.IsNullOrEmpty(url) ? -1 : url.IndexOf("/api/");
+            return index > 0 ? url.Substring(0, index) : DefaultSiteBase;
         }
 
         private void UpdatePortalLabel()

@@ -28,6 +28,18 @@
   - 画像は取り直さない(表示中の画像はそのまま使う)
 - アイコンは Material Symbols (Apache License 2.0, `UI/MaterialSymbols_LICENSE.txt`)
 
+### ボタン列(モニターの一番下)
+
+- Stack / Split の一番下に、ボタンだけを並べる列 `Screen/ActionBar` がある。左から次の 3 つ
+  - `ポータルを開く`: 写真にワールド情報があるときだけ出る(ワールド情報が無い投稿では消え、残りが左に詰まる)
+  - `Pad用のURLを表示`: 表示中の投稿の Pad 用 URL(`https://eterpix.com/api/vrc/v1/pad/<投稿ID>`)を VRChat の入力 UI に出す。コピーして Pad の URL 欄に貼ると、同じ投稿を Pad で見られる
+  - `WebページのURLを表示`: 表示中の投稿の Web ページ(`https://eterpix.com/web/post/<投稿ID>`)の URL を出す。ブラウザで開いてもらう
+  - URL のドメインは `EterpixRequester` の取得先 URL から取る。同期はしない(表示中のページは同期済みのため、各自で作る)
+- ボタンを増やすときは `ActionBar` の子に置くだけで左から並ぶ(`HorizontalLayoutGroup`)。幅は各ボタンの `LayoutElement` の Preferred Width で決める(文字の幅 + 左右 10)
+  - 今の 3 つで列の幅 528 をほぼ使い切っている。4 つ目を足すときは、文言を短くするか文字を小さくする
+  - 名前の接頭辞 `acc_`(ボタン)/ `acctx_`(ボタンの文字)を付けると、テーマの色が当たる(`eterpix_monitor_theme` の「子から自動収集」で登録)
+- URL を表示するボタンは、読み取り専用の `TMP_InputField`(インフォメーションウィンドウの `https://eterpix.com/` 欄と同じ作り)。URL の文字は透明にして、見出しの文字を重ねている
+
 ### テーマ(表示色)
 
 - `EterpixTheme`(テンプレートに含まれる。`Prefabs/EterpixTheme.prefab`)の Inspector で設定する
@@ -56,6 +68,8 @@
   VRChat SDK の Network ID ユーティリティで競合を解消すること
 
 ## 旧バージョンからの更新
+
+2.3.0 の次の版から、モニターの一番下にボタン列が付き、モニターが 52 高くなった(Stack 684 → 736、Split 608 → 660)。上の端の位置は変わらず、下に伸びる。ポータルが開く位置(`PortalSpawnPoint`)も同じだけ下がる。モニターのすぐ下に物を置いている場合は位置を確かめること。
 
 テンプレート内のモニターは `EterpixMonitor_Stack` に置き換わった。シーン上でモニターの位置や offset を変更していた場合、更新後にテンプレートの値へ戻るので、設定し直すか、旧デザインの `Prefabs/Legacy/EterpixMonitorUI.prefab` を使う。更新後は VRChat SDK の Network ID ユーティリティでシーンの Network ID を整理してから保存する。
 
