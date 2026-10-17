@@ -40,6 +40,13 @@
   - ボタンの背景は名前の接頭辞 `acc_` でテーマのアクセント色が当たる(`eterpix_monitor_theme` の「子から自動収集」で登録)。ボタンの文字はテーマに関わらず黒に固定するため、接頭辞を付けない(`Label`)
 - URL を表示するボタンは、背景(`acc_`)と見出し(`Label`)の枠の中に、インフォメーションウィンドウの `https://eterpix.com/` 欄(`btn_UrlField`)をそのまま複製した読み取り専用の `TMP_InputField`(`UrlField`)を重ねている。URL の文字と欄の背景は透明。入力欄にレイアウトや色の変化などを足すと VRChat で押しても開かなくなったため、欄そのものは複製元から変えないこと
 
+### グループ(右上のボタン)
+
+- 右上のボタン群のいちばん左(テーマ切替の左)が `グループ` ボタン(`btn_GroupButton`)。押すとインフォメーションと同じ位置に `グループ` ウィンドウ(`bg_GroupWindow`)が開く(インフォメーションとは同時に開かない。開いている間はアイコンが ×)
+- ウィンドウには EterPix の紹介文、サイトと BOOTH の URL(コピー用の欄)、`グループのページを開く` ボタンがある。ボタンを押すと VRChat のメインメニューで EterPix の VRChat グループ(`grp_b3f71193-2ed1-4de0-a5f1-3237609f4aeb`)のページが開く(`Store.OpenGroupPage`。押した本人だけ。ClientSim では何も起きない)
+- グループ ID はギミック側で固定(`eterpix_monitor.GroupId`)
+- アイコン `UI/icon_group.png` は EterPix 用に作成したもの
+
 ### テーマ(表示色)
 
 - `EterpixTheme`(テンプレートに含まれる。`Prefabs/EterpixTheme.prefab`)の Inspector で設定する

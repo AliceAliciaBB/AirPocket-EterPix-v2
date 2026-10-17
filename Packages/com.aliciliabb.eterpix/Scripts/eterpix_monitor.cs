@@ -66,6 +66,14 @@ namespace ali.eterpix.v2
         [SerializeField] private GameObject infoIconOpen;
         [SerializeField] private GameObject infoIconClose;
 
+        [Header("グループウィンドウ(情報ウィンドウと同時には開かない。表示中はボタンのアイコンをXにする)")]
+        [SerializeField] private GameObject groupWindowRoot;
+        [SerializeField] private GameObject groupIconOpen;
+        [SerializeField] private GameObject groupIconClose;
+
+        // EterPixのVRChatグループ。ワールド作者が変えるものではないため固定する
+        public const string GroupId = "grp_b3f71193-2ed1-4de0-a5f1-3237609f4aeb";
+
         [Header("状態表示(読み込み中/エラー/投稿なし。写真枠の中に出す)")]
         [SerializeField] private GameObject statusRoot;
         [SerializeField] private TMP_Text statusText;
@@ -151,6 +159,7 @@ namespace ali.eterpix.v2
             }
 
             SetInformationOpen(false);
+            SetGroupOpen(false);
 
             // Init前に範囲へ入っていた場合(範囲内でスポーン等)の通知を取りこぼさないよう、現在の状態を読み直す
             _isInViewRange = requester.IsLocalPlayerInRange;
@@ -553,7 +562,31 @@ namespace ali.eterpix.v2
         public void ToggleInformationWindow()
         {
             if (informationWindowRoot == null) return;
-            SetInformationOpen(!informationWindowRoot.activeSelf);
+            bool open = !informationWindowRoot.activeSelf;
+            if (open) SetGroupOpen(false);
+            SetInformationOpen(open);
+        }
+
+        // ---- グループウィンドウ(情報ウィンドウと排他) ----
+        public void ToggleGroupWindow()
+        {
+            if (groupWindowRoot == null) return;
+            bool open = !groupWindowRoot.activeSelf;
+            if (open) SetInformationOpen(false);
+            SetGroupOpen(open);
+        }
+
+        private void SetGroupOpen(bool open)
+        {
+            if (groupWindowRoot != null) groupWindowRoot.SetActive(open);
+            if (groupIconOpen != null) groupIconOpen.SetActive(!open);
+            if (groupIconClose != null) groupIconClose.SetActive(open);
+        }
+
+        // グループウィンドウ内のボタンのOnClick。VRChatのメインメニューでグループのページを開く(押した本人のみ)
+        public void OpenGroupPage()
+        {
+            VRC.Economy.Store.OpenGroupPage(GroupId);
         }
 
         private void SetInformationOpen(bool open)
