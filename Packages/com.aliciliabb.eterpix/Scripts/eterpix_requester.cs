@@ -37,6 +37,8 @@ namespace ali.eterpix.v2
         private eterpix_downloader _downloader;
         private int _feedIndex = -1;
         public int FeedIndex => _feedIndex;
+        // モニターがPad用URL・WebページのURLを作るときにサイトのアドレスを取り出す
+        public string RequestUrlString => requestUrl != null ? requestUrl.Get() : "";
 
         private eterpix_monitor[] _monitors = new eterpix_monitor[0];
 
