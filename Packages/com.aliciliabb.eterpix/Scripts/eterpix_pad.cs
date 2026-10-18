@@ -813,7 +813,7 @@ namespace ali.eterpix.v2
         private void ApplyWorldContext(string worldId)
         {
             bool hasWorld = !string.IsNullOrEmpty(worldId);
-            if (portalButton != null) portalButton.interactable = hasWorld;
+            if (portalButton != null) portalButton.gameObject.SetActive(hasWorld);
 
             if (portal != null && _portalShouldBeOpen)
             {
