@@ -128,12 +128,85 @@ namespace ali.eterpix.v2
         // Init()の実行順は保証されないため)。
         private bool _hasReceivedSync = false;
 
+        // ---- 調査用トレース(eterpix_debug.TraceEnabled) ----
+        // 写真が白くなる/古い写真が残る不具合の切り分け用。表示の要所と、見張り(Update)で見た表示状態の変化を出す
+        private string _traceName = "";
+        public string TraceName => _traceName;
+        private string _tracePoid = "";
+        private int _traceCopo = -1;
+        private int _appliedSerial = -1;
+        private int _appliedTexGen = -1;
+        private Texture2D _appliedTexture;
+        private string _watchState = "";
+        private float _nextWatchTime = 0f;
+        private const float WatchIntervalSeconds = 0.5f;
+
+        private void BuildTraceName()
+        {
+            if (_traceName != "") return;
+            string name = gameObject.name;
+            Transform parent = transform.parent;
+            for (int i = 0; i < 2 && parent != null; i++)
+            {
+                name = parent.name + "/" + name;
+                parent = parent.parent;
+            }
+            _traceName = name;
+        }
+
+        private void Trace(string message)
+        {
+            BuildTraceName();
+            if (ali.eterpix.eterpix_debug.TraceEnabled) Debug.Log(ali.eterpix.eterpix_debug.TracePrefix + "t=" + Time.time.ToString("F2") + " " + System.DateTime.Now.ToString("HH:mm:ss") + " MON " + _traceName + " " + message);
+        }
+
+        private int TraceFeedGen()
+        {
+            return _downloader != null ? _downloader.GetFeedGeneration(_feedIndex) : -1;
+        }
+
+        private string TraceDisplayDetail()
+        {
+            string detail = "slot=" + _currentSlot + " poid=" + _tracePoid + " copo=" + _traceCopo + " hasReq=" + _hasRequestedTexture +
+                " inRange=" + _isInViewRange + " loading=" + _isImageLoading + " appliedSerial=" + _appliedSerial + " appliedTexGen=" + _appliedTexGen +
+                " feedGen=" + TraceFeedGen() + " page=" + _syncedPageIndex;
+            if (image != null)
+            {
+                detail += " imgTexValid=" + Utilities.IsValid(image.texture) + " imgTexIsApplied=" + (image.texture == _appliedTexture) +
+                    " appliedValid=" + Utilities.IsValid(_appliedTexture) + " matNull=" + (image.material == null) + " color=" + image.color + " uv=" + image.uvRect;
+            }
+            if (_downloader != null && _currentSlot >= 0) detail += " | " + _downloader.GetSlotTraceText(_feedIndex, _currentSlot);
+            return detail;
+        }
+
+        // 表示状態の見張り。状態が変わった時だけ出す。
+        // WHITE = 写真表示のはずがテクスチャが無い/破棄済み(白く見える)、SWAPPED = 貼ったものと別のテクスチャになっている
+        private void Update()
+        {
+            if (!ali.eterpix.eterpix_debug.TraceEnabled || image == null) return;
+            if (Time.time < _nextWatchTime) return;
+            _nextWatchTime = Time.time + WatchIntervalSeconds;
+
+            string state;
+            if (statusRoot != null && statusRoot.activeSelf) state = "status";
+            else if (_isImageLoading) state = "loading";
+            else if (!Utilities.IsValid(image.texture)) state = "WHITE";
+            else if (image.texture != _appliedTexture) state = "SWAPPED";
+            else state = "photo";
+
+            string key = state + "#" + _currentSlot + "#" + _tracePoid + "#" + _appliedSerial;
+            if (key == _watchState) return;
+            _watchState = key;
+            Trace("watch state=" + state + " " + TraceDisplayDetail());
+        }
+
         // ---- リクエスターからの初期化 ----
         public void Init(eterpix_requester requester, eterpix_downloader downloader, int feedIndex)
         {
             _requester = requester;
             _downloader = downloader;
             _feedIndex = feedIndex;
+            Trace("Init feedIndex=" + feedIndex + " inRange=" + requester.IsLocalPlayerInRange + " offset=" + offset + " hasReceivedSync=" + _hasReceivedSync);
 
             if (debugLog == null)
             {
@@ -170,6 +243,7 @@ namespace ali.eterpix.v2
         public void OnFeedUpdated()
         {
             // 新着で表示がずれるのは仕様上許容する(リファクタリング案.md「ページ位置」参照)
+            Trace("OnFeedUpdated feedGen=" + TraceFeedGen() + " feedStatus=" + (_requester != null ? _requester.FeedStatus : -1));
             RefreshDisplay();
         }
 
@@ -183,6 +257,7 @@ namespace ali.eterpix.v2
         // 範囲の判定はeterpix_requester(自身のトリガーCollider)が行い、ローカルプレイヤーの出入りをここへ通知する
         public void SetInViewRange(bool inRange)
         {
+            Trace("SetInViewRange " + inRange + " active=" + gameObject.activeInHierarchy + " slot=" + _currentSlot + " hasReq=" + _hasRequestedTexture);
             _isInViewRange = inRange;
 
             if (!inRange)
@@ -207,6 +282,7 @@ namespace ali.eterpix.v2
         // の両方から永久に除外されてしまう(レビュー指摘)。
         private void OnDisable()
         {
+            Trace("OnDisable");
             ReleaseCurrentTextureIfAny();
             _isInViewRange = false;
         }
@@ -215,6 +291,7 @@ namespace ali.eterpix.v2
         // 非アクティブ中の範囲の出入りは通知されないため、requesterの現在の状態を読み直してから表示する
         private void OnEnable()
         {
+            Trace("OnEnable requesterNull=" + (_requester == null));
             if (_requester != null)
             {
                 _isInViewRange = _requester.IsLocalPlayerInRange;
@@ -289,6 +366,7 @@ namespace ali.eterpix.v2
 
         public override void OnDeserialization()
         {
+            Trace("OnDeserialization page=" + _syncedPageIndex);
             _hasReceivedSync = true;
             RefreshDisplay();
         }
@@ -343,6 +421,7 @@ namespace ali.eterpix.v2
         // ---- 状態表示 ----
         private void ShowStatus(string message)
         {
+            Trace("ShowStatus msg=" + message.Replace("\n", " / "));
             // 状態表示中はポータルを一時非表示(_portalShouldBeOpen は維持してデータ復帰時に再表示)
             if (portal != null) portal.HideTemporarily();
 
@@ -394,6 +473,13 @@ namespace ali.eterpix.v2
             string userName = ReadString(data, "usna", "");
             string worldId = ReadString(data, "woid", "");
             string postId = ReadString(data, "poid", "");
+            Trace("ApplyPost poid=" + postId + " coid=" + collageId + " copo=" + imgPos + " coro=" + imgRotation + " prevSlot=" + _currentSlot +
+                " prevPoid=" + _tracePoid + " page=" + _syncedPageIndex + " inRange=" + _isInViewRange + " feedGen=" + TraceFeedGen());
+            _tracePoid = postId;
+            _traceCopo = imgPos;
+            _appliedSerial = -1;
+            _appliedTexGen = -1;
+            _appliedTexture = null;
 
             ApplyShareUrls(postId);
             ApplyRotation(imgRotation);
@@ -497,6 +583,7 @@ namespace ali.eterpix.v2
         {
             if (_hasRequestedTexture && _downloader != null && _currentSlot >= 0)
             {
+                Trace("ReleaseCurrentTexture slot=" + _currentSlot + " poid=" + _tracePoid + " appliedSerial=" + _appliedSerial);
                 _downloader.ReleaseTexture(_feedIndex, _currentSlot, this);
                 // RawImageがテクスチャを掴んだままだと、範囲外に出ても写真が表示され続け、
                 // ダウンローダが破棄してもメモリから消えない。解放したら読み込み中の表示に戻す
@@ -544,11 +631,28 @@ namespace ali.eterpix.v2
         // 経由していない可能性がある)を貼り付けてしまわないよう、ここで安全に無視する。
         public void ApplyTexture(int feedIndex, int slot, Texture2D texture)
         {
-            if (feedIndex != _feedIndex || slot != _currentSlot) return;
+            int serial = _downloader != null ? _downloader.GetTextureSerial(feedIndex, slot) : -1;
+            if (feedIndex != _feedIndex || slot != _currentSlot)
+            {
+                Trace("ApplyTexture ignored(slot mismatch) feed=" + feedIndex + " slot=" + slot + " currentSlot=" + _currentSlot + " serial=" + serial);
+                return;
+            }
             // 読み込み中に範囲外へ出て解放済みの場合は貼らない(参照0のテクスチャはダウンローダが破棄する)
-            if (!_hasRequestedTexture) return;
+            if (!_hasRequestedTexture)
+            {
+                Trace("ApplyTexture ignored(not requested) slot=" + slot + " serial=" + serial);
+                return;
+            }
+            int texGen = _downloader != null ? _downloader.GetTextureGeneration(feedIndex, slot) : -1;
+            int feedGen = TraceFeedGen();
+            Trace("ApplyTexture slot=" + slot + " poid=" + _tracePoid + " copo=" + _traceCopo + " serial=" + serial + " texGen=" + texGen + " feedGen=" + feedGen +
+                " texValid=" + Utilities.IsValid(texture) + (_downloader != null && _downloader.IsTextureStale(feedIndex, slot) ? " STALE-CONTENT" : "") +
+                (texture != null ? " size=" + texture.width + "x" + texture.height : ""));
             if (texture != null && image != null)
             {
+                _appliedSerial = serial;
+                _appliedTexGen = texGen;
+                _appliedTexture = texture;
                 _isImageLoading = false;
                 image.material = null;
                 image.texture = texture;
