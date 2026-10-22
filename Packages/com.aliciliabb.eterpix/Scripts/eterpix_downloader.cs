@@ -123,7 +123,7 @@ namespace ali.eterpix.v2
         // 写真が白くなる/古い写真が残る不具合の切り分け用。JSONを取得し直すたびにフィードの世代(gen)を進め、
         // 各スロットの画像が「どの世代のJSONの時に取得したか」「スロットに載っている投稿が世代間で変わったか」を記録する
         private int[] _feedJsonGen;          // フィードごと。JSON取得に成功するたびに+1
-        private string[][] _feedSlotSig;     // [feed][slot] そのスロットに載っている投稿(copo:poid)の並び。前回との比較用
+        private string[][] _feedSlotSig;     // [feed][slot] そのスロットに載っている投稿(copo:poid)の並び。前回と比べて画像を取り直す(InvalidateChangedSlots。トレース以外でも使う)
         private int[] _imgLoadGen;           // キーごと。画像のダウンロードを始めた時点のフィードの世代
         private int[] _imgSerial;            // キーごと。何番目に届いた画像か(同じキーの画像が入れ替わったかを見分ける)
         private string[] _imgLoadedAt;       // キーごと。画像が届いた時刻
@@ -185,9 +185,17 @@ namespace ali.eterpix.v2
                 " texGen=" + _imgLoadGen[key] + " feedGen=" + _feedJsonGen[feedIndex] + " stale=" + _imgStaleContent[key] + " texNull=" + (_imgTexture[key] == null);
         }
 
-        // JSON取得成功時: 投稿とスロットの対応を出し、前回の世代から中身が変わったスロットのうち
-        // 古い画像をキャッシュしたまま(Loaded/Downloading)のものを STALE-CACHE として出す
-        private void TraceFeedPosts(int feedIndex)
+        // ---- 投稿の並びが変わったスロットの画像の取り直し ----
+        // 画像URL(/00〜/FF)はスロットごとに固定で、サーバーは新しい投稿を空いている位置(copo)に足して
+        // そのスロットの画像を作り直す。JSONだけ取り直して画像を使い回すと、新しい投稿が古い画像の
+        // 空いている位置(白)で表示される。JSONを取得するたびに、スロットごとの投稿の並び(copo:poid)を
+        // 前回と比べ、変わったスロットの画像を無効にする(モニターへの通知の前に呼ぶ)。
+        //   - 取得済み: キャッシュから外す。テクスチャはモニターが通知で手放した後に破棄する(DestroyInvalidatedTextures)
+        //   - 取得中: 届いた画像を捨てて、見ている人がいれば取り直す(手動更新と同じ仕組み)
+        private Texture2D[] _invalidatedTextures = new Texture2D[ImageSlotsPerFeed];
+        private int _invalidatedTextureCount = 0;
+
+        private void InvalidateChangedSlots(int feedIndex)
         {
             DataList posts = _feedPosts[feedIndex];
             string[] sig = new string[ImageSlotsPerFeed];
@@ -196,9 +204,9 @@ namespace ali.eterpix.v2
             {
                 if (!posts.TryGetValue(i, out DataToken postToken) || postToken.TokenType != TokenType.DataDictionary) continue;
                 DataDictionary post = postToken.DataDictionary;
-                int coid = TraceReadInt(post, "coid");
-                int copo = TraceReadInt(post, "copo");
-                string poid = TraceReadString(post, "poid");
+                int coid = ReadPostInt(post, "coid");
+                int copo = ReadPostInt(post, "copo");
+                string poid = ReadPostString(post, "poid");
                 mapping += " " + i + ":" + coid + "/" + copo + "/" + poid;
                 if (coid >= 0 && coid < ImageSlotsPerFeed) sig[coid] = sig[coid] + copo + ":" + poid + ",";
             }
@@ -211,22 +219,55 @@ namespace ali.eterpix.v2
                 int key = start + slot;
                 string before = prevSig != null ? prevSig[slot] : null;
                 bool changed = prevSig != null && before != sig[slot];
-                bool cached = _imgState[key] == eterpix_v2_image_state.Loaded || _imgState[key] == eterpix_v2_image_state.Downloading;
-                if (changed)
+                if (!changed)
                 {
-                    if (cached) _imgStaleContent[key] = true;
-                    Trace((cached ? "STALE-CACHE " : "slot-changed ") + KeyText(key) + " state=" + StateName(key) + " ref=" + _imgRefCount[key] +
-                        " texGen=" + _imgLoadGen[key] + " before=[" + before + "] after=[" + sig[slot] + "]");
+                    if (_imgState[key] == eterpix_v2_image_state.Loaded || _imgState[key] == eterpix_v2_image_state.Downloading)
+                    {
+                        Trace("cache-kept " + KeyText(key) + " state=" + StateName(key) + " ref=" + _imgRefCount[key] + " serial=" + _imgSerial[key] + " texGen=" + _imgLoadGen[key] + " sig=[" + sig[slot] + "]");
+                    }
+                    continue;
                 }
-                else if (cached)
+
+                Trace("slot-changed " + KeyText(key) + " state=" + StateName(key) + " ref=" + _imgRefCount[key] +
+                    " texGen=" + _imgLoadGen[key] + " before=[" + before + "] after=[" + sig[slot] + "]");
+
+                if (_imgState[key] == eterpix_v2_image_state.Loaded)
                 {
-                    Trace("cache-kept " + KeyText(key) + " state=" + StateName(key) + " ref=" + _imgRefCount[key] + " serial=" + _imgSerial[key] + " texGen=" + _imgLoadGen[key] + " sig=[" + sig[slot] + "]");
+                    if (_imgTexture[key] != null)
+                    {
+                        _invalidatedTextures[_invalidatedTextureCount] = _imgTexture[key];
+                        _invalidatedTextureCount++;
+                    }
+                    _imgTexture[key] = null;
+                    _imgState[key] = eterpix_v2_image_state.Unrequested;
+                    _imgPriority[key] = 0;
+                    _loadedCount = Mathf.Max(0, _loadedCount - 1);
+                    Trace("invalidate loaded " + KeyText(key) + " serial=" + _imgSerial[key]);
+                }
+                else if (_imgState[key] == eterpix_v2_image_state.Downloading)
+                {
+                    // 取得開始時点のJSONより後で並びが変わったので、届く画像も古い
+                    _discardCurrentDownload = true;
+                    _imgStaleContent[key] = true;
+                    Trace("invalidate downloading " + KeyText(key));
                 }
             }
             _feedSlotSig[feedIndex] = sig;
         }
 
-        private int TraceReadInt(DataDictionary data, string key)
+        // 通知でモニターがRawImageから外した後に、無効にした古いテクスチャを破棄する
+        private void DestroyInvalidatedTextures()
+        {
+            for (int i = 0; i < _invalidatedTextureCount; i++)
+            {
+                if (_invalidatedTextures[i] != null) Destroy(_invalidatedTextures[i]);
+                _invalidatedTextures[i] = null;
+            }
+            if (_invalidatedTextureCount > 0) Trace("destroyed invalidated textures count=" + _invalidatedTextureCount);
+            _invalidatedTextureCount = 0;
+        }
+
+        private int ReadPostInt(DataDictionary data, string key)
         {
             if (!data.TryGetValue(key, out DataToken token)) return -1;
             if (token.TokenType == TokenType.Double) return (int)token.Double;
@@ -234,7 +275,7 @@ namespace ali.eterpix.v2
             return -1;
         }
 
-        private string TraceReadString(DataDictionary data, string key)
+        private string ReadPostString(DataDictionary data, string key)
         {
             if (data.TryGetValue(key, out DataToken token) && token.TokenType == TokenType.String) return token.String;
             return "";
@@ -354,11 +395,16 @@ namespace ali.eterpix.v2
         }
 
         // ---- 定期自動更新(オーナーが「今取得しろ」の指示のみ全員に同期) ----
+        // 予約した呼び出しは数百ms〜1秒ほど早く届くことがある。今の時刻のすぐ後の枠で予約し直すと
+        // 同じ枠で2回取得してしまうため、今からScheduleSlackSeconds秒より後の最初の枠を選ぶ
+        private const double ScheduleSlackSeconds = 30.0;
+
         private void ScheduleNextUpdate()
         {
             System.DateTime now = System.DateTime.Now;
+            System.DateTime earliest = now.AddSeconds(ScheduleSlackSeconds);
             System.DateTime candidate = new System.DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
-            while (candidate <= now || ((candidate.Minute - offsetMinutes) % intervalMinutes + intervalMinutes) % intervalMinutes != 0)
+            while (candidate <= earliest ||((candidate.Minute - offsetMinutes) % intervalMinutes + intervalMinutes) % intervalMinutes != 0)
             {
                 candidate = candidate.AddMinutes(1);
             }
@@ -571,10 +617,11 @@ namespace ali.eterpix.v2
 
             if (debugLog != null) debugLog.Log($"[eterpix_downloader] Feed {feedIndex}: {_feedPosts[feedIndex].Count} posts");
             _feedJsonGen[feedIndex]++;
-            TraceFeedPosts(feedIndex);
+            InvalidateChangedSlots(feedIndex);
 
             _feedStatus[feedIndex] = FeedStatusOk;
             NotifyFeedRequesters(feedIndex);
+            DestroyInvalidatedTextures();
             StartNextFetchIfIdle();
         }
 
