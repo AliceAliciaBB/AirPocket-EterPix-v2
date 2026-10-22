@@ -14,7 +14,7 @@ namespace ali.eterpix
         // 写真の表示不具合(白くなる/古い写真が残る)の調査用トレース。
         // EterpixDebugの有無・debugEnabledに関係なく "[EtpTrace]" 付きでコンソール(VRChatではoutput_log)へ出す。
         // 調査が終わったらfalseにする
-        public const bool TraceEnabled = true;
+        public const bool TraceEnabled = false;
         public const string TracePrefix = "[EtpTrace] ";
 
         [Header("Debug.LogをUnity/MCPのログへ出すかどうか")]

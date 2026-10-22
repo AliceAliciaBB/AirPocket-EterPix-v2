@@ -157,7 +157,10 @@ namespace ali.eterpix.v2
         private void Trace(string message)
         {
             BuildTraceName();
+            // TraceEnabled(const)がfalseの時の「到達不能コード」警告を抑える
+#pragma warning disable CS0162
             if (ali.eterpix.eterpix_debug.TraceEnabled) Debug.Log(ali.eterpix.eterpix_debug.TracePrefix + "t=" + Time.time.ToString("F2") + " " + System.DateTime.Now.ToString("HH:mm:ss") + " MON " + _traceName + " " + message);
+#pragma warning restore CS0162
         }
 
         private int TraceFeedGen()
