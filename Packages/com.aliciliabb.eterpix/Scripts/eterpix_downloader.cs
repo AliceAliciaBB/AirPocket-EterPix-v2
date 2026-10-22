@@ -40,6 +40,14 @@ namespace ali.eterpix.v2
 
         private const float RequestTimeoutSeconds = 15f;
 
+        // サーバーがリングを更新中のとき、JSONは 423 Locked + Retry-After: 5 で返る
+        // (統合管理 docs/plans/ring-busy-status.md)。U#ではヘッダーを読めないため、待ち時間は固定にする
+        private const int BusyStatusCode = 423;
+        private const float BusyRetryDelaySeconds = 5f;
+        private const int BusyMaxRetries = 2;
+        private int[] _feedBusyRetryCount;   // フィードごと。今の取得で423の取り直しを何回したか
+        private float[] _feedBusyRetryAt;    // フィードごと。取り直す時刻(待っていなければ-1)
+
         private string[] _feedKeys;      // VRCUrl.Get()の文字列(重複登録の判定キー)
         private VRCUrl[] _feedUrls;
         private DataList[] _feedPosts;       // 生データ(フィルタ前)
@@ -306,9 +314,12 @@ namespace ali.eterpix.v2
             _feedRequesters = new eterpix_requester[maxFeeds][];
             _feedRequesterCounts = new int[maxFeeds];
             _fetchQueue = new int[maxFeeds];
+            _feedBusyRetryCount = new int[maxFeeds];
+            _feedBusyRetryAt = new float[maxFeeds];
             for (int i = 0; i < maxFeeds; i++)
             {
                 _feedRequesters[i] = new eterpix_requester[16];
+                _feedBusyRetryAt[i] = -1f;
             }
 
             int totalSlots = maxFeeds * ImageSlotsPerFeed;
@@ -576,6 +587,7 @@ namespace ali.eterpix.v2
                 return;
             }
             _feedPending[feedIndex] = false;
+            _feedBusyRetryCount[feedIndex] = 0;
 
             if (!VRCJson.TryDeserializeFromJson(result.Result, out DataToken token) ||
                 token.TokenType != TokenType.DataDictionary)
@@ -645,16 +657,54 @@ namespace ali.eterpix.v2
                 StartNextFetchIfIdle();
                 return;
             }
+            Trace("json load error feed=" + feedIndex + " code=" + result.ErrorCode + " error=" + result.Error + " busyRetry=" + _feedBusyRetryCount[feedIndex]);
+
+            // サーバーがリングを更新中(423 Locked)なら、取得中のまま少し待って取り直す。
+            // 待っている間は_feedPendingを立てたままにして、自動更新・再読み込みの要求をこの取り直しにまとめる
+            if (result.ErrorCode == BusyStatusCode && _feedBusyRetryCount[feedIndex] < BusyMaxRetries)
+            {
+                _feedBusyRetryCount[feedIndex]++;
+                _feedBusyRetryAt[feedIndex] = Time.time + BusyRetryDelaySeconds;
+                Trace("json busy(423) feed=" + feedIndex + " retry " + _feedBusyRetryCount[feedIndex] + "/" + BusyMaxRetries + " in " + BusyRetryDelaySeconds + "s");
+                SendCustomEventDelayedSeconds(nameof(RetryBusyFeeds), BusyRetryDelaySeconds);
+                StartNextFetchIfIdle();
+                return;
+            }
+            _feedBusyRetryCount[feedIndex] = 0;
             _feedPending[feedIndex] = false;
 
             string error = result.Error;
             bool isUntrusted = !string.IsNullOrEmpty(error) && error.Contains(UntrustedUrlErrorMarker);
             _feedStatus[feedIndex] = isUntrusted ? FeedStatusUntrustedUrl : FeedStatusServerError;
             if (debugLog != null) debugLog.LogError($"[eterpix_downloader] String load error for feed {feedIndex}: {error}");
-            Trace("json load error feed=" + feedIndex + " code=" + result.ErrorCode + " error=" + error);
 
             // 一度でも成功していれば、requester/モニター側は前回のデータを表示し続ける
             NotifyFeedRequesters(feedIndex);
+            StartNextFetchIfIdle();
+        }
+
+        // 423の取り直し。引数を運べないため、待っているフィードを全部見て、時刻が来たものをキューへ戻す。
+        // 予約した呼び出しが Time.time 上わずかに早く届くことがある(TryDiscardSlotと同じ)ため、
+        // 残っているものがあれば残り時間後に予約し直す
+        public void RetryBusyFeeds()
+        {
+            float soonestRemaining = -1f;
+            for (int i = 0; i < _feedCount; i++)
+            {
+                if (_feedBusyRetryAt[i] < 0f) continue;
+                float remaining = _feedBusyRetryAt[i] - Time.time;
+                if (remaining <= 0f)
+                {
+                    _feedBusyRetryAt[i] = -1f;
+                    Trace("json busy retry fetch feed=" + i);
+                    EnqueueFetch(i);
+                }
+                else if (soonestRemaining < 0f || remaining < soonestRemaining)
+                {
+                    soonestRemaining = remaining;
+                }
+            }
+            if (soonestRemaining >= 0f) SendCustomEventDelayedSeconds(nameof(RetryBusyFeeds), soonestRemaining + 0.1f);
             StartNextFetchIfIdle();
         }
 
