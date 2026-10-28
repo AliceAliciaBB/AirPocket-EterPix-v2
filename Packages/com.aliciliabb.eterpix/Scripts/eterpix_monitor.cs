@@ -437,7 +437,7 @@ namespace ali.eterpix.v2
             if (descriptionText != null) descriptionText.text = "";
             if (worldContextRoot != null) worldContextRoot.SetActive(false);
             if (openPortalButton != null) openPortalButton.gameObject.SetActive(false);
-            ApplyShareUrls("");
+            ApplyShareUrls("", true);
             if (pageLabel != null) pageLabel.text = "";
             SetNormalObjectsActive(false);
 
@@ -484,7 +484,8 @@ namespace ali.eterpix.v2
             _appliedTexGen = -1;
             _appliedTexture = null;
 
-            ApplyShareUrls(postId);
+            // povi=公開範囲(2=全体公開). 2以外はPad・Web用のURLが開けないのでボタンを隠す。povi無しの古いJSONは表示する
+            ApplyShareUrls(postId, ReadInt(data, "povi", 2) == 2);
             ApplyRotation(imgRotation);
             ApplyUvRect(imgPos);
             // 前の投稿の写真を残さないよう、読み込みが終わるまで明滅表示にする
@@ -542,10 +543,10 @@ namespace ali.eterpix.v2
         }
 
         // ---- Pad用URL / WebページのURL(ボタン列。押すとVRChatの入力UIでURLをコピーできる) ----
-        // 投稿ID(poid)が無い投稿では隠す。同期しない(表示中のページは同期済みのため各自で作る)
-        private void ApplyShareUrls(string postId)
+        // 投稿ID(poid)が無い投稿と、全体公開でない投稿(povi != 2)では隠す。同期しない(表示中のページは同期済みのため各自で作る)
+        private void ApplyShareUrls(string postId, bool isPublic)
         {
-            bool hasPost = !string.IsNullOrEmpty(postId);
+            bool hasPost = !string.IsNullOrEmpty(postId) && isPublic;
             string site = hasPost ? GetSiteBase() : "";
             SetShareField(padUrlField, hasPost, site + PadUrlPath + postId);
             SetShareField(webUrlField, hasPost, site + WebPostPath + postId);
