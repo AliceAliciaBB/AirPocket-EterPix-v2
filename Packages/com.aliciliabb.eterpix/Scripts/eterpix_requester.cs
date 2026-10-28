@@ -233,7 +233,15 @@ namespace ali.eterpix.v2
         {
             string worldName = ResolveWorldName(worldId);
             if (string.IsNullOrEmpty(worldName) || _downloader == null) return worldName;
-            return BuildWorldPrefix(post, _downloader.GetFeedWorldPrefixTable(_feedIndex)) + worldName;
+            return BuildMarkText(post, "wopf", _downloader.GetFeedWorldPrefixTable(_feedIndex)) + worldName;
+        }
+
+        // 投稿者名(usna)の後ろに、ussfの称号を付けた文字列(D-058)
+        public string ResolveUserName(DataDictionary post)
+        {
+            string userName = ReadString(post, "usna", "");
+            if (_downloader == null) return userName;
+            return userName + BuildMarkText(post, "ussf", _downloader.GetFeedTitleTable(_feedIndex));
         }
 
         public string ResolveWorldDescription(string worldId)
@@ -243,12 +251,13 @@ namespace ali.eterpix.v2
             return ReadString(entry, "wode", "");
         }
 
-        // 追記などの印(D-057). 投稿のwopf(印のIDの配列)の順に、ルートのwopt(ID→文字列)を引いて結合する。
-        // woptに無いID・数値でないIDは読み飛ばす(古いJSONや、サーバーが後から足した印でも壊れない)
-        private string BuildWorldPrefix(DataDictionary post, DataDictionary prefixTable)
+        // 印・称号など、IDの配列を対応表で文字列にして順に結合する(D-057・D-058).
+        // 投稿のlistKey(wopf=ワールド名の前の印 / ussf=投稿者名の後ろの称号)のIDの順に、ルートの対応表(wopt / usst)を引く。
+        // 対応表に無いID・数値でないIDは読み飛ばす(古いJSONや、サーバーが後から足した印でも壊れない)
+        private string BuildMarkText(DataDictionary post, string listKey, DataDictionary prefixTable)
         {
             if (post == null || prefixTable == null) return "";
-            if (!post.TryGetValue("wopf", out DataToken listToken) || listToken.TokenType != TokenType.DataList) return "";
+            if (!post.TryGetValue(listKey, out DataToken listToken) || listToken.TokenType != TokenType.DataList) return "";
 
             DataList ids = listToken.DataList;
             string prefix = "";

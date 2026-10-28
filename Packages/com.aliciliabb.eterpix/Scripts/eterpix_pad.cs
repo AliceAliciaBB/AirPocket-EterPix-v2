@@ -134,6 +134,7 @@ namespace ali.eterpix.v2
         private DataDictionary _currentPost;
         private DataDictionary _currentWorldData;
         private DataDictionary _currentWorldPrefixTable; // ルートのwopt(印のID→文字列)
+        private DataDictionary _currentTitleTable; // ルートのusst(称号の版ID→称号名)
         private Texture2D _texture;
         private bool _portalShouldBeOpen = false;
         private string _shownWorldId = "";
@@ -437,6 +438,11 @@ namespace ali.eterpix.v2
             _currentPost = postToken.DataDictionary;
             _currentWorldData = null;
             _currentWorldPrefixTable = null;
+            _currentTitleTable = null;
+            if (root.TryGetValue("usst", out DataToken usstToken) && usstToken.TokenType == TokenType.DataDictionary)
+            {
+                _currentTitleTable = usstToken.DataDictionary;
+            }
             if (root.TryGetValue("wopt", out DataToken woptToken) && woptToken.TokenType == TokenType.DataDictionary)
             {
                 _currentWorldPrefixTable = woptToken.DataDictionary;
@@ -527,7 +533,7 @@ namespace ali.eterpix.v2
             string worldId = ReadString(_currentPost, "woid", "");
 
             SetPostInfoVisible(true);
-            if (userNameText != null) userNameText.text = ReadString(_currentPost, "usna", "");
+            if (userNameText != null) userNameText.text = ReadString(_currentPost, "usna", "") + BuildMarkText(_currentPost, "ussf", _currentTitleTable);
             if (descriptionText != null) descriptionText.text = ReadString(_currentPost, "pode", "");
             if (dateText != null) dateText.text = FormatDate(_currentPost);
             if (worldNameText != null)
@@ -556,17 +562,18 @@ namespace ali.eterpix.v2
             {
                 string worldName = ReadString(entry.DataDictionary, "wona", "");
                 if (string.IsNullOrEmpty(worldName)) return "";
-                return BuildWorldPrefix(_currentPost, _currentWorldPrefixTable) + worldName;
+                return BuildMarkText(_currentPost, "wopf", _currentWorldPrefixTable) + worldName;
             }
             return "";
         }
 
-        // 追記などの印(D-057). 投稿のwopf(印のIDの配列)の順に、ルートのwopt(ID→文字列)を引いて結合する。
-        // woptに無いID・数値でないIDは読み飛ばす(古いJSONや、サーバーが後から足した印でも壊れない)
-        private string BuildWorldPrefix(DataDictionary post, DataDictionary prefixTable)
+        // 印・称号など、IDの配列を対応表で文字列にして順に結合する(D-057・D-058).
+        // 投稿のlistKey(wopf=ワールド名の前の印 / ussf=投稿者名の後ろの称号)のIDの順に、ルートの対応表(wopt / usst)を引く。
+        // 対応表に無いID・数値でないIDは読み飛ばす(古いJSONや、サーバーが後から足した印でも壊れない)
+        private string BuildMarkText(DataDictionary post, string listKey, DataDictionary prefixTable)
         {
             if (post == null || prefixTable == null) return "";
-            if (!post.TryGetValue("wopf", out DataToken listToken) || listToken.TokenType != TokenType.DataList) return "";
+            if (!post.TryGetValue(listKey, out DataToken listToken) || listToken.TokenType != TokenType.DataList) return "";
 
             DataList ids = listToken.DataList;
             string prefix = "";
@@ -589,6 +596,7 @@ namespace ali.eterpix.v2
             _currentPost = null;
             _currentWorldData = null;
             _currentWorldPrefixTable = null;
+            _currentTitleTable = null;
             SetPostInfoVisible(false);
             if (r18ConfirmRoot != null) r18ConfirmRoot.SetActive(false);
             HideStatus();

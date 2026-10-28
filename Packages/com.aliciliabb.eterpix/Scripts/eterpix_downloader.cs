@@ -53,6 +53,7 @@ namespace ali.eterpix.v2
         private DataList[] _feedPosts;       // 生データ(フィルタ前)
         private DataDictionary[] _feedWorldData;
         private DataDictionary[] _feedWorldPrefixTable; // ルートのwopt(印のID→文字列)
+        private DataDictionary[] _feedTitleTable; // ルートのusst(称号の版ID→称号名)
         private bool[] _feedPending;
         private int[] _feedStatus;
         private eterpix_requester[][] _feedRequesters; // フィードごとに登録されたリクエスター(可変長を模した固定長+件数管理)
@@ -314,6 +315,7 @@ namespace ali.eterpix.v2
             _feedPosts = new DataList[maxFeeds];
             _feedWorldData = new DataDictionary[maxFeeds];
             _feedWorldPrefixTable = new DataDictionary[maxFeeds];
+            _feedTitleTable = new DataDictionary[maxFeeds];
             _feedPending = new bool[maxFeeds];
             _feedStatus = new int[maxFeeds];
             _feedRequesters = new eterpix_requester[maxFeeds][];
@@ -462,6 +464,7 @@ namespace ali.eterpix.v2
             _feedPosts[feedIndex] = null;
             _feedWorldData[feedIndex] = null;
             _feedWorldPrefixTable[feedIndex] = null;
+            _feedTitleTable[feedIndex] = null;
             _feedStatus[feedIndex] = FeedStatusLoading;
             // 先にモニターを読み込み中表示にして、RawImageからテクスチャを外させ参照を解放させる
             NotifyFeedRequesters(feedIndex);
@@ -622,6 +625,12 @@ namespace ali.eterpix.v2
                 NotifyFeedRequesters(feedIndex);
                 StartNextFetchIfIdle();
                 return;
+            }
+
+            _feedTitleTable[feedIndex] = null;
+            if (rootDict.TryGetValue("usst", out DataToken titleTableToken) && titleTableToken.TokenType == TokenType.DataDictionary)
+            {
+                _feedTitleTable[feedIndex] = titleTableToken.DataDictionary;
             }
 
             _feedWorldPrefixTable[feedIndex] = null;
@@ -836,6 +845,12 @@ namespace ali.eterpix.v2
         {
             if (feedIndex < 0 || feedIndex >= _feedCount) return null;
             return _feedWorldPrefixTable[feedIndex];
+        }
+
+        public DataDictionary GetFeedTitleTable(int feedIndex)
+        {
+            if (feedIndex < 0 || feedIndex >= _feedCount) return null;
+            return _feedTitleTable[feedIndex];
         }
 
         public int GetFeedStatus(int feedIndex)

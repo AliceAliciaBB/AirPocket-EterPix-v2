@@ -473,7 +473,7 @@ namespace ali.eterpix.v2
             int imgPos = ReadInt(data, "copo", -1);
             int imgRotation = ReadInt(data, "coro", 0);
             string description = ReadString(data, "pode", "");
-            string userName = ReadString(data, "usna", "");
+            string userName = _requester.ResolveUserName(data);
             string worldId = ReadString(data, "woid", "");
             string postId = ReadString(data, "poid", "");
             Trace("ApplyPost poid=" + postId + " coid=" + collageId + " copo=" + imgPos + " coro=" + imgRotation + " prevSlot=" + _currentSlot +
