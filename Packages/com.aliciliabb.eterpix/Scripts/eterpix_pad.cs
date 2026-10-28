@@ -533,7 +533,7 @@ namespace ali.eterpix.v2
             string worldId = ReadString(_currentPost, "woid", "");
 
             SetPostInfoVisible(true);
-            if (userNameText != null) userNameText.text = ReadString(_currentPost, "usna", "") + BuildMarkText(_currentPost, "ussf", _currentTitleTable);
+            if (userNameText != null) userNameText.text = FormatUserName();
             if (descriptionText != null) descriptionText.text = ReadString(_currentPost, "pode", "");
             if (dateText != null) dateText.text = FormatDate(_currentPost);
             if (worldNameText != null)
@@ -553,6 +553,14 @@ namespace ali.eterpix.v2
             if (!post.TryGetValue("poca", out DataToken token) || token.TokenType != TokenType.Double) return "";
             System.DateTime utc = new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(token.Double);
             return utc.ToLocalTime().ToString("yyyy/MM/dd");
+        }
+
+        // 投稿者名(usna)の後ろに、ussfの称号を「[称号名]」で付けた文字列(D-058)
+        private string FormatUserName()
+        {
+            string userName = ReadString(_currentPost, "usna", "");
+            string title = BuildMarkText(_currentPost, "ussf", _currentTitleTable);
+            return string.IsNullOrEmpty(title) ? userName : userName + "[" + title + "]";
         }
 
         private string ResolveWorldName(string worldId)

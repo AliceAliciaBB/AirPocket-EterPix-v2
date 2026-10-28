@@ -236,12 +236,13 @@ namespace ali.eterpix.v2
             return BuildMarkText(post, "wopf", _downloader.GetFeedWorldPrefixTable(_feedIndex)) + worldName;
         }
 
-        // 投稿者名(usna)の後ろに、ussfの称号を付けた文字列(D-058)
+        // 投稿者名(usna)の後ろに、ussfの称号を「[称号名]」で付けた文字列(D-058)
         public string ResolveUserName(DataDictionary post)
         {
             string userName = ReadString(post, "usna", "");
             if (_downloader == null) return userName;
-            return userName + BuildMarkText(post, "ussf", _downloader.GetFeedTitleTable(_feedIndex));
+            string title = BuildMarkText(post, "ussf", _downloader.GetFeedTitleTable(_feedIndex));
+            return string.IsNullOrEmpty(title) ? userName : userName + "[" + title + "]";
         }
 
         public string ResolveWorldDescription(string worldId)
