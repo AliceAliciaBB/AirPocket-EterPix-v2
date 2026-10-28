@@ -228,11 +228,39 @@ namespace ali.eterpix.v2
             return ReadString(entry, "wona", "");
         }
 
+        // 投稿のwopfの印を名前の前に付けたワールド名。名前が引けないときは印も付けず空にする
+        public string ResolveWorldName(string worldId, DataDictionary post)
+        {
+            string worldName = ResolveWorldName(worldId);
+            if (string.IsNullOrEmpty(worldName) || _downloader == null) return worldName;
+            return BuildWorldPrefix(post, _downloader.GetFeedWorldPrefixTable(_feedIndex)) + worldName;
+        }
+
         public string ResolveWorldDescription(string worldId)
         {
             DataDictionary entry = ResolveWorldEntry(worldId);
             if (entry == null) return "";
             return ReadString(entry, "wode", "");
+        }
+
+        // 追記などの印(D-057). 投稿のwopf(印のIDの配列)の順に、ルートのwopt(ID→文字列)を引いて結合する。
+        // woptに無いID・数値でないIDは読み飛ばす(古いJSONや、サーバーが後から足した印でも壊れない)
+        private string BuildWorldPrefix(DataDictionary post, DataDictionary prefixTable)
+        {
+            if (post == null || prefixTable == null) return "";
+            if (!post.TryGetValue("wopf", out DataToken listToken) || listToken.TokenType != TokenType.DataList) return "";
+
+            DataList ids = listToken.DataList;
+            string prefix = "";
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (!ids.TryGetValue(i, out DataToken idToken) || idToken.TokenType != TokenType.Double) continue;
+                if (prefixTable.TryGetValue(((int)idToken.Double).ToString(), out DataToken textToken) && textToken.TokenType == TokenType.String)
+                {
+                    prefix += textToken.String;
+                }
+            }
+            return prefix;
         }
 
         private DataDictionary ResolveWorldEntry(string worldId)

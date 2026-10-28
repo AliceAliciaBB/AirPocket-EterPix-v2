@@ -537,7 +537,7 @@ namespace ali.eterpix.v2
 
             if (!hasWorld) return;
 
-            if (worldNameText != null) worldNameText.text = _requester.ResolveWorldName(worldId);
+            if (worldNameText != null) worldNameText.text = _requester.ResolveWorldName(worldId, _currentPost);
             if (worldDescriptionText != null) worldDescriptionText.text = _requester.ResolveWorldDescription(worldId);
         }
 

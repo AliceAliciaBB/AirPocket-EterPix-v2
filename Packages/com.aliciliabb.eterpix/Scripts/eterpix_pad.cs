@@ -133,6 +133,7 @@ namespace ali.eterpix.v2
         private bool _r18Confirmed = false; // ローカルのみ。URLが変わったら戻す(K-24)
         private DataDictionary _currentPost;
         private DataDictionary _currentWorldData;
+        private DataDictionary _currentWorldPrefixTable; // ルートのwopt(印のID→文字列)
         private Texture2D _texture;
         private bool _portalShouldBeOpen = false;
         private string _shownWorldId = "";
@@ -435,6 +436,11 @@ namespace ali.eterpix.v2
 
             _currentPost = postToken.DataDictionary;
             _currentWorldData = null;
+            _currentWorldPrefixTable = null;
+            if (root.TryGetValue("wopt", out DataToken woptToken) && woptToken.TokenType == TokenType.DataDictionary)
+            {
+                _currentWorldPrefixTable = woptToken.DataDictionary;
+            }
             if (root.TryGetValue("woda", out DataToken wodaToken) && wodaToken.TokenType == TokenType.DataDictionary)
             {
                 _currentWorldData = wodaToken.DataDictionary;
@@ -548,9 +554,31 @@ namespace ali.eterpix.v2
             if (_currentWorldData == null || string.IsNullOrEmpty(worldId)) return "";
             if (_currentWorldData.TryGetValue(worldId, out DataToken entry) && entry.TokenType == TokenType.DataDictionary)
             {
-                return ReadString(entry.DataDictionary, "wona", "");
+                string worldName = ReadString(entry.DataDictionary, "wona", "");
+                if (string.IsNullOrEmpty(worldName)) return "";
+                return BuildWorldPrefix(_currentPost, _currentWorldPrefixTable) + worldName;
             }
             return "";
+        }
+
+        // 追記などの印(D-057). 投稿のwopf(印のIDの配列)の順に、ルートのwopt(ID→文字列)を引いて結合する。
+        // woptに無いID・数値でないIDは読み飛ばす(古いJSONや、サーバーが後から足した印でも壊れない)
+        private string BuildWorldPrefix(DataDictionary post, DataDictionary prefixTable)
+        {
+            if (post == null || prefixTable == null) return "";
+            if (!post.TryGetValue("wopf", out DataToken listToken) || listToken.TokenType != TokenType.DataList) return "";
+
+            DataList ids = listToken.DataList;
+            string prefix = "";
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (!ids.TryGetValue(i, out DataToken idToken) || idToken.TokenType != TokenType.Double) continue;
+                if (prefixTable.TryGetValue(((int)idToken.Double).ToString(), out DataToken textToken) && textToken.TokenType == TokenType.String)
+                {
+                    prefix += textToken.String;
+                }
+            }
+            return prefix;
         }
 
         // ---- 表示の切り替え ----
@@ -560,6 +588,7 @@ namespace ali.eterpix.v2
             ReleaseTexture();
             _currentPost = null;
             _currentWorldData = null;
+            _currentWorldPrefixTable = null;
             SetPostInfoVisible(false);
             if (r18ConfirmRoot != null) r18ConfirmRoot.SetActive(false);
             HideStatus();
