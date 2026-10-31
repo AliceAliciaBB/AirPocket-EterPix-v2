@@ -228,8 +228,8 @@ namespace NudeNyang
             Texture2D tex = images != null ? images.GetTexture(coid) : null;
             if (tex != null)
             {
-                // 写真は正立させて(coro 回)、枠に収まる最大の大きさで出す。縦写真は縦のまま余白が出る
-                int turns = ((feed.Coro[cursor] % 4) + 4) % 4;
+                // 写真の長辺を枠の長辺に合わせる(Pad の K-4. 縦写真は枠に合わせて反時計回りに倒す)
+                int turns = geometry.DisplayTurns(feed.Coro[cursor], cardSize.x, cardSize.y);
                 photo.texture = tex;
                 photo.uvRect = geometry.CellUv(feed.Copo[cursor]);
                 photoRect.sizeDelta = geometry.FitSize(cardSize.x, cardSize.y, turns);
@@ -466,7 +466,7 @@ namespace NudeNyang
             if (zoomMode == 0 || zoomIndex < 0) return;
             Texture2D tex = images.GetTexture(feed.Coid[zoomIndex]);
             if (tex == null) { zoomMode = 0; zoomRoot.SetActive(false); return; }
-            int turns = ((feed.Coro[zoomIndex] % 4) + 4) % 4;
+            int turns = geometry.DisplayTurns(feed.Coro[zoomIndex], panelSize.x, panelSize.y);
             zoomPhoto.texture = tex;
             zoomPhoto.uvRect = geometry.CellUv(feed.Copo[zoomIndex]);
             zoomPhotoRect.sizeDelta = geometry.FitSize(panelSize.x, panelSize.y, turns);
