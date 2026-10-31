@@ -267,10 +267,25 @@
 | Builder のアイコン対応 | `NudeNyangTabletShellBuilder.cs:173,:215` が `i==7/8/9/else` の三項で名前と action を決めている | パッチ点: `i==11 ? "EterPix" : …` と `"OpenEterPix"` を両箇所に追加(`else` が `OpenTravel` なので、そのままだと 12 番目が Travel 扱いになる) |
 | コンソール | エラー0件(検証前) | — |
 
+## 実施記録
+
+### Task 1(途中。2026-10-31)
+- Step 1〜3 完了: パッチャ・最小アプリ・P1〜P4,P6〜P9 を適用(P5 は Travel と同じ経路で不要と判明し廃止)。コンパイルエラー0、再適用0件(冪等)
+- **方針変更A(内部実装。見た目は変わらない)**: NudeNyang の Shell Builder(`Configure`)は `Icons()` が `Assets/NudeNyang/...` の固定パスを読むため、この配置(`Assets/アセット(同期しない)/NudeNyang/`)では例外で動かない。よって **自前の Builder でホームの12個目のタイルを作る**(`EterPixAppBuilder.EnsureHomeTiles`)。P9 は NudeNyang の Builder を将来誤って走らせた場合の保険として残す
+- 10・11番目(Travel/画面共有)は、実行時のレイアウト処理が `homeIcons[i].anchoredPosition` を全要素に呼ぶため null にできない → **非表示の空タイル**で埋める。表示位置は `slots` 配列(11要素)の外の `i=11` なので `slot=11`(横6列の2段目右端)に出る
+- U# の落とし穴: 新しい U# スクリプトには `UdonSharpProgramAsset` が必要(`EnsureProgram`)。作成直後は未コンパイルのため `AddUdonSharpComponent` が空の UdonBehaviour を作る → `CompileAllCsPrograms(true)` で非同期コンパイル後に、空のサービスを作り直す(Builder が自動で作り直す)
+- 配線の成功を確認: スモーク用シーンで `builder: 1 台のタブレットに EterPix-app を配線しました homeIcons=12`
+- **ブロッカー(未解決)**: スモーク用シーンの再生で NudeNyang の「タブレット準備」が `Assets/NudeNyang/Art/TabletMedia/MediaLineIcons.asset` の作成に失敗(`Parent directory must exist`、同じ固定パス問題)。NudeNyang の準備処理は、未準備のタブレット(prefab から新規配置したもの)を再生開始時に準備しようとする。テンプレシーンのタブレットは準備済みのためこの問題が出ていない可能性が高い
+- 副作用の片付け: 私の最初の試行が作った `Assets/NudeNyang/`(`App0.png`)と、再生時に作られた `SearchUrls_*` オブジェクトを削除済み
+
+### ライセンスと連絡先(確認済み)
+- 取扱説明書(`guide.nudenyang.com`)は利用者向けで、アドオン開発手順の記載なし。ただし第26章に「SDKのダウンロードは5秒間隔のため画像をアトラスにまとめる」とあり、本計画のコラージュ取得と同じ前提
+- 製品ライセンスの文面(ユーザー提示 2026-10-31): 追加アプリ・アドオンの制作と、そのための**製品の改変は許可**。配布は**自作ファイル + パッチ/インストールツール**で、製品の元ファイル・改変済み本体の再配布は不可。商品説明には「正規製品が別途必要」「対応バージョン」「アドオン制作者の連絡先」を明記し、公式製品・公式サポート対象と誤認させない。→ 本計画の設計(`Assets/EterPixNudeNyang/` + パッチャ、本体はgitignoreのまま)は適合。README(Task 10)に上記3点を書く
+- NudeNyang 作者の連絡先: X `@NudeNyang_VRC`(ユーザー提示)。アドオン制作者の連絡先は `@_alicilia`(合意書の情報画面)で、README では両者を分けて書く
+
 ## 確認事項(未決だが計画には影響する)
 - NudeNyangのテーマ(白/黒)と連動させるか(Task 4 は独立で仮置き)
 - 「気になる」を再起動後も残すか(PlayerData)。合意書は「サーバー保存するか」が未決
-- 有償アセットを改変・パッチすることのライセンス上の扱い(配布はせず、ワールド作者が手元で適用する形にする。READMEに明記)
 
 ## セルフレビュー結果
 - 仕様網羅: 起動/スワイプ/拡大/一覧/ポータル/共通画面/状態表示/件数上限調査 → Task 4–10 に対応。WEB・高画質は D4 のコピペ方式で Task 7 に含めた

@@ -32,9 +32,9 @@ namespace EterPixNudeNyang
 
         public static void Build(NudeNyangTablet pad)
         {
-            // ホームに12個目のアイコンを作る(NudeNyang側の Builder に任せる)
-            NudeNyang.Editor.NudeNyangTabletShellBuilder.Configure(pad);
+            EnsureProgram("Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix");
             var shell = pad.shell;
+            if (shell != null && shell.homeRoot != null && shell.homeIcons != null && shell.homeIcons.Length > 0) EnsureHomeTiles(shell);
             if (shell == null || shell.appFrame == null || shell.homeIcons == null || shell.homeIcons.Length < NudeNyangEterPix.AppId)
             {
                 Debug.LogError("[EtpTrace] builder: " + pad.name + " の Shell を準備できませんでした");
@@ -43,6 +43,19 @@ namespace EterPixNudeNyang
 
             // サービス(U#コンポーネント)
             var serviceT = pad.transform.Find("EterPix app service");
+            // U#のプログラムが無い状態で作られた空の UdonBehaviour が残っていたら作り直す
+            if (serviceT != null)
+            {
+                var existing = serviceT.GetComponent<NudeNyangEterPix>();
+                var backing = existing != null ? UdonSharpEditorUtility.GetBackingUdonBehaviour(existing) : null;
+                if (existing != null && backing != null && backing.programSource != null) goto keepService;
+            }
+            if (serviceT != null)
+            {
+                Object.DestroyImmediate(serviceT.gameObject);
+                serviceT = null;
+            }
+            keepService:
             if (serviceT == null)
             {
                 var go = new GameObject("EterPix app service");
@@ -107,6 +120,61 @@ namespace EterPixNudeNyang
             UdonSharpEditorUtility.CopyProxyToUdon(shell);
             EditorUtility.SetDirty(app); EditorUtility.SetDirty(shell);
             Debug.Log("[EtpTrace] builder: " + pad.name + " 配線 homeIcons=" + shell.homeIcons.Length);
+        }
+
+        // U#のスクリプトには UdonSharpProgramAsset が要る(無いと AddUdonSharpComponent が失敗する)
+        static void EnsureProgram(string pathWithoutExt)
+        {
+            if (AssetDatabase.LoadAssetAtPath<UdonSharp.UdonSharpProgramAsset>(pathWithoutExt + ".asset") != null) return;
+            var p = ScriptableObject.CreateInstance<UdonSharp.UdonSharpProgramAsset>();
+            p.sourceCsScript = AssetDatabase.LoadAssetAtPath<MonoScript>(pathWithoutExt + ".cs");
+            AssetDatabase.CreateAsset(p, pathWithoutExt + ".asset");
+            AssetDatabase.SaveAssets();
+        }
+
+        // ホームの配列を AppCount まで伸ばし、12番目のタイルを作る.
+        // NudeNyang側の Shell Builder は、アセットが Assets/NudeNyang/ 以外にあると画像を見つけられず動かないため使わない
+        // (NudeNyangTabletShellBuilder.Icons() が固定パスを読む). 空きの10・11番目は、実行時のレイアウト処理が
+        // homeIcons[i].anchoredPosition を全要素に対して呼ぶので、null にせず非表示のタイルで埋める
+        static void EnsureHomeTiles(NudeNyangTabletShell shell)
+        {
+            int n = NudeNyangTabletShell.AppCount;
+            var round = shell.homeIcons[0].GetComponent<Image>().sprite;
+            var labelFont = shell.homeLabels != null && shell.homeLabels.Length > 0 && shell.homeLabels[0] != null ? shell.homeLabels[0].font : null;
+            int oldIcons = shell.homeIcons.Length;
+            System.Array.Resize(ref shell.homeIcons, n);
+            System.Array.Resize(ref shell.homeLabels, n);
+            System.Array.Resize(ref shell.appSprites, n);
+            System.Array.Resize(ref shell.appColors, n);
+            for (int i = oldIcons; i < n; i++)
+            {
+                if (shell.homeIcons[i] != null) continue;
+                bool real = i == NudeNyangEterPix.AppId - 1;
+                string name = real ? "EterPix" : "(未使用 " + (i + 1) + ")";
+                var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+                var rt = (RectTransform)go.transform;
+                rt.SetParent(shell.homeRoot, false);
+                rt.sizeDelta = new Vector2(84, 84);
+                var img = go.GetComponent<Image>();
+                img.sprite = round; img.type = Image.Type.Sliced; img.color = real ? Accent : Color.clear;
+                var btn = go.GetComponent<Button>();
+                btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
+                if (real)
+                    UnityEditor.Events.UnityEventTools.AddStringPersistentListener(btn.onClick,
+                        UdonSharpEditorUtility.GetBackingUdonBehaviour(shell).SendCustomEvent, "OpenEterPix");
+                var glyph = new GameObject("Glyph", typeof(RectTransform), typeof(Image));
+                var gr = (RectTransform)glyph.transform; gr.SetParent(rt, false); gr.sizeDelta = new Vector2(84 * .65f, 84 * .65f);
+                var gi = glyph.GetComponent<Image>(); gi.type = Image.Type.Simple; gi.preserveAspect = true; gi.raycastTarget = false;
+                var label = new GameObject("Label", typeof(RectTransform), typeof(Text));
+                var lr = (RectTransform)label.transform; lr.SetParent(rt, false);
+                lr.sizeDelta = new Vector2(150, 30); lr.anchoredPosition = new Vector2(0, -62);
+                var lt = label.GetComponent<Text>();
+                lt.font = labelFont; lt.text = real ? "EterPix" : ""; lt.fontSize = 19;
+                lt.alignment = TextAnchor.MiddleCenter; lt.color = Color.white; lt.raycastTarget = false; lt.supportRichText = false;
+                shell.homeIcons[i] = rt; shell.homeLabels[i] = lt;
+                shell.appColors[i] = real ? Accent : Color.clear;
+                go.SetActive(real);
+            }
         }
 
         // 2列×3行の長方形だけのロゴ. 長方形・線なしの規則に合わせる
