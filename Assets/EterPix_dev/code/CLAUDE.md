@@ -91,6 +91,9 @@
 - [ ] requester が maxFeeds 超過で登録できない場合や、EterpixDownloaderV2 が無い場合、モニターは「読み込み中…」のまま止まる(設定ミスをエラー表示しない) (発見日: 2026-09-27)
 - [ ] モニターのルートに同期モードの違う UdonBehaviour が2つ(eterpix_monitor=Manual / eterpix_monitor_theme=None)ある。2クライアントの Build & Test でページ同期とテーマ切替を未確認 (発見日: 2026-09-27)
 - [ ] LoadingPulse.shader は Mask / RectMask2D(_Stencil, UNITY_UI_CLIP_RECT)に未対応。PostImage をマスク配下に置く場合は対応が必要 (発見日: 2026-09-27)
+- [ ] (EterPix-app, `Assets/EterPixNudeNyang/`。使い方は同フォルダの README.md) 実機未確認: 画像キャッシュ上限 `maxCached`(仮24)、既存モニターとの5秒制限の取り合い、VRChat入力UIでのWEB/高画質コピー、ポータルの床指し配置・同期・30秒クールダウン表示 (発見日: 2026-11-01)
+- [ ] (EterPix-app) 取得に失敗(サーバー停止/423が続く)すると、アプリを閉じて開き直しても再取得しない(`fetchStarted`)。手動で取り直す手段が無い (発見日: 2026-11-01)
+- [ ] (EterPix-app) 合意書で未決のまま仮置き: 縦写真の回転の向き、「ロード完了」の定義(先頭3枚)、ヘッダーのG/T/☆の見た目、一覧0件の文言、ドラッグ/矢印キー/明滅が未実装 (発見日: 2026-11-01)
 
 ## うまくいった進め方
 記録形式はグローバルCLAUDE.mdの「記録フォーマット」に従う(PROBLEM/FIX形式)。
