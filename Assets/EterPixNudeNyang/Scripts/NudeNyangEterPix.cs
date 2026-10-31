@@ -41,6 +41,9 @@ namespace NudeNyang
         // スワイプ画面
         public EterPixNudeNyang.EterPixAppGeometry geometry;
         public RectTransform cardFrame;
+        // 実行時の RectTransform.rect は、タブレットがスリープ中だと0になる場合があるため、ビルド時の大きさを持つ
+        public Vector2 panelSize = new Vector2(1173f, 660f);
+        public Vector2 cardSize = new Vector2(774f, 432f);
         public RectTransform photoRect;
         public RawImage photo;
         public TMP_Text userLabel;
@@ -52,6 +55,16 @@ namespace NudeNyang
         public GameObject confirmModal;
         // 現在のカードから先に取っておく投稿数
         public int lookAhead = 6;
+
+        // 拡大(全面): 写真を押す → 拡大(情報帯あり) → 押す → UIなし → 押す → 閉じる
+        public GameObject zoomRoot;
+        public RectTransform zoomPhotoRect;
+        public RawImage zoomPhoto;
+        public GameObject zoomBand;
+        public TMP_Text zoomUser;
+        public TMP_Text zoomWorld;
+        [HideInInspector] public int zoomMode; // 0=閉じている 1=情報帯あり 2=UIなし
+        [HideInInspector] public int zoomIndex = -1;
 
         // 起動画面
         public GameObject loadingRow;
@@ -136,6 +149,7 @@ namespace NudeNyang
             {
                 // 見ているカードの画像が届いたら描き直す
                 if (screen == ScreenSwipe || returnScreen == ScreenSwipe) ShowCard();
+                RefreshZoom();
                 return;
             }
             RefreshStart();
@@ -169,7 +183,7 @@ namespace NudeNyang
                 int turns = ((feed.Coro[cursor] % 4) + 4) % 4;
                 photo.texture = tex;
                 photo.uvRect = geometry.CellUv(feed.Copo[cursor]);
-                photoRect.sizeDelta = geometry.FitSize(cardFrame.rect.width, cardFrame.rect.height, turns);
+                photoRect.sizeDelta = geometry.FitSize(cardSize.x, cardSize.y, turns);
                 photoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
                 photo.gameObject.SetActive(true);
                 cardNotice.gameObject.SetActive(false);
@@ -183,6 +197,57 @@ namespace NudeNyang
             WantWindow();
             Debug.Log("[EtpTrace] eterpix-app card cursor=" + cursor + "/" + count + " coid=" + coid + " copo=" + feed.Copo[cursor]
                 + " coro=" + feed.Coro[cursor] + " loaded=" + (tex != null) + " liked=" + likedCount);
+        }
+
+        // ---- 拡大 ----
+
+        public void OnPhoto()
+        {
+            if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
+            OpenZoom(cursor);
+        }
+
+        // 画像が届いていない投稿は開かない
+        public void OpenZoom(int index)
+        {
+            if (images == null || index < 0 || index >= feed.Count) return;
+            if (images.GetTexture(feed.Coid[index]) == null) return;
+            zoomIndex = index;
+            zoomMode = 1;
+            zoomRoot.SetActive(true);
+            RefreshZoom();
+        }
+
+        public void OnZoomTap()
+        {
+            if (zoomMode == 1)
+            {
+                zoomMode = 2;
+                zoomBand.SetActive(false);
+            }
+            else
+            {
+                zoomMode = 0;
+                zoomIndex = -1;
+                zoomRoot.SetActive(false);
+            }
+            Debug.Log("[EtpTrace] eterpix-app zoom mode=" + zoomMode);
+        }
+
+        private void RefreshZoom()
+        {
+            if (zoomMode == 0 || zoomIndex < 0) return;
+            Texture2D tex = images.GetTexture(feed.Coid[zoomIndex]);
+            if (tex == null) { zoomMode = 0; zoomRoot.SetActive(false); return; }
+            int turns = ((feed.Coro[zoomIndex] % 4) + 4) % 4;
+            zoomPhoto.texture = tex;
+            zoomPhoto.uvRect = geometry.CellUv(feed.Copo[zoomIndex]);
+            zoomPhotoRect.sizeDelta = geometry.FitSize(panelSize.x, panelSize.y, turns);
+            zoomPhotoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
+            zoomUser.text = feed.UserLabel[zoomIndex];
+            zoomWorld.text = feed.WorldLabel[zoomIndex];
+            zoomBand.SetActive(zoomMode == 1);
+            Debug.Log("[EtpTrace] eterpix-app zoom index=" + zoomIndex + " mode=" + zoomMode + " turns=" + turns);
         }
 
         // 現在のカードから lookAhead 件ぶんのコラージュを、近い順に取る

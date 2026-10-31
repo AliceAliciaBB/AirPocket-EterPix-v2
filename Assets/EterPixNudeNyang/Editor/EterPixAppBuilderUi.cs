@@ -82,7 +82,15 @@ namespace EterPixNudeNyang
             app.infoScreen = TextScreen(root, "Info Screen", InfoText, font, tk);
             app.groupScreen = TextScreen(root, "Group Screen", GroupText, font, tk);
 
+            BuildZoom(app, root, font);
             BuildConfirm(app, root, font, tk);
+
+            // 実行時の rect はスリープ中に0になることがあるため、ここでの大きさを焼く
+            Canvas.ForceUpdateCanvases();
+            var panelRect = root.rect.size;
+            if (panelRect.x > 1f && panelRect.y > 1f) app.panelSize = panelRect;
+            var cardRect = app.cardFrame.rect.size;
+            if (cardRect.x > 1f && cardRect.y > 1f) app.cardSize = cardRect;
 
             app.bgGraphics = tk.bg.ToArray();
             app.panelGraphics = tk.panel.ToArray();
@@ -103,6 +111,14 @@ namespace EterPixNudeNyang
 
             var notice = Label(card, "Notice", "読み込み中...", font, 30, TextAlignmentOptions.Center, tk.sub);
             Anchor(notice.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+
+            // 写真を押すと拡大する(透明のボタン)
+            var hit = new GameObject("Photo Hit", typeof(RectTransform), typeof(Image));
+            var hitRt = (RectTransform)hit.transform; hitRt.SetParent(card, false);
+            Anchor(hitRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var hitImg = hit.GetComponent<Image>(); hitImg.color = new Color(0, 0, 0, 0);
+            var hitBtn = hit.AddComponent<Button>(); hitBtn.targetGraphic = hitImg; hitBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+            Wire(hitBtn, app, "OnPhoto");
 
             // 情報帯(半透明の黒。写真の上に重なるので、テーマの色には従わない)
             var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
@@ -143,6 +159,41 @@ namespace EterPixNudeNyang
             app.buttonRow = row;
             app.endScreen = end;
             app.endSummary = summary;
+        }
+
+        // 拡大(ヘッダー・フッターも覆う全面。黒地は写真用なのでテーマに従わない)
+        static void BuildZoom(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font)
+        {
+            var zoom = new GameObject("Zoom", typeof(RectTransform), typeof(Image));
+            var zoomRt = (RectTransform)zoom.transform; zoomRt.SetParent(root, false);
+            Anchor(zoomRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            zoom.GetComponent<Image>().color = Color.black;
+            var photoGo = new GameObject("Photo", typeof(RectTransform), typeof(RawImage));
+            var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(zoomRt, false);
+            photoRt.anchorMin = photoRt.anchorMax = new Vector2(0.5f, 0.5f); photoRt.sizeDelta = new Vector2(160, 90);
+            var raw = photoGo.GetComponent<RawImage>(); raw.raycastTarget = false;
+
+            var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
+            var bandRt = (RectTransform)band.transform; bandRt.SetParent(zoomRt, false);
+            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 84));
+            var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
+            var user = Label(bandRt, "User", "", font, 28, TextAlignmentOptions.MidlineLeft, null);
+            Anchor(user.rectTransform, 0, 0.45f, 1, 1, new Vector2(28, 0), new Vector2(-28, 0));
+            var world = Label(bandRt, "World", "", font, 22, TextAlignmentOptions.MidlineLeft, null);
+            world.color = new Color(1, 1, 1, 0.75f);
+            Anchor(world.rectTransform, 0, 0, 1, 0.45f, new Vector2(28, 0), new Vector2(-28, 0));
+
+            // 全面のタップで 情報帯あり → UIなし → 閉じる
+            var tap = zoom.AddComponent<Button>(); tap.targetGraphic = zoom.GetComponent<Image>(); tap.navigation = new Navigation { mode = Navigation.Mode.None };
+            Wire(tap, app, "OnZoomTap");
+
+            zoom.SetActive(false);
+            app.zoomRoot = zoom;
+            app.zoomPhotoRect = photoRt;
+            app.zoomPhoto = raw;
+            app.zoomBand = band;
+            app.zoomUser = user;
+            app.zoomWorld = world;
         }
 
         // 「もう一度見る」の確認(全面を覆う)
