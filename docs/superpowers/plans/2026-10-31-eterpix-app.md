@@ -1,7 +1,7 @@
 # EterPix-app (NudeNyang 12番目のアプリ) 実装計画
 
 > **実装者へ**: `superpowers:subagent-driven-development`(推奨)または `superpowers:executing-plans` でタスク単位に進める。チェックボックスで進捗を管理する。
-> **状態**: ドラフト。**ユーザー承認前は実装に入らない**(グローバルルール Step 2)。
+> **状態**: **承認済み(2026-10-31)**。D1〜D3は推奨どおり。R18は「コード中に固定で除外」(設定項目にしない)。NudeNyangテーマとの連動は無し(独立)の仮置きのまま。
 
 **Goal:** VRChat内のNudeNyangタブレットに、EterPixの公開投稿をスワイプで見て「気になる」を溜められるアプリ「EterPix-app」を載せる。
 
@@ -111,7 +111,7 @@
   - `public int Count`、`public string[] Poid, Pode, UserLabel, WorldLabel, WorldId;` `public int[] Coid, Copo, Coro;`
   - `public void Fetch()`、完了時に `owner.SendCustomEvent("OnFeedChanged")`
 - 表示名の合成(契約どおり): `UserLabel = usna + (ussf があれば "[" + usst[ussf[0]] + "]")`、`WorldLabel = (wopf の各IDを wopt で引いて連結。未知IDは読み飛ばす) + woda[woid].wona`。`woid` が null/空なら `WorldId=""`
-- 取得: `VRCStringDownloader.LoadUrl(feedUrl, (IUdonEventReceiver)this)`。`OnStringLoadError` で `result.ErrorCode` を見て、URL未許可(`401`系/例外)とサーバー停止を分ける(既存 `eterpix_downloader.cs:661` の判定を踏襲)。R18(`po18==1`)は**除外する**(NudeNyangのユーザーに見せない。要確認 = 下記「確認事項」)
+- 取得: `VRCStringDownloader.LoadUrl(feedUrl, (IUdonEventReceiver)this)`。`OnStringLoadError` で `result.ErrorCode` を見て、URL未許可(`401`系/例外)とサーバー停止を分ける(既存 `eterpix_downloader.cs:661` の判定を踏襲)。R18(`po18==1`)は**コード中に固定で除外する**(Inspector等の設定項目にしない。ユーザー決定 2026-10-31。パース時に読み飛ばし、`Count` にも含めない)
 
 - [ ] **Step 1**: v1の実レスポンス(`curl https://eterpix.com/api/vrc/v1/public`。出力は件数とキーの確認のみで、投稿者名等は記録に残さない)でキーを確認する
 - [ ] **Step 2**: `EterPixAppFeed` を書く。パース後に `[EtpTrace] feed count=N status=S` を必ず出す
@@ -250,7 +250,6 @@
 | コンソール | エラー0件(検証前) | — |
 
 ## 確認事項(未決だが計画には影響する)
-- R18 投稿(`po18==1`)を出すか(Task 2 は除外で仮置き)。既存モニターは R18 フィルタを持つので揃える想定
 - NudeNyangのテーマ(白/黒)と連動させるか(Task 4 は独立で仮置き)
 - 「気になる」を再起動後も残すか(PlayerData)。合意書は「サーバー保存するか」が未決
 - 有償アセットを改変・パッチすることのライセンス上の扱い(配布はせず、ワールド作者が手元で適用する形にする。READMEに明記)
