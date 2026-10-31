@@ -115,7 +115,11 @@ namespace EterPixNudeNyang
                 if (glyphImage != null) { glyphImage.sprite = icon; glyphImage.color = Dark; EditorUtility.SetDirty(glyphImage); }
             }
 
-            shell.eterpix = app;
+            // パッチ前の素の製品でもこのファイルがコンパイルできるよう、パッチで足されるフィールドはリフレクションで設定する
+            // (コンパイルが通らないとパッチを当てるメニュー自体が出ないため)
+            var eterpixField = typeof(NudeNyangTabletShell).GetField("eterpix");
+            if (eterpixField == null) { Debug.LogError("[EtpTrace] builder: Shell に eterpix フィールドがありません(パッチ未適用)"); return; }
+            eterpixField.SetValue(shell, app);
             UdonSharpEditorUtility.CopyProxyToUdon(app);
             UdonSharpEditorUtility.CopyProxyToUdon(shell);
             EditorUtility.SetDirty(app); EditorUtility.SetDirty(shell);

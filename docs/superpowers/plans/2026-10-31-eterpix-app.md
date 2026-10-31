@@ -282,6 +282,17 @@
 - **事故の記録**: 再生の試行で NudeNyang が `SearchUrls_*` オブジェクトを自動生成し、私の `SaveScene` がテンプレシーン本体(`Packages/com.aliciliabb.eterpix/テンプレ_シーン/20260923-etp.unity`)に保存してしまい、さらに私が `Assets/NudeNyang/` を消したため参照切れになった。バックアップ(`%TEMP%\etp_backup60923-etp.template.on-disk.unity`)を取ってから、そのオブジェクト1つ(93行)だけを Unity 上で取り除いて保存し直した。ルート数は開始時と同じ16。再発防止: 以後 `SaveScene` は対象シーンのパスを明示し、テンプレシーンを再生・保存の対象にしない
 - **ブロッカー(確認待ち)**: NudeNyang は再生開始・VRChatビルド時に `NudeNyangTabletSetup.PrepareIfNeeded()` を走らせ、編集セッション内のスナップショットと一致しないと「全体準備」を行う。この準備は `Assets/NudeNyang/...` の固定パスに資産を作るため、現在の配置(`Assets/アセット(同期しない)/NudeNyang/`)では失敗し、再生が中止される(`タブレットの準備を完了できませんでした`)。スクリプトの再読み込みやシーン変更でスナップショットは外れるため、**この配置のままでは再生・ビルドが通らなくなる恐れがある**
 
+### Task 1 完了(2026-10-31. NudeNyang を `Assets/NudeNyang/` に入れ直した後)
+- ユーザーが公式の配置 `Assets/NudeNyang/`(v1.0.2)へ入れ直した。旧い `アセット(同期しない)/NudeNyang/` は消えた。**NudeNyang の全体準備が 32.6秒で正常完了**(固定パス問題は解消)
+- 新規インストールの素のファイルに、パッチのアンカー8件が全て一致 → 適用 → コンパイルエラー0 → U# 全体を再コンパイル
+- `.gitignore` に `/Assets/NudeNyang/` と `/Assets/NudeNyang Package Installer/` を追加(元ファイルの再配布禁止のため)
+- パッチャの `Root` は `Assets/NudeNyang` を優先し、無ければ旧配置を見る。Builder はパッチで足されるフィールド `eterpix` をリフレクションで設定する(素の製品でもコンパイルが通り、メニューからパッチを当てられるようにするため)
+- Step 4 の確認(検証用シーン `EterPixAppTemplateCopy.unity`、ClientSim):
+  - `GoHome` → `view=1`、`OpenEterPix` → `view=2 app=12`、`AppWindowVisible(12)=True`、パネル有効、`[EtpTrace] eterpix-app visible=True`
+  - 3台とも `homeIcons=12` / `eterpix` 配線済み
+  - **未確認**: アプリ画面の見た目(撮影では対象のタブレットが映らなかった。画面の中身が出来る Task 4 で撮影する)、既存アプリ(ライブラリ等)が従来どおり開くこと
+- 再生時に出る `IsNetworkingSupported cannot be changed after the UdonBehaviour has been initialized` は VRChat SDK の `UdonManager.OnSceneLoaded` 由来で、本作業とは無関係
+
 ### ライセンスと連絡先(確認済み)
 - 取扱説明書(`guide.nudenyang.com`)は利用者向けで、アドオン開発手順の記載なし。ただし第26章に「SDKのダウンロードは5秒間隔のため画像をアトラスにまとめる」とあり、本計画のコラージュ取得と同じ前提
 - 製品ライセンスの文面(ユーザー提示 2026-10-31): 追加アプリ・アドオンの制作と、そのための**製品の改変は許可**。配布は**自作ファイル + パッチ/インストールツール**で、製品の元ファイル・改変済み本体の再配布は不可。商品説明には「正規製品が別途必要」「対応バージョン」「アドオン制作者の連絡先」を明記し、公式製品・公式サポート対象と誤認させない。→ 本計画の設計(`Assets/EterPixNudeNyang/` + パッチャ、本体はgitignoreのまま)は適合。README(Task 10)に上記3点を書く

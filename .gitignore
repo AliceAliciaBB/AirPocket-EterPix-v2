@@ -49,6 +49,13 @@ crashlytics-buildtime-config.xml
 /Assets/アセット(同期しない)/
 /Assets/アセット(同期しない).meta
 
+# NudeNyang Tablet(購入アセット)。元ファイルの再配布は不可のため含めない。
+# EterPix-appはパッチ(Assets/EterPixNudeNyang/Editor/NudeNyangEterPixPatcher.cs)で本体に当てる
+/Assets/NudeNyang/
+/Assets/NudeNyang.meta
+/Assets/NudeNyang Package Installer/
+/Assets/NudeNyang Package Installer.meta
+
 # 外部アセット(BOOTH_Poster by Tesca)。再配布物のため含めない
 /Assets/Tesca/
 /Assets/Tesca.meta

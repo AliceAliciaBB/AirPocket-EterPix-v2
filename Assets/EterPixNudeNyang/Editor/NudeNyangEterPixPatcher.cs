@@ -12,7 +12,14 @@ namespace EterPixNudeNyang
     // (NudeNyangが更新された可能性). 初回は <名前>.eterpix-orig として元ファイルを隣に残す.
     public static class NudeNyangEterPixPatcher
     {
-        public const string Root = "Assets/アセット(同期しない)/NudeNyang";
+        // 製品の想定の置き場所は Assets/NudeNyang. 旧い配置(同期しないフォルダ内)も見つかれば使う
+        public static string Root
+        {
+            get
+            {
+                return Directory.Exists("Assets/NudeNyang/Scripts") ? "Assets/NudeNyang" : "Assets/アセット(同期しない)/NudeNyang";
+            }
+        }
         public const string ExpectedVersion = "1.0.2";
 
         sealed class Patch
