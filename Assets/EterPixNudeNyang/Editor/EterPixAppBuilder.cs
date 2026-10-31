@@ -67,6 +67,12 @@ namespace EterPixNudeNyang
             for (int i = 0; i < images.imageUrls.Length; i++) images.imageUrls[i] = new VRC.SDKBase.VRCUrl(FeedUrl + "/" + i.ToString("X2"));
             images.owner = app;
             app.images = images;
+            // ポータル: シーン内の既存の NudeNyangTravelPortal につなぐ(無ければ、ポータルのボタンは出さない)
+            var portalService = Object.FindObjectsOfType<NudeNyangTravelPortal>(true)
+                .FirstOrDefault(x => x.gameObject.scene == pad.gameObject.scene);
+            app.portal = portalService;
+            app.portalEnabled = portalService != null;
+            if (portalService == null) Debug.LogWarning("[EtpTrace] builder: シーンに NudeNyangTravelPortal がありません. 一覧の「ポータルを開く」は出ません(NudeNyang の Travel の準備でポータルを作ると出ます)");
             var geometry = EnsureBehaviour<EterPixAppGeometry>(app.transform, "Geometry");
             app.geometry = geometry;
             UdonSharpEditorUtility.CopyProxyToUdon(images);

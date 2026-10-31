@@ -33,6 +33,7 @@ namespace EterPixNudeNyang
         const string Shared = "Scripts/NudeNyangSharedControls.cs";
         const string ShellBuilder = "Editor/NudeNyangTabletShellBuilder.cs";
         const string ThemeBuilder = "Editor/NudeNyangTabletThemeBuilder.cs";
+        const string Portal = "Scripts/NudeNyangTravelPortal.cs";
 
         static string Before(string anchor, string add) { return add + anchor; }
         static string After(string anchor, string add) { return anchor + add; }
@@ -47,7 +48,18 @@ namespace EterPixNudeNyang
             const string namesNew = "i==9?\"화면 공유\":i==11?\"EterPix\":\"트래블 월드\",action=i==7?\"OpenWeather\":i==8?\"OpenBooth\":i==9?\"OpenScreenShare\":i==11?\"OpenEterPix\":\"OpenTravel\"";
             const string sharedHome = "OpenScreenShare|OpenTravel|Recent0";
             const string sharedKeyboard = "else if(target==5)methods=\"|Open|OpenX|OpenBooth|OpenTravel|\";";
-            const string themeAnchor = "if(pad.album!=null&&pad.album.urlActions!=null)excluded.Add(pad.album.urlActions.GetComponent<Image>());";
+            const string portalApp = "private NudeNyangTravel placingApp;";
+            const string portalCancelFor = "public void CancelFor(NudeNyangTravel app){if(placingApp==app)Cancel();}";
+            const string portalCancel = "public void Cancel(){var app=placingApp;pendingWorld=\"\";placingApp=null;pressed=candidateValid=false;";
+            const string portalCancelNew = "public void Cancel(){var app=placingApp;var eter=placingEterPix;pendingWorld=\"\";placingApp=null;placingEterPix=null;pressed=candidateValid=false;";
+            const string portalCancelNotice = "if(app!=null)app.PlacementNotice(\"포털 배치를 취소했습니다.\");}";
+            const string portalUpdateCond = "placingApp==null||!placingApp.PlacementAllowed()||Time.unscaledTime>=placementUntil";
+            const string portalConfirmCond = "placingApp==null||!placingApp.PlacementAllowed()||!Ready()";
+            const string portalAllowedNew = "(placingApp==null&&placingEterPix==null)||(placingApp!=null&&!placingApp.PlacementAllowed())||(placingEterPix!=null&&!placingEterPix.PlacementAllowed())";
+            const string portalConfirmApp = "var app=placingApp;Networking.SetOwner";
+            const string portalConfirmClear = "pendingWorld=\"\";placingApp=null;pressed=candidateValid=false;placementRing.gameObject.SetActive(false);";
+            const string portalOpened = "app.PlacementNotice(\"선택한 위치에 포털을 열었습니다.\");return true;";
+            const string themeAnchor ="if(pad.album!=null&&pad.album.urlActions!=null)excluded.Add(pad.album.urlActions.GetComponent<Image>());";
             return new[]
             {
                 new Patch("P1", Shell, "public const int AppCount=11;", "public const int AppCount=12;"),
@@ -58,6 +70,18 @@ namespace EterPixNudeNyang
                 new Patch("P7", Shared, sharedHome, "OpenScreenShare|OpenTravel|OpenEterPix|Recent0"),
                 new Patch("P8", Shared, sharedKeyboard, "else if(target==5)methods=\"|Open|OpenX|OpenBooth|OpenTravel|OpenEterPix|\";"),
                 new Patch("P9", ShellBuilder, names, namesNew, 2),
+                // P10: ポータルの配置を、Travel だけでなく EterPix-app からも使えるようにする(Travel の経路は変えない).
+                // 同じ「置く」処理(ReadyとInput)を共有するため、置いているアプリを2種類持たせる
+                new Patch("P10a", Portal, portalApp, After(portalApp, "private NudeNyangEterPix placingEterPix;public NudeNyangEterPix eterApp;public string eterWorld=\"\";public bool eterResult;")),
+                new Patch("P10b", Portal, portalCancelFor, After(portalCancelFor, "public void EterPixBegin(){eterResult=BeginPlacementEterPix(eterWorld,eterApp);}public void EterPixCancel(){if(placingEterPix==eterApp)Cancel();}")),
+                new Patch("P10c", Portal, portalCancel, Before(portalCancelNew,
+                    "public bool BeginPlacementEterPix(string worldId,NudeNyangEterPix app){if(marker==null||placementRing==null||app==null||!WorldId(worldId)||!Utilities.IsValid(Networking.LocalPlayer)||!Ready())return false;Cancel();pendingWorld=worldId;placingEterPix=app;pressed=false;candidateValid=false;placementUntil=Time.unscaledTime+60;placementReadyAt=Time.unscaledTime+.15f;app.PlacementNotice(\"placing\");return true;}")),
+                new Patch("P10d", Portal, portalCancelNotice, "if(app!=null)app.PlacementNotice(\"포털 배치를 취소했습니다.\");if(eter!=null)eter.PlacementNotice(\"cancelled\");}"),
+                new Patch("P10e", Portal, portalUpdateCond, portalAllowedNew + "||Time.unscaledTime>=placementUntil"),
+                new Patch("P10f", Portal, portalConfirmCond, portalAllowedNew + "||!Ready()"),
+                new Patch("P10g", Portal, portalConfirmApp, "var app=placingApp;var eter=placingEterPix;Networking.SetOwner"),
+                new Patch("P10h", Portal, portalConfirmClear, "pendingWorld=\"\";placingApp=null;placingEterPix=null;pressed=candidateValid=false;placementRing.gameObject.SetActive(false);"),
+                new Patch("P10i", Portal, portalOpened, "if(app!=null)app.PlacementNotice(\"선택한 위치에 포털을 열었습니다.\");if(eter!=null)eter.PlacementNotice(\"opened\");return true;"),
                 // NudeNyangのテーマ(色の役割の自動推定)が、EterPix-appの色を上書きしないよう走査から外す.
                 // EterPix-app の黒/白は独立(合意書にNudeNyangテーマ連動の記載なし)
                 new Patch("P11", ThemeBuilder, themeAnchor, After(themeAnchor,

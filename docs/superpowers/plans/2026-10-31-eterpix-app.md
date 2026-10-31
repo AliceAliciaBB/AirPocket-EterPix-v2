@@ -258,6 +258,13 @@
 - [ ] **Step 4**: 実機相当(VR/デスクトップ)で、床を指して配置できること、30秒の再配置待ち中に押したときの通知、他のプレイヤーに同期されることを確認(2アカウント or Client Sim の複数クライアント)
 - [ ] **Step 5**: コミット
 
+**実施メモ(Task 8)**
+- NudeNyang 本体の `NudeNyangTravelPortal` は Travel 専用の型なので、パッチ **P10a〜P10i** で「置いているアプリ」に EterPix-app(`placingEterPix`)を足した(Travel の経路は変えない)。公開されるのは `eterApp` / `eterWorld` / `eterResult` / `EterPixBegin()` / `EterPixCancel()` / `BeginPlacementEterPix(string, NudeNyangEterPix)`。通知は `placing` / `opened` / `cancelled`。
+- コンパイル順の鶏卵問題(アプリが未パッチの型を参照すると、パッチを当てるメニュー自体が出ない)を避けるため、アプリ側の `portal` は `UdonSharpBehaviour` 型で持ち、`SetProgramVariable` + `SendCustomEvent("EterPixBegin"/"EterPixCancel")` + `GetProgramVariable("eterResult")` で呼ぶ。
+- Builder はシーン内の既存 `NudeNyangTravelPortal` に接続する。無い場合は警告ログを出し、ポータルのボタンは出さない(計画のStep 1の「ビルド時にエラー」から変更。エラーで止めるとポータル無しのシーンで配置自体ができなくなるため)。
+- 文言: 「ポータルを開く」→「ポータルを置く」→「ポータル開いた」(3秒後に戻る)。置けない場合は「置けません」(3秒後に戻る)。置いている最中にもう一度押すと取消。一覧を離れる・アプリを閉じると `EterPixCancel`。
+- 検証(Play): 一覧でポータルボタン → `placing`、再押下 → `cancelled`、置き始めて一覧を閉じる → `cancelled` を確認。**未確認(Task 10の実機確認へ)**: 床を指しての配置、`opened` の通知、30秒クールダウン中の `failed` 表示、他プレイヤーへの同期。
+
 ---
 
 ### Task 9: 状態表示の仕上げ

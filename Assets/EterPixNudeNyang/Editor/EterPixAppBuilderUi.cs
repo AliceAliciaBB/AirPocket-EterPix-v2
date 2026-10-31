@@ -190,7 +190,7 @@ namespace EterPixNudeNyang
             app.rowRoots = new GameObject[pool]; app.rowThumbs = new RawImage[pool];
             app.rowNames = new TMP_Text[pool]; app.rowWorlds = new TMP_Text[pool];
             app.rowWebFields = new InputField[pool]; app.rowHqFields = new InputField[pool];
-            app.rowPortalButtons = new GameObject[pool]; app.rowNoWorld = new TMP_Text[pool];
+            app.rowPortalButtons = new GameObject[pool]; app.rowNoWorld = new TMP_Text[pool]; app.rowPortalLabels = new TMP_Text[pool];
             for (int k = 0; k < pool; k++) BuildRow(app, contentRt, k, font, tk);
 
             var empty = Label(screen, "Empty", "気になる投稿はありません", font, 30, TextAlignmentOptions.Center, tk.sub);
@@ -244,6 +244,8 @@ namespace EterPixNudeNyang
             var pBtn = portal.gameObject.AddComponent<Button>(); pBtn.targetGraphic = portal.GetComponent<Image>(); pBtn.navigation = new Navigation { mode = Navigation.Mode.None };
             var pLabel = Label(portal, "Label", "ポータルを開く", font, 24, TextAlignmentOptions.Center, tk.text);
             Anchor(pLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            Wire(pBtn, app, "OnRowPortal" + k);
+            app.rowPortalLabels[k] = pLabel;
             portal.gameObject.SetActive(false);
 
             var hq = CopyButton(app, row, "HQ Button", "高画質", font, tk, -edge - portalW - gap, copyW, btnH);

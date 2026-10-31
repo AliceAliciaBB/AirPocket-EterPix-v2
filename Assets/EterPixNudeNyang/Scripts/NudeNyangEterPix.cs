@@ -137,6 +137,7 @@ namespace NudeNyang
             {
                 visible = show;
                 panel.gameObject.SetActive(show);
+                if (!show) CancelPortal();
                 Debug.Log("[EtpTrace] eterpix-app visible=" + show);
             }
             // 初めて開いたときに投稿を取りに行く(VRChatのダウンロードは5秒間隔なので、開くまで取らない)
@@ -267,6 +268,7 @@ namespace NudeNyang
                 rowWorlds[k].text = hasWorld ? feed.WorldLabel[post] : "";
                 rowNoWorld[k].gameObject.SetActive(!hasWorld);
                 rowPortalButtons[k].SetActive(hasWorld && portalEnabled);
+                if (rowPortalLabels != null && rowPortalLabels.Length > k) rowPortalLabels[k].text = PortalLabel(post);
                 SetCopyText(rowWebFields[k], "https://eterpix.com/web/post/" + feed.Poid[post]);
                 SetCopyText(rowHqFields[k], "https://eterpix.com/api/images/" + feed.Poid[post]);
                 int coid = feed.Coid[post];
@@ -324,8 +326,79 @@ namespace NudeNyang
             OpenZoom(likedIndices[item]);
         }
 
-        // ポータルのボタンを出すか(Task 8 で有効にする)
+        // ---- ポータル(方式A: 行のボタンを押す → 床を指して置く) ----
+        // Builder がシーン内の既存ポータルを見つけたときだけ true にする
         public bool portalEnabled;
+        // NudeNyangTravelPortal(パッチP10済み). パッチ前でもこのファイルがコンパイルできるよう、型は持たず
+        // SetProgramVariable / SendCustomEvent で呼ぶ(コンパイルが通らないとパッチを当てるメニュー自体が出ないため)
+        public UdonSharpBehaviour portal;
+        public TMP_Text[] rowPortalLabels;
+        private int portalPost = -1;    // いま置こうとしている投稿(feed の添字)
+        private int portalRequest = -1; // 押された投稿(Begin の通知で portalPost に移す)
+        private string portalState = "";
+
+        public void OnRowPortal0() { RowPortal(0); }
+        public void OnRowPortal1() { RowPortal(1); }
+        public void OnRowPortal2() { RowPortal(2); }
+        public void OnRowPortal3() { RowPortal(3); }
+        public void OnRowPortal4() { RowPortal(4); }
+        public void OnRowPortal5() { RowPortal(5); }
+        public void OnRowPortal6() { RowPortal(6); }
+        public void OnRowPortal7() { RowPortal(7); }
+
+        private void RowPortal(int k)
+        {
+            int item = listFirst + k;
+            if (!portalEnabled || portal == null || screen != ScreenList || item < 0 || item >= likedIndices.Length) return;
+            int post = likedIndices[item];
+            // 置いている最中にもう一度押すと取り消す
+            if (portalPost == post && portalState == "placing") { CancelPortal(); return; }
+            if (!PlacementAllowed() || !pad.TryUI()) return;
+            portalRequest = post;
+            portal.SetProgramVariable("eterApp", this);
+            portal.SetProgramVariable("eterWorld", feed.WorldId[post]);
+            portal.SendCustomEvent("EterPixBegin");
+            if (!(bool)portal.GetProgramVariable("eterResult"))
+            {
+                portalPost = post;
+                PlacementNotice("failed");
+            }
+        }
+
+        // ポータル側(NudeNyangTravelPortal)からの通知: placing / opened / cancelled
+        public void PlacementNotice(string value)
+        {
+            Debug.Log("[EtpTrace] eterpix-app placement notice=" + value);
+            if (value == "placing") portalPost = portalRequest;
+            portalState = value;
+            if (value == "cancelled") { ClearPortalState(); return; }
+            if (value == "opened" || value == "failed") SendCustomEventDelayedSeconds(nameof(ClearPortalState), 3f);
+            RebindList();
+        }
+
+        public void ClearPortalState()
+        {
+            portalPost = -1;
+            portalState = "";
+            RebindList();
+        }
+
+        private string PortalLabel(int post)
+        {
+            if (post != portalPost) return "ポータルを開く";
+            if (portalState == "placing") return "ポータルを置く";
+            if (portalState == "opened") return "ポータル開いた";
+            if (portalState == "failed") return "置けません";
+            return "ポータルを開く";
+        }
+
+        // 置きかけのポータルが残らないよう、一覧を離れる・アプリを閉じるときに取り消す
+        private void CancelPortal()
+        {
+            if (portal == null || !portalEnabled) return;
+            portal.SetProgramVariable("eterApp", this);
+            portal.SendCustomEvent("EterPixCancel");
+        }
 
         // ---- 拡大 ----
 
@@ -501,6 +574,7 @@ namespace NudeNyang
             if (listScreen != null) listScreen.SetActive(next == ScreenList);
             if (heartButton != null) heartButton.SetActive(started);
             if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "☆";
+            if (next != ScreenList) CancelPortal();
             if (next == ScreenList) OpenList();
             if (next == ScreenSwipe && started) ShowCard(); // 一覧などで入れ替わった先読みを、現在のカードに合わせて取り直す
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
@@ -561,9 +635,5 @@ namespace NudeNyang
                 && pad.shell.app == AppId && !pad.shell.GestureActive();
         }
 
-        public void PlacementNotice(string value)
-        {
-            Debug.Log("[EtpTrace] eterpix-app placement notice=" + value);
-        }
     }
 }
