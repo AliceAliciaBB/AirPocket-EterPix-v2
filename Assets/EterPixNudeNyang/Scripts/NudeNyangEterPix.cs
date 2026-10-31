@@ -215,7 +215,7 @@ namespace NudeNyang
             {
                 photo.gameObject.SetActive(false);
                 cardNotice.gameObject.SetActive(true);
-                cardNotice.text = images != null && images.IsFailed(coid) ? "画像を取得できませんでした" : "読み込み中...";
+                cardNotice.text = images != null && images.IsFailed(coid) ? "読み込みに失敗しました" : "読み込み中…";
             }
             WantWindow();
             Debug.Log("[EtpTrace] eterpix-app card cursor=" + cursor + "/" + count + " coid=" + coid + " copo=" + feed.Copo[cursor]
@@ -553,9 +553,9 @@ namespace NudeNyang
         private string StatusMessage(int status)
         {
             if (status == EterPixNudeNyang.EterPixAppFeed.StatusUntrusted)
-                return "URLが許可されていません\nVRChatの設定で「信頼されていないURL」を許可してください";
+                return "「Allow Untrusted URLs」をONにしてください";
             if (status == EterPixNudeNyang.EterPixAppFeed.StatusServerError)
-                return "サーバーに接続できません\nしばらくしてからもう一度お試しください";
+                return "読み込みに失敗しました";
             return "まだ投稿がありません";
         }
 

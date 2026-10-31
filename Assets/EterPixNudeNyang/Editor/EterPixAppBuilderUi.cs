@@ -115,7 +115,7 @@ namespace EterPixNudeNyang
             var raw = photoGo.GetComponent<RawImage>(); raw.raycastTarget = false;
             photoGo.SetActive(false);
 
-            var notice = Label(card, "Notice", "読み込み中...", font, 30, TextAlignmentOptions.Center, tk.sub);
+            var notice = Label(card, "Notice", "読み込み中…", font, 30, TextAlignmentOptions.Center, tk.sub);
             Anchor(notice.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
 
             // 写真を押すと拡大する(透明のボタン)
