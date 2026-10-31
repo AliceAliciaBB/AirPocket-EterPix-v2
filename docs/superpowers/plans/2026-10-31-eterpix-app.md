@@ -278,6 +278,10 @@
 - **ブロッカー(未解決)**: スモーク用シーンの再生で NudeNyang の「タブレット準備」が `Assets/NudeNyang/Art/TabletMedia/MediaLineIcons.asset` の作成に失敗(`Parent directory must exist`、同じ固定パス問題)。NudeNyang の準備処理は、未準備のタブレット(prefab から新規配置したもの)を再生開始時に準備しようとする。テンプレシーンのタブレットは準備済みのためこの問題が出ていない可能性が高い
 - 副作用の片付け: 私の最初の試行が作った `Assets/NudeNyang/`(`App0.png`)と、再生時に作られた `SearchUrls_*` オブジェクトを削除済み
 
+- **検証用シーン**: テンプレシーンを `Assets/EterPixNudeNyang/Scenes/EterPixAppTemplateCopy.unity` に複製し、Builder で3台のタブレットに配線(`3 台のタブレットに EterPix-app を配線しました`)。元のテンプレには Builder を適用していない
+- **事故の記録**: 再生の試行で NudeNyang が `SearchUrls_*` オブジェクトを自動生成し、私の `SaveScene` がテンプレシーン本体(`Packages/com.aliciliabb.eterpix/テンプレ_シーン/20260923-etp.unity`)に保存してしまい、さらに私が `Assets/NudeNyang/` を消したため参照切れになった。バックアップ(`%TEMP%\etp_backup60923-etp.template.on-disk.unity`)を取ってから、そのオブジェクト1つ(93行)だけを Unity 上で取り除いて保存し直した。ルート数は開始時と同じ16。再発防止: 以後 `SaveScene` は対象シーンのパスを明示し、テンプレシーンを再生・保存の対象にしない
+- **ブロッカー(確認待ち)**: NudeNyang は再生開始・VRChatビルド時に `NudeNyangTabletSetup.PrepareIfNeeded()` を走らせ、編集セッション内のスナップショットと一致しないと「全体準備」を行う。この準備は `Assets/NudeNyang/...` の固定パスに資産を作るため、現在の配置(`Assets/アセット(同期しない)/NudeNyang/`)では失敗し、再生が中止される(`タブレットの準備を完了できませんでした`)。スクリプトの再読み込みやシーン変更でスナップショットは外れるため、**この配置のままでは再生・ビルドが通らなくなる恐れがある**
+
 ### ライセンスと連絡先(確認済み)
 - 取扱説明書(`guide.nudenyang.com`)は利用者向けで、アドオン開発手順の記載なし。ただし第26章に「SDKのダウンロードは5秒間隔のため画像をアトラスにまとめる」とあり、本計画のコラージュ取得と同じ前提
 - 製品ライセンスの文面(ユーザー提示 2026-10-31): 追加アプリ・アドオンの制作と、そのための**製品の改変は許可**。配布は**自作ファイル + パッチ/インストールツール**で、製品の元ファイル・改変済み本体の再配布は不可。商品説明には「正規製品が別途必要」「対応バージョン」「アドオン制作者の連絡先」を明記し、公式製品・公式サポート対象と誤認させない。→ 本計画の設計(`Assets/EterPixNudeNyang/` + パッチャ、本体はgitignoreのまま)は適合。README(Task 10)に上記3点を書く
