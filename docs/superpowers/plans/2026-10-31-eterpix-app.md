@@ -57,15 +57,33 @@
 
 **Produces:** 確定したパッチ一覧(ファイル・行・アンカー文字列)。
 
-- [ ] **Step 1**: 統合管理リポジトリで上記ブランチを `origin/main` にマージする方針をユーザーに確認し、マージ。これで合意書の正本が main になる
-- [ ] **Step 2**: NudeNyang の次の箇所を grep し、**12番目のアプリを足すのに変える全箇所**を書き出す(下はこれまでに見つけた分。漏れを探す)
+- [x] **Step 1(完了 2026-10-31. origin/main `0810999`。fast-forward、check-decisions OK)**: 統合管理リポジトリで上記ブランチを `origin/main` にマージする方針をユーザーに確認し、マージ。これで合意書の正本が main になる
+- [x] **Step 2(完了。下の「確定パッチ一覧」)**: NudeNyang の次の箇所を grep し、**12番目のアプリを足すのに変える全箇所**を書き出す(下はこれまでに見つけた分。漏れを探す)
   - `NudeNyangTabletShell.cs:18` `AppCount=11` / `:556` `AppName(id)` / `:611` `OpenTravel` 相当の `OpenEterPix` / `:629-` `Launch(int id)` の分岐 / `:1515` `travel.Present()` / `:1582,:1629` 最近使った・ドックのアイコン色(`appSprites` `appColors` の長さ)/ `homeIcons`(アイコン配列の長さ)
   - `NudeNyangSharedControls.cs:352,1472,1554`(`AppCount` 検証。4ビット×5=12は収まる)/ `:1271,:1288,:1292`(`methods="|…|OpenTravel|"` の許可リスト)/ `:117,:127,:518,:1200,:1389`(app==11 のスクロール連携。EterPix-appがスクロールを共有しないなら不要)
   - `NudeNyangMediaKeyboard.cs:298`(`OpenTravel`→11 の対応表。キーボードを使わないなら不要)
   - `NudeNyangTabletShellBuilder.cs:173,:215`(ホームのアイコン生成 `i==10`)/ `NudeNyangHomeAppIconsBuilder.cs` / `NudeNyangTravelIconBuilder.cs`(アイコン)
   - `NudeNyangTravelPortal.cs` の `BeginPlacement(string, NudeNyangTravel)`・`CancelFor(NudeNyangTravel)`・`placingApp`(型が `NudeNyangTravel` 固定)
-- [ ] **Step 3**: 「ホームのアイコンが12個目に収まるか」「お気に入り/ドックの `favoriteApps`」「`ShellDisplay`」の挙動を Unity 上のテンプレシーンで確認し、収まらない場合はユーザーに相談する(**見た目が変わるので勝手に直さない**)
-- [ ] **Step 4**: 結果を本計画書に反映(Edit)してコミット
+- [x] **Step 3(完了。MCP検証で収まる)**: 「ホームのアイコンが12個目に収まるか」「お気に入り/ドックの `favoriteApps`」「`ShellDisplay`」の挙動を Unity 上のテンプレシーンで確認し、収まらない場合はユーザーに相談する(**見た目が変わるので勝手に直さない**)
+- [x] **Step 4(完了)**: 結果を本計画書に反映(Edit)してコミット
+
+**確定パッチ一覧(NudeNyang 1.0.2。アンカーは現物の文字列)** — Task 1 のパッチャが当てる。EterPix-app は `id=12`、`homeIcons[11]`
+
+| # | ファイル | アンカー(置換前) | 変更 |
+|---|---|---|---|
+| P1 | Scripts/NudeNyangTabletShell.cs | `public const int AppCount=11;` | `=12` |
+| P2 | 同上 | `public NudeNyangTravel travel;` | 後ろに `public NudeNyangEterPix eterpix;` |
+| P3 | 同上 | `if(id==11)return pad.T("트래블 월드");` | 前に `if(id==12)return "EterPix";` |
+| P4 | 同上 | `public void OpenTravel(){if(Route("OpenTravel"))LaunchFrom(11,homeIcons[10]);}` | 後ろに `public void OpenEterPix(){if(Route("OpenEterPix"))LaunchFrom(12,homeIcons[11]);}` |
+| P5 | 同上 | `else if(id==9&&booth!=null)booth.Open();` | 後ろに `else if(id==12&&eterpix!=null)eterpix.Open();` |
+| P6 | 同上 | `if(travel!=null)travel.Present();` | 後ろに `if(eterpix!=null)eterpix.Present();` |
+| P7 | Scripts/NudeNyangSharedControls.cs | `target==9` の許可リスト内 `|OpenTravel|` | `|OpenTravel|OpenEterPix|` |
+| P8 | 同上 | `else if(target==5)methods="|Open|OpenX|OpenBooth|OpenTravel|";` | `|OpenEterPix|` を追加 |
+| P9 | Editor/NudeNyangTabletShellBuilder.cs(2箇所 `:173` `:215`) | `i==9?"화면 공유":"트래블 월드"` / `i==9?"OpenScreenShare":"OpenTravel"` | `i==11?"EterPix":` と `i==11?"OpenEterPix":` を前に足す |
+| P10 | Scripts/NudeNyangTravelPortal.cs | `private NudeNyangTravel placingApp;` ほか `BeginPlacement(string,NudeNyangTravel)` `CancelFor(NudeNyangTravel)` | 型を `UdonSharpBehaviour` に。`PlacementNotice` / `PlacementAllowed` は呼べないため、`NudeNyangTravel` 版の引数を残したまま EterPix 用に **別名のメソッド** `BeginPlacementEterPix(string,NudeNyangEterPix)` / `CancelForEterPix` を足し、内部状態 `placingEterPix` を持たせる(U#は多態不可のため、型の差し替えより安全。既存の Travel の挙動は変えない) |
+
+- **共有操作(together/follow)について**: Travel の各ボタンは `pad.RouteAction(13, action)` を通る(他プレイヤーの操作に追従する機能の関所)。EterPix-app は v1 では**ローカルのみ**とし、`RouteAction` は通さない代わりに、`pad.FollowingUI()` が true の間は入力を無効にする。`P7/P8` の許可リスト追加は、ホームアイコンの `Route("OpenEterPix")`(`target==9`)に必要
+- P10 を当てる前に、`NudeNyangTravelPortal.cs` の `placingApp` の参照箇所(`Update` の `placingApp.PlacementAllowed()`、`ConfirmPlacement` の `app.PlacementNotice`)も同様に分岐が要る。Task 1 のパッチャでは P1〜P9 を先に当て、P10 は Task 8 で当てる(Task 1 の縦串スモークにポータルは不要)
 
 ---
 
