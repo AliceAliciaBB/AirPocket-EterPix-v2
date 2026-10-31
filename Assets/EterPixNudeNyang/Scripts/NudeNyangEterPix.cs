@@ -156,6 +156,32 @@ namespace NudeNyang
             group.interactable = group.blocksRaycasts = pad.shell.view == 2 && !pad.shell.GestureActive() && !follow;
         }
 
+        // 毎フレーム(表示中のスワイプ画面だけ). 矢印キーと明滅はシェルの Present に依存させない
+        private void Update()
+        {
+            if (!visible || group == null || screen != ScreenSwipe || !started) return;
+            UpdateSwipeInput();
+        }
+
+        // スワイプ画面の矢印キー(← 気にならない / → 気になる)と、画像待ちの明滅
+        private void UpdateSwipeInput()
+        {
+            bool modal = zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf);
+            if (group.interactable && !modal)
+            {
+                if (Input.GetKeyDown(KeyCode.LeftArrow)) Advance(false);
+                else if (Input.GetKeyDown(KeyCode.RightArrow)) Advance(true);
+            }
+            if (cardNotice != null && cardNotice.gameObject.activeSelf)
+            {
+                // 読み込み中の文字をゆっくり明滅させる(失敗の表示は止める)
+                bool failed = cursor < feed.Count && images != null && images.IsFailed(feed.Coid[cursor]);
+                Color c = cardNotice.color;
+                c.a = failed ? 1f : 0.35f + 0.65f * (0.5f + 0.5f * Mathf.Sin(Time.time * 4f));
+                cardNotice.color = c;
+            }
+        }
+
         // EterPixAppFeed から呼ばれる(取得完了・失敗)
         public void OnFeedChanged()
         {
