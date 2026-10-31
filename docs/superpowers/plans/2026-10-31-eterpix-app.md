@@ -44,7 +44,8 @@
 
 - **D1 配置**: 全部 `Assets/EterPixNudeNyang/`(推奨)か、`Packages/com.aliciliabb.eterpix` に入れるか。→ 推奨は前者。EterPix本体パッケージはVPMで配るため、有償の第三者アセットに依存させない。NudeNyang側も asmdef が無く(Assembly-CSharp)、パッケージ asmdef からは参照できない
 - **D2 取得層**: `eterpix_downloader` を拡張して共用(画像の受け手は `eterpix_monitor` 型固定で、U#にインターフェースが無く拡張が大きい)か、専用の取得キュー(推奨)か。→ 推奨は専用。代償は、同じワールドの既存モニターと VRChat の5秒制限を取り合うこと(Pad の K-12 のような優先は付かない)。**ワールドにモニターを置く場合は影響を実機で確認する**
-- **D3 合意書の「未決」**: WEB / 高画質 の動作、ポータル方式 A/B、サーバー保存、起動→開始の関係など。本計画は「**気になる = ローカルのみ(セッション内、再起動で消える)**」「**ポータルは方式A(`BeginPlacement`)**」「**ボタン WEB・高画質は Task 10 まで押せない表示で置く**」を仮に採る。変えるなら、その Task が変わる(WEB は VRChat から外部ブラウザを開けないため、NudeNyangのブラウザ連携か URL 表示になる可能性が高い。要相談)
+- **D3 合意書の「未決」**: ポータル方式 A/B、サーバー保存、起動→開始の関係など。本計画は「**気になる = ローカルのみ(セッション内、再起動で消える)**」「**ポータルは方式A(`BeginPlacement`)**」を仮に採る
+- **D4 WEB / 高画質 = コピペ方式(ユーザー決定 2026-10-31)**: EterPix-beta のモニター(`eterpix_monitor.cs:545-562`)と同じく、**読み取り専用の入力欄に URL を入れ、押すと VRChat の入力 UI が開いてコピーできる**方式。UI は NudeNyang が持つ同じ型の部品に合わせる(NudeNyang側は `UnityEngine.UI.InputField` に実行時にテキストを入れる作り: `NudeNyangBrowserShare.publicAddress`(「원문 주소를 복사하여…」の原文アドレス欄)と `NudeNyangMediaKeyboard.copyField`)。新しいコピー機構は作らない。URL は `https://eterpix.com` + WEB `/web/post/<poid>`(モニターの `WebPostPath`)/ 高画質 `/api/images/<poid>`(`image-formats.md`。サフィックスなし = フル画質)。`VRCUrlInputField` は `VRCUrl`(ビルド時固定)が要るので**使わない**。`InputField` なら投稿ごとの動的な文字列を入れられる
 
 ---
 
@@ -194,7 +195,9 @@
 
 - [ ] **Step 1**: ♡で開く。`ScrollRect` + 行テンプレート(件数分は作らず、`likedCount` 分だけ有効化。上限は `Count`)。1件は2段「画像 | 説明」「画像(続き) | ボタン」
 - [ ] **Step 2**: 画像は `SquareCropUv` で中央1:1。押すと Task 6 の拡大に入り、最後は一覧へ戻る
-- [ ] **Step 3**: ボタンは右寄せ、左から「WEB | 高画質 | ポータルを開く」。WEB・高画質は文字を変えない。高画質は押すと面の色だけ変わる(動作は D3)
+- [ ] **Step 3**: ボタンは右寄せ、左から「WEB | 高画質 | ポータルを開く」。WEB・高画質は **D4 のコピペ方式**: ボタンの枠の中に、読み取り専用の `InputField`(文字は透明、枠いっぱいに重ねる。モニターの `SetShareField` と同じく、枠ごと出し入れする)を置き、行が有効になるときに `field.text = "https://eterpix.com/web/post/" + poid` / `"https://eterpix.com/api/images/" + poid` を入れる。押すと VRChat の入力 UI が開き、そこでコピーできる。文字は変えない。高画質は押すと面の色だけ変わる(押下の見た目はボタン側の色遷移)
+  - 実装の手本はこの2つを読んでから書く: `NudeNyangBrowserShare.cs` の `publicAddress` の使われ方(`:1327`, `:1572`)と、`NudeNyangMediaKeyboard.cs:905-915` の `RefreshHandoff`(「ラベルが空のまま残る」対策に `ForceLabelUpdate()` と `textComponent.RecalculateMasking()` を呼んでいる。同じ現象が出るので同じ対策を入れる)
+  - 一覧の行は使い回すので、行を再利用するたびに `field.text` を入れ直す(`copyField` と同じく、導出される値は毎回合わせる)
 - [ ] **Step 4**: `woid` が空の行は、ポータルのボタンを出さず「ワールド情報なし」
 - [ ] **Step 5**: スワイプ画面で気になるを数件付け、一覧に出る・順番・0件のときの表示(合意書に記載なし。「気になる投稿はありません」と出す案をユーザーに確認)を確認
 - [ ] **Step 6**: コミット
@@ -229,11 +232,22 @@
 
 - [ ] **Step 1**: VRChat にアップロードして実機のタブレットで一通り操作。**画像キャッシュの上限(`maxCached`)を、メモリ使用量とクラッシュ有無を見ながら決める**(合意書「投稿の件数」の未確認事項)
 - [ ] **Step 2**: 既存モニター/Padと同居するワールドで、5秒制限の取り合いによる遅延を測る(D2 の代償の確認)
-- [ ] **Step 3**: D3 の未決(WEB・高画質・サーバー保存・縦写真の見せ方・回転向き)の結果を反映する Task を追加する(未決のまま閉じない)
+- [ ] **Step 3**: D3 の未決(サーバー保存・縦写真の見せ方・回転向き)の結果を反映する Task を追加する(未決のまま閉じない)
 - [ ] **Step 4**: README(パッチ手順・NudeNyang更新時の再適用・VRCUrlの焼き込み)を `.md` で書き、BUGS(未修正) を CLAUDE.md に載せる
 - [ ] **Step 5**: コミット・プッシュ
 
 ---
+
+## Unity MCP での検証結果(2026-10-31. テンプレシーン `20260923-etp` を読み取りのみで確認)
+
+| 項目 | 結果 | 計画への影響 |
+|---|---|---|
+| ホームに12個目が収まるか | **収まる**。アイコン位置は `left+(slot%columns)*gap, firstY-(slot/columns)*158`(`NudeNyangTabletShell.cs:1384`)で、シーンは6列×2段=12枠、現在9個使用 | Task 0 Step 3 は解決。見た目の相談は不要 |
+| シーンのタブレット | `Tablet Services` が **3台**(`NudeNyangTablet_DockReady_Ivory` ×3)。それぞれ独自の `NudeNyangTabletShell` を持つ | EterPix-appは**タブレットごとに1つ**配線する。Builder は全 Shell を走査する |
+| `homeIcons` / `appSprites` / `appColors` の長さ | **9**(AppCount=11 に未達。`screenShare`=null、`travel`=null、`booth` のみ設定済み) | 12個目の追加は、`ConfigureNewApps` の拡張(`Array.Resize` で AppCount まで伸ばす)に乗る。**10番目・11番目のダミーアイコンも一緒に作られる**ため、Travel/画面共有を使わないシーンでは空の枠が出ないか要確認(Task 1 Step 4 の確認項目に追加) |
+| ポータル | シーンに `NudeNyangTravelPortal` は**0個**(`NudeNyangTravel` も0個) | Task 8 で、Travel を使わないシーンにもポータルを置く手段が要る。`NudeNyangTravelBuilder.ConnectServices` が作る「Travel portal position」+ `ConfigurePortal(anchor)` と同等の処理を我々のBuilderで呼ぶ(`internal` なのでパッチャで公開するか、同じ手順を複製する) |
+| Builder のアイコン対応 | `NudeNyangTabletShellBuilder.cs:173,:215` が `i==7/8/9/else` の三項で名前と action を決めている | パッチ点: `i==11 ? "EterPix" : …` と `"OpenEterPix"` を両箇所に追加(`else` が `OpenTravel` なので、そのままだと 12 番目が Travel 扱いになる) |
+| コンソール | エラー0件(検証前) | — |
 
 ## 確認事項(未決だが計画には影響する)
 - R18 投稿(`po18==1`)を出すか(Task 2 は除外で仮置き)。既存モニターは R18 フィルタを持つので揃える想定
@@ -242,6 +256,6 @@
 - 有償アセットを改変・パッチすることのライセンス上の扱い(配布はせず、ワールド作者が手元で適用する形にする。READMEに明記)
 
 ## セルフレビュー結果
-- 仕様網羅: 起動/スワイプ/拡大/一覧/ポータル/共通画面/状態表示/件数上限調査 → Task 4–10 に対応。「WEB・高画質」は D3 で未決のため Task 10 の追加 Task に回した(穴ではなく意図的)
+- 仕様網羅: 起動/スワイプ/拡大/一覧/ポータル/共通画面/状態表示/件数上限調査 → Task 4–10 に対応。WEB・高画質は D4 のコピペ方式で Task 7 に含めた
 - 型の一貫性: `Status`(0–4)、`Count`、`Coid/Copo/Coro`、`liked`、`zoomMode`、`PlacementNotice/PlacementAllowed` を各Taskで同名で使用
 - 弱点: NudeNyang本体(第三者・1行詰め・gitignore)へのパッチは、Task 0 の実測まで確定できない。Task 1 の縦串スモークで早期に可否が分かる構成にしてある
