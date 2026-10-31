@@ -10,7 +10,7 @@ namespace EterPixNudeNyang
 {
     // シーン内の全NudeNyangタブレットへ、EterPix-appを配線する.
     // 前提: NudeNyangEterPixPatcher のパッチが適用済み(メニュー NudeNyang/EterPix-app/パッチを適用).
-    public static class EterPixAppBuilder
+    public static partial class EterPixAppBuilder
     {
         const string FontPath = "Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold SDF.asset";
         const string FeedUrl = "https://eterpix.com/api/vrc/v1/public";
@@ -29,6 +29,7 @@ namespace EterPixNudeNyang
             // 新しい U# スクリプトにはプログラムアセットが要り、作成直後は未コンパイルで配線に失敗する
             bool created = EnsureProgram("Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix");
             created |= EnsureProgram("Assets/EterPixNudeNyang/Scripts/EterPixAppFeed");
+            created |= EnsureProgram("Assets/EterPixNudeNyang/Scripts/EterPixAppImages");
             if (created)
             {
                 UdonSharp.UdonSharpProgramAsset.CompileAllCsPrograms(true);
@@ -60,6 +61,15 @@ namespace EterPixNudeNyang
             UdonSharpEditorUtility.CopyProxyToUdon(feed);
             EditorUtility.SetDirty(feed);
 
+            // 画像の取得(VRCUrl は実行時に作れないので、coid 0〜255 の256件をここで焼く)
+            var images = EnsureBehaviour<EterPixAppImages>(app.transform, "Images");
+            images.imageUrls = new VRC.SDKBase.VRCUrl[EterPixAppImages.Slots];
+            for (int i = 0; i < images.imageUrls.Length; i++) images.imageUrls[i] = new VRC.SDKBase.VRCUrl(FeedUrl + "/" + i.ToString("X2"));
+            images.owner = app;
+            app.images = images;
+            UdonSharpEditorUtility.CopyProxyToUdon(images);
+            EditorUtility.SetDirty(images);
+
             // パネル(アプリの面いっぱい)
             var panelT = shell.appFrame.Find("EterPix app") as RectTransform;
             if (panelT == null)
@@ -74,28 +84,14 @@ namespace EterPixNudeNyang
             app.panel = panelT;
             app.group = panelT.GetComponent<CanvasGroup>();
 
-            // 仮の表題(Task 4 で起動画面に置き換わる)
-            var titleT = panelT.Find("Title") as RectTransform;
-            if (titleT == null)
-            {
-                var go = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI));
-                titleT = (RectTransform)go.transform; titleT.SetParent(panelT, false);
-            }
-            titleT.anchorMin = Vector2.zero; titleT.anchorMax = Vector2.one;
-            titleT.offsetMin = new Vector2(16, 16); titleT.offsetMax = new Vector2(-16, -16);
-            var tmp = titleT.GetComponent<TextMeshProUGUI>();
-            tmp.text = "EterPix-app";
-            tmp.fontSize = 48; tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Color.white; tmp.raycastTarget = false;
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
-            if (font != null) tmp.font = font;
-            app.title = tmp;
+            var icon = EnsureIcon();
+            BuildUi(app, panelT, font, icon);
 
             panelT.gameObject.SetActive(false);
             panelT.SetAsLastSibling();
 
             // ホームのアイコン(ロゴ: 2x3の格子. 合意書で「仮」)
-            var icon = EnsureIcon();
             var index = NudeNyangEterPix.AppId - 1;
             if (shell.appSprites != null && shell.appSprites.Length > index) shell.appSprites[index] = icon;
             if (shell.appColors != null && shell.appColors.Length > index) shell.appColors[index] = Accent;

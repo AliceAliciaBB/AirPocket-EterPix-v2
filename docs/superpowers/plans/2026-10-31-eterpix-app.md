@@ -179,6 +179,13 @@
 - [ ] **Step 5**: Playモードで 起動→(ロード)→開始 / i・グループの開閉 / テーマ切替 を目視確認し、スクリーンショットを `docs/superpowers/plans/screens/` に残す
 - [ ] **Step 6**: コミット
 
+**実施メモ(Task 3・4)**
+- Task 3: テストは Test Runner ではなく Editor 自己テスト(メニュー `NudeNyang/EterPix-app/幾何の自己テスト`、`[EtpTrace] test geometry PASS`)にした(asmdef 制約。内部実装の変更)。回転は Pad の K-4 と同じ**反時計回りの追加**を採用(時計回りだと縦写真が横枠で上下逆さになるため)。→ 合意書「回転の向き」未決として要報告。
+- Task 4: パッチ P11 を追加(NudeNyang のテーマが EterPix-app の色を上書きするため、`NudeNyangTabletThemeBuilder` の走査から本アプリのパネルを除外)。黒/白テーマは独立のまま。
+- Task 4: 起動時の先読み `startupPreload`=3(仮)。全26枚だと約130秒かかるため。「ロード完了」の定義は合意書で未決 → 要確認。
+- Task 4: ヘッダーのアイコン(G/T)は仮の文字。ロゴ・ヘッダーの最終アイコンは未決。
+- 検証: スクショ `docs/superpowers/plans/screens/task4-*.png`(起動画面・情報画面・白テーマ・×切替)、`start → screen=1` のログ確認済み。
+
 ---
 
 ### Task 5: スワイプ画面

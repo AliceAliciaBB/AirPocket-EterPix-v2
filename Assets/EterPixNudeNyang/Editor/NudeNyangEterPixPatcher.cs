@@ -32,6 +32,7 @@ namespace EterPixNudeNyang
         const string Shell = "Scripts/NudeNyangTabletShell.cs";
         const string Shared = "Scripts/NudeNyangSharedControls.cs";
         const string ShellBuilder = "Editor/NudeNyangTabletShellBuilder.cs";
+        const string ThemeBuilder = "Editor/NudeNyangTabletThemeBuilder.cs";
 
         static string Before(string anchor, string add) { return add + anchor; }
         static string After(string anchor, string add) { return anchor + add; }
@@ -46,6 +47,7 @@ namespace EterPixNudeNyang
             const string namesNew = "i==9?\"화면 공유\":i==11?\"EterPix\":\"트래블 월드\",action=i==7?\"OpenWeather\":i==8?\"OpenBooth\":i==9?\"OpenScreenShare\":i==11?\"OpenEterPix\":\"OpenTravel\"";
             const string sharedHome = "OpenScreenShare|OpenTravel|Recent0";
             const string sharedKeyboard = "else if(target==5)methods=\"|Open|OpenX|OpenBooth|OpenTravel|\";";
+            const string themeAnchor = "if(pad.album!=null&&pad.album.urlActions!=null)excluded.Add(pad.album.urlActions.GetComponent<Image>());";
             return new[]
             {
                 new Patch("P1", Shell, "public const int AppCount=11;", "public const int AppCount=12;"),
@@ -56,6 +58,10 @@ namespace EterPixNudeNyang
                 new Patch("P7", Shared, sharedHome, "OpenScreenShare|OpenTravel|OpenEterPix|Recent0"),
                 new Patch("P8", Shared, sharedKeyboard, "else if(target==5)methods=\"|Open|OpenX|OpenBooth|OpenTravel|OpenEterPix|\";"),
                 new Patch("P9", ShellBuilder, names, namesNew, 2),
+                // NudeNyangのテーマ(色の役割の自動推定)が、EterPix-appの色を上書きしないよう走査から外す.
+                // EterPix-app の黒/白は独立(合意書にNudeNyangテーマ連動の記載なし)
+                new Patch("P11", ThemeBuilder, themeAnchor, After(themeAnchor,
+                    "if(pad.shell.eterpix!=null&&pad.shell.eterpix.panel!=null)foreach(var g in pad.shell.eterpix.panel.GetComponentsInChildren<Graphic>(true))excluded.Add(g);")),
             };
         }
 

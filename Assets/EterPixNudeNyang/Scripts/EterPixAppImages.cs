@@ -102,6 +102,15 @@ namespace EterPixNudeNyang
             return n;
         }
 
+        // 必要な画像のうち、取得済み+あきらめた数(起動画面の進行度で「もう待たない」数)
+        public int NeededSettledCount()
+        {
+            int n = 0;
+            for (int i = 0; i < Slots; i++)
+                if (_priority[i] < Unneeded && (_state[i] == StateLoaded || _state[i] == StateFailed)) n++;
+            return n;
+        }
+
         private void StartNext()
         {
             if (_busy) return;
