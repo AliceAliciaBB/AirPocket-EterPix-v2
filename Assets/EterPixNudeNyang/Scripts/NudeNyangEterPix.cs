@@ -56,6 +56,26 @@ namespace NudeNyang
         // 現在のカードから先に取っておく投稿数
         public int lookAhead = 6;
 
+        // 気になる投稿一覧(スクロールする行を使い回す. 見えている分だけ実体を持つ)
+        public const int RowPool = 8;
+        public const float RowHeight = 140f;
+        public GameObject heartButton;
+        public TMP_Text heartLabel;
+        public GameObject listScreen;
+        public RectTransform listContent;
+        public RectTransform listViewport;
+        public TMP_Text listEmpty;
+        public GameObject[] rowRoots;
+        public RawImage[] rowThumbs;
+        public TMP_Text[] rowNames;
+        public TMP_Text[] rowWorlds;
+        public InputField[] rowWebFields;
+        public InputField[] rowHqFields;
+        public GameObject[] rowPortalButtons;
+        public TMP_Text[] rowNoWorld;
+        [HideInInspector] public int[] likedIndices = new int[0];
+        private int listFirst = -1;
+
         // 拡大(全面): 写真を押す → 拡大(情報帯あり) → 押す → UIなし → 押す → 閉じる
         public GameObject zoomRoot;
         public RectTransform zoomPhotoRect;
@@ -130,6 +150,7 @@ namespace NudeNyang
             }
             if (!show) return;
             // 他のプレイヤーの操作に追従している間・ジェスチャ中は入力を受けない
+            if (screen == ScreenList) UpdateListRows(false);
             bool follow = pad.FollowingUI();
             group.interactable = group.blocksRaycasts = pad.shell.view == 2 && !pad.shell.GestureActive() && !follow;
         }
@@ -150,6 +171,7 @@ namespace NudeNyang
                 // 見ているカードの画像が届いたら描き直す
                 if (screen == ScreenSwipe || returnScreen == ScreenSwipe) ShowCard();
                 RefreshZoom();
+                if (screen == ScreenList) UpdateListRows(true);
                 return;
             }
             RefreshStart();
@@ -198,6 +220,112 @@ namespace NudeNyang
             Debug.Log("[EtpTrace] eterpix-app card cursor=" + cursor + "/" + count + " coid=" + coid + " copo=" + feed.Copo[cursor]
                 + " coro=" + feed.Coro[cursor] + " loaded=" + (tex != null) + " liked=" + likedCount);
         }
+
+        // ---- 気になる一覧 ----
+
+        public void OnHeart() { ToggleOverlay(ScreenList); }
+
+        // 一覧を開くたびに、気になる印の付いた投稿を feed の順で集め直す
+        private void OpenList()
+        {
+            int total = likedCount;
+            likedIndices = new int[total];
+            int n = 0;
+            for (int i = 0; i < liked.Length && n < total; i++)
+            {
+                if (liked[i]) { likedIndices[n] = i; n++; }
+            }
+            listContent.sizeDelta = new Vector2(0f, Mathf.Max(total * RowHeight, listViewport.rect.height));
+            listContent.anchoredPosition = Vector2.zero;
+            listEmpty.gameObject.SetActive(total == 0);
+            listFirst = -1;
+            UpdateListRows(true);
+            Debug.Log("[EtpTrace] eterpix-app list open liked=" + total);
+        }
+
+        // スクロール位置から、先頭の行を決めて行を付け替える
+        private void UpdateListRows(bool force)
+        {
+            if (listContent == null || rowRoots == null) return;
+            int total = likedIndices.Length;
+            int maxFirst = Mathf.Max(0, total - RowPool);
+            int first = Mathf.Clamp(Mathf.FloorToInt(listContent.anchoredPosition.y / RowHeight), 0, maxFirst);
+            if (!force && first == listFirst) return;
+            listFirst = first;
+            if (images != null) images.BeginWindow();
+            for (int k = 0; k < RowPool; k++)
+            {
+                int item = first + k;
+                bool active = item < total;
+                rowRoots[k].SetActive(active);
+                if (!active) continue;
+                int post = likedIndices[item];
+                RectTransform rt = (RectTransform)rowRoots[k].transform;
+                rt.anchoredPosition = new Vector2(0f, -item * RowHeight);
+                rowNames[k].text = feed.UserLabel[post];
+                bool hasWorld = !string.IsNullOrEmpty(feed.WorldId[post]);
+                rowWorlds[k].text = hasWorld ? feed.WorldLabel[post] : "";
+                rowNoWorld[k].gameObject.SetActive(!hasWorld);
+                rowPortalButtons[k].SetActive(hasWorld && portalEnabled);
+                SetCopyText(rowWebFields[k], "https://eterpix.com/web/post/" + feed.Poid[post]);
+                SetCopyText(rowHqFields[k], "https://eterpix.com/api/images/" + feed.Poid[post]);
+                int coid = feed.Coid[post];
+                if (images != null) images.Want(coid, k);
+                BindThumb(k, post);
+            }
+            if (images != null) images.EndWindow();
+        }
+
+        private void BindThumb(int k, int post)
+        {
+            Texture2D tex = images != null ? images.GetTexture(feed.Coid[post]) : null;
+            rowThumbs[k].gameObject.SetActive(tex != null);
+            if (tex == null) return;
+            rowThumbs[k].texture = tex;
+            rowThumbs[k].uvRect = geometry.SquareCropUv(feed.Copo[post]);
+            // 縦写真は、セル中央の正方形を coro 回して正立させる
+            int turns = ((feed.Coro[post] % 4) + 4) % 4;
+            ((RectTransform)rowThumbs[k].transform).localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
+        }
+
+        // コピー用の欄(押すとVRChatの入力UIが開く)。編集されても、終了時に元の値へ戻す
+        private void SetCopyText(InputField field, string value)
+        {
+            if (field.text != value) field.text = value;
+            field.ForceLabelUpdate();
+            field.textComponent.RecalculateMasking();
+        }
+
+        // 入力を終えたら(書き換えられていても)値を戻す。ラベルが空のまま残ることがあるので2フレーム後にも直す
+        public void OnCopyEnd()
+        {
+            RebindList();
+            SendCustomEventDelayedFrames(nameof(RebindList), 2);
+        }
+
+        public void RebindList()
+        {
+            if (screen == ScreenList) UpdateListRows(true);
+        }
+
+        public void OnRowPhoto0() { RowPhoto(0); }
+        public void OnRowPhoto1() { RowPhoto(1); }
+        public void OnRowPhoto2() { RowPhoto(2); }
+        public void OnRowPhoto3() { RowPhoto(3); }
+        public void OnRowPhoto4() { RowPhoto(4); }
+        public void OnRowPhoto5() { RowPhoto(5); }
+        public void OnRowPhoto6() { RowPhoto(6); }
+        public void OnRowPhoto7() { RowPhoto(7); }
+
+        private void RowPhoto(int k)
+        {
+            int item = listFirst + k;
+            if (screen != ScreenList || item < 0 || item >= likedIndices.Length) return;
+            OpenZoom(likedIndices[item]);
+        }
+
+        // ポータルのボタンを出すか(Task 8 で有効にする)
+        public bool portalEnabled;
 
         // ---- 拡大 ----
 
@@ -370,6 +498,11 @@ namespace NudeNyang
             if (infoButtonLabel != null) infoButtonLabel.text = next == ScreenInfo ? "×" : "i";
             if (groupButtonLabel != null) groupButtonLabel.text = next == ScreenGroup ? "×" : "G";
             if (counterLabel != null) counterLabel.gameObject.SetActive(next == ScreenSwipe);
+            if (listScreen != null) listScreen.SetActive(next == ScreenList);
+            if (heartButton != null) heartButton.SetActive(started);
+            if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "☆";
+            if (next == ScreenList) OpenList();
+            if (next == ScreenSwipe && started) ShowCard(); // 一覧などで入れ替わった先読みを、現在のカードに合わせて取り直す
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
         }
 

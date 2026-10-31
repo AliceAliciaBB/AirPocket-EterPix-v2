@@ -64,6 +64,10 @@ namespace EterPixNudeNyang
             app.infoButtonLabel = HeaderButton(header, "Info Button", "i", font, 0, tk, app, "OnInfo");
             app.groupButtonLabel = HeaderButton(header, "Group Button", "G", font, 1, tk, app, "OnGroup");
             HeaderButton(header, "Theme Button", "T", font, 2, tk, app, "OnTheme");
+            // ☆(気になる一覧。♡はフォントに無いため仮). ロード完了後に出る
+            app.heartLabel = HeaderButton(header, "Heart Button", "☆", font, 3, tk, app, "OnHeart");
+            app.heartButton = header.Find("Heart Button").gameObject;
+            app.heartButton.SetActive(false);
 
             // ---- フッター(コピーライト) ----
             var footer = Box(root, "Footer", tk.panel);
@@ -78,6 +82,8 @@ namespace EterPixNudeNyang
             app.swipeScreen = Screen(root, "Swipe Screen").gameObject;
             BuildSwipe(app, app.swipeScreen.GetComponent<RectTransform>(), font, tk);
             app.swipeScreen.SetActive(false);
+
+            BuildList(app, root, font, tk);
 
             app.infoScreen = TextScreen(root, "Info Screen", InfoText, font, tk);
             app.groupScreen = TextScreen(root, "Group Screen", GroupText, font, tk);
@@ -159,6 +165,119 @@ namespace EterPixNudeNyang
             app.buttonRow = row;
             app.endScreen = end;
             app.endSummary = summary;
+        }
+
+        // 気になる投稿一覧: ScrollRect + 使い回す行(RowPool 行)
+        static void BuildList(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            var screen = Screen(root, "List Screen");
+
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
+            var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
+            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, 0));
+            var content = new GameObject("Content", typeof(RectTransform));
+            var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
+            contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0.5f, 1);
+            contentRt.offsetMin = new Vector2(0, 0); contentRt.offsetMax = new Vector2(0, 0); contentRt.sizeDelta = new Vector2(0, 540);
+            var scroll = screen.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewportRt; scroll.content = contentRt;
+            scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f; scroll.inertia = true;
+            // ScrollRect が全面のドラッグを受けられるよう、透明の面を敷く
+            var catcher = screen.gameObject.AddComponent<Image>(); catcher.color = new Color(0, 0, 0, 0);
+
+            int pool = NudeNyangEterPix.RowPool;
+            app.rowRoots = new GameObject[pool]; app.rowThumbs = new RawImage[pool];
+            app.rowNames = new TMP_Text[pool]; app.rowWorlds = new TMP_Text[pool];
+            app.rowWebFields = new InputField[pool]; app.rowHqFields = new InputField[pool];
+            app.rowPortalButtons = new GameObject[pool]; app.rowNoWorld = new TMP_Text[pool];
+            for (int k = 0; k < pool; k++) BuildRow(app, contentRt, k, font, tk);
+
+            var empty = Label(screen, "Empty", "気になる投稿はありません", font, 30, TextAlignmentOptions.Center, tk.sub);
+            Anchor(empty.rectTransform, 0, 0.3f, 1, 0.7f, Vector2.zero, Vector2.zero);
+            empty.gameObject.SetActive(false);
+
+            screen.gameObject.SetActive(false);
+            app.listScreen = screen.gameObject;
+            app.listContent = contentRt;
+            app.listViewport = viewportRt;
+            app.listEmpty = empty;
+        }
+
+        // 1行 = 2段「写真 | 名前・ワールド」「写真(続き) | ボタン」
+        static void BuildRow(NudeNyangEterPix app, RectTransform content, int k, TMP_FontAsset font, Tokens tk)
+        {
+            float h = NudeNyangEterPix.RowHeight;
+            var row = Box(content, "Row " + k, tk.panel);
+            row.anchorMin = new Vector2(0, 1); row.anchorMax = new Vector2(1, 1); row.pivot = new Vector2(0.5f, 1);
+            row.sizeDelta = new Vector2(-8, h - 8); row.anchoredPosition = new Vector2(0, -k * h - 4);
+
+            // 写真(正方形に切り取る). 押すと拡大
+            var thumbBox = new GameObject("Thumb Mask", typeof(RectTransform), typeof(RectMask2D));
+            var thumbBoxRt = (RectTransform)thumbBox.transform; thumbBoxRt.SetParent(row, false);
+            thumbBoxRt.anchorMin = thumbBoxRt.anchorMax = new Vector2(0, 0.5f); thumbBoxRt.pivot = new Vector2(0, 0.5f);
+            thumbBoxRt.sizeDelta = new Vector2(h - 24, h - 24); thumbBoxRt.anchoredPosition = new Vector2(12, 0);
+            var thumb = new GameObject("Thumb", typeof(RectTransform), typeof(RawImage));
+            var thumbRt = (RectTransform)thumb.transform; thumbRt.SetParent(thumbBoxRt, false);
+            thumbRt.anchorMin = thumbRt.anchorMax = new Vector2(0.5f, 0.5f); thumbRt.sizeDelta = thumbBoxRt.sizeDelta;
+            var raw = thumb.GetComponent<RawImage>(); raw.raycastTarget = false;
+            var hit = new GameObject("Thumb Hit", typeof(RectTransform), typeof(Image));
+            var hitRt = (RectTransform)hit.transform; hitRt.SetParent(thumbBoxRt, false);
+            Anchor(hitRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var hitImg = hit.GetComponent<Image>(); hitImg.color = new Color(0, 0, 0, 0);
+            var hitBtn = hit.AddComponent<Button>(); hitBtn.targetGraphic = hitImg; hitBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+            Wire(hitBtn, app, "OnRowPhoto" + k);
+
+            // 1段目: 名前[称号]・ワールド名
+            var name = Label(row, "Name", "", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
+            Anchor(name.rectTransform, 0, 0.5f, 1, 1, new Vector2(h, 0), new Vector2(-12, -6));
+            var world = Label(row, "World", "", font, 20, TextAlignmentOptions.MidlineLeft, tk.sub);
+            Anchor(world.rectTransform, 0, 0.32f, 1, 0.5f, new Vector2(h, 0), new Vector2(-12, 0));
+            var noWorld = Label(row, "No World", "ワールド情報なし", font, 22, TextAlignmentOptions.MidlineRight, tk.sub);
+            Anchor(noWorld.rectTransform, 0.5f, 0, 1, 0.32f, Vector2.zero, new Vector2(-16, 0));
+
+            // 2段目: ボタン(右寄せ。左から WEB | 高画質 | ポータルを開く)
+            const float btnH = 52f, portalW = 220f, copyW = 150f, gap = 10f, edge = 16f;
+            var portal = Box(row, "Portal Button", tk.bg);
+            portal.anchorMin = portal.anchorMax = new Vector2(1, 0); portal.pivot = new Vector2(1, 0);
+            portal.sizeDelta = new Vector2(portalW, btnH); portal.anchoredPosition = new Vector2(-edge, 10);
+            var pBtn = portal.gameObject.AddComponent<Button>(); pBtn.targetGraphic = portal.GetComponent<Image>(); pBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+            var pLabel = Label(portal, "Label", "ポータルを開く", font, 24, TextAlignmentOptions.Center, tk.text);
+            Anchor(pLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            portal.gameObject.SetActive(false);
+
+            var hq = CopyButton(app, row, "HQ Button", "高画質", font, tk, -edge - portalW - gap, copyW, btnH);
+            var web = CopyButton(app, row, "Web Button", "WEB", font, tk, -edge - portalW - gap - copyW - gap, copyW, btnH);
+
+            app.rowRoots[k] = row.gameObject; app.rowThumbs[k] = raw;
+            app.rowNames[k] = name; app.rowWorlds[k] = world; app.rowNoWorld[k] = noWorld;
+            app.rowWebFields[k] = web; app.rowHqFields[k] = hq; app.rowPortalButtons[k] = portal.gameObject;
+        }
+
+        // コピー用ボタン: 見た目はラベル、中身は文字を隠した InputField(押すとVRChatの入力UIが開き、そこでコピーできる).
+        // 編集されても、入力を終えたら元の値へ戻す(NudeNyangの copyField と同じ方式)
+        static InputField CopyButton(NudeNyangEterPix app, RectTransform row, string name, string label, TMP_FontAsset font, Tokens tk, float x, float w, float h)
+        {
+            var b = Box(row, name, tk.bg);
+            b.anchorMin = b.anchorMax = new Vector2(1, 0); b.pivot = new Vector2(1, 0);
+            b.sizeDelta = new Vector2(w, h); b.anchoredPosition = new Vector2(x, 10);
+            var img = b.GetComponent<Image>();
+            var field = b.gameObject.AddComponent<InputField>();
+            var valueGo = new GameObject("Value", typeof(RectTransform), typeof(Text), typeof(CanvasGroup));
+            var valueRt = (RectTransform)valueGo.transform; valueRt.SetParent(b, false);
+            Anchor(valueRt, 0, 0, 1, 1, new Vector2(8, 4), new Vector2(-8, -4));
+            var valueText = valueGo.GetComponent<Text>();
+            valueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); valueText.fontSize = 18; valueText.raycastTarget = false;
+            var cg = valueGo.GetComponent<CanvasGroup>(); cg.alpha = 0; cg.blocksRaycasts = false; cg.interactable = false;
+            field.targetGraphic = img; field.textComponent = valueText;
+            field.lineType = InputField.LineType.SingleLine; field.contentType = InputField.ContentType.Standard;
+            field.customCaretColor = true; field.caretColor = Color.clear; field.selectionColor = Color.clear;
+            field.transition = Selectable.Transition.None; field.navigation = new Navigation { mode = Navigation.Mode.None };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(field.onEndEdit,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnCopyEnd");
+            var l = Label(b, "Label", label, font, 24, TextAlignmentOptions.Center, tk.text);
+            Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            return field;
         }
 
         // 拡大(ヘッダー・フッターも覆う全面。黒地は写真用なのでテーマに従わない)
