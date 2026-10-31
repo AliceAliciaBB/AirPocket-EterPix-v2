@@ -67,6 +67,8 @@ namespace EterPixNudeNyang
             for (int i = 0; i < images.imageUrls.Length; i++) images.imageUrls[i] = new VRC.SDKBase.VRCUrl(FeedUrl + "/" + i.ToString("X2"));
             images.owner = app;
             app.images = images;
+            var geometry = EnsureBehaviour<EterPixAppGeometry>(app.transform, "Geometry");
+            app.geometry = geometry;
             UdonSharpEditorUtility.CopyProxyToUdon(images);
             EditorUtility.SetDirty(images);
 

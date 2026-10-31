@@ -55,6 +55,12 @@ namespace EterPixNudeNyang
             Anchor(titleLabel.rectTransform, 0, 0, 1, 1, new Vector2(24, 0), new Vector2(-300, 0));
             app.title = titleLabel;
 
+            // 現在/総数(スワイプ画面のときだけ出る)
+            var counter = Label(header, "Counter", "", font, 28, TextAlignmentOptions.Center, tk.text);
+            Anchor(counter.rectTransform, 0.35f, 0, 0.65f, 1, Vector2.zero, Vector2.zero);
+            counter.gameObject.SetActive(false);
+            app.counterLabel = counter;
+
             app.infoButtonLabel = HeaderButton(header, "Info Button", "i", font, 0, tk, app, "OnInfo");
             app.groupButtonLabel = HeaderButton(header, "Group Button", "G", font, 1, tk, app, "OnGroup");
             HeaderButton(header, "Theme Button", "T", font, 2, tk, app, "OnTheme");
@@ -70,17 +76,106 @@ namespace EterPixNudeNyang
             BuildStart(app, app.startScreen.GetComponent<RectTransform>(), font, logo, tk);
 
             app.swipeScreen = Screen(root, "Swipe Screen").gameObject;
-            var swipePlaceholder = Label(app.swipeScreen.transform, "Placeholder", "スワイプ画面(作成中)", font, 30, TextAlignmentOptions.Center, tk.sub);
-            Anchor(swipePlaceholder.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            BuildSwipe(app, app.swipeScreen.GetComponent<RectTransform>(), font, tk);
             app.swipeScreen.SetActive(false);
 
             app.infoScreen = TextScreen(root, "Info Screen", InfoText, font, tk);
             app.groupScreen = TextScreen(root, "Group Screen", GroupText, font, tk);
 
+            BuildConfirm(app, root, font, tk);
+
             app.bgGraphics = tk.bg.ToArray();
             app.panelGraphics = tk.panel.ToArray();
             app.textGraphics = tk.text.ToArray();
             app.subGraphics = tk.sub.ToArray();
+        }
+
+        static void BuildSwipe(NudeNyangEterPix app, RectTransform screen, TMP_FontAsset font, Tokens tk)
+        {
+            // カード(写真の枠)。16:9に近い大きさ
+            var card = Box(screen, "Card", tk.panel);
+            Anchor(card, 0.17f, 0, 0.83f, 1, new Vector2(0, 96), new Vector2(0, -12));
+            var photoGo = new GameObject("Photo", typeof(RectTransform), typeof(RawImage));
+            var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(card, false);
+            photoRt.anchorMin = photoRt.anchorMax = new Vector2(0.5f, 0.5f); photoRt.sizeDelta = new Vector2(160, 90);
+            var raw = photoGo.GetComponent<RawImage>(); raw.raycastTarget = false;
+            photoGo.SetActive(false);
+
+            var notice = Label(card, "Notice", "読み込み中...", font, 30, TextAlignmentOptions.Center, tk.sub);
+            Anchor(notice.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+
+            // 情報帯(半透明の黒。写真の上に重なるので、テーマの色には従わない)
+            var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
+            var bandRt = (RectTransform)band.transform; bandRt.SetParent(card, false);
+            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 76));
+            var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
+            var user = Label(bandRt, "User", "", font, 26, TextAlignmentOptions.MidlineLeft, null);
+            Anchor(user.rectTransform, 0, 0.45f, 1, 1, new Vector2(16, 0), new Vector2(-16, 0));
+            var world = Label(bandRt, "World", "", font, 20, TextAlignmentOptions.MidlineLeft, null);
+            world.color = new Color(1, 1, 1, 0.75f);
+            Anchor(world.rectTransform, 0, 0, 1, 0.45f, new Vector2(16, 0), new Vector2(-16, 0));
+
+            // 左(気にならない)・右(気になる)のボタン
+            var row = new GameObject("Buttons", typeof(RectTransform)); var rowRt = (RectTransform)row.transform;
+            rowRt.SetParent(screen, false);
+            Anchor(rowRt, 0.17f, 0, 0.83f, 0, new Vector2(0, 8), new Vector2(0, 84));
+            var pass = TextButton(rowRt, "Pass Button", "気にならない", font, tk, app, "OnPass", false);
+            Anchor(pass, 0, 0, 0.48f, 1, Vector2.zero, Vector2.zero);
+            var like = TextButton(rowRt, "Like Button", "気になる", font, tk, app, "OnLike", true);
+            Anchor(like, 0.52f, 0, 1, 1, Vector2.zero, Vector2.zero);
+
+            // すべて見終わったあとの画面
+            var end = new GameObject("End", typeof(RectTransform)); var endRt = (RectTransform)end.transform;
+            endRt.SetParent(screen, false);
+            Anchor(endRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var summary = Label(endRt, "Summary", "", font, 34, TextAlignmentOptions.Center, tk.text);
+            Anchor(summary.rectTransform, 0.1f, 0.5f, 0.9f, 0.9f, Vector2.zero, Vector2.zero);
+            var again = TextButton(endRt, "Again Button", "もう一度見る", font, tk, app, "OnRestartAsk", false);
+            Anchor(again, 0.32f, 0.18f, 0.68f, 0.34f, Vector2.zero, Vector2.zero);
+            end.SetActive(false);
+
+            app.cardFrame = card;
+            app.photoRect = photoRt;
+            app.photo = raw;
+            app.userLabel = user;
+            app.worldLabel = world;
+            app.cardNotice = notice;
+            app.buttonRow = row;
+            app.endScreen = end;
+            app.endSummary = summary;
+        }
+
+        // 「もう一度見る」の確認(全面を覆う)
+        static void BuildConfirm(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            var dim = new GameObject("Confirm", typeof(RectTransform), typeof(Image));
+            var dimRt = (RectTransform)dim.transform; dimRt.SetParent(root, false);
+            Anchor(dimRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            dim.GetComponent<Image>().color = new Color(0, 0, 0, 0.6f);
+            var box = Box(dimRt, "Box", tk.bg); // ボタン(panel色)が沈まないよう背景色にする
+            Anchor(box, 0.25f, 0.3f, 0.75f, 0.7f, Vector2.zero, Vector2.zero);
+            var msg = Label(box, "Message", "気になる選択はなくなります。\nいいですか?", font, 30, TextAlignmentOptions.Center, tk.text);
+            Anchor(msg.rectTransform, 0, 0.4f, 1, 1, new Vector2(16, 0), new Vector2(-16, -16));
+            var yes = TextButton(box, "Yes Button", "はい", font, tk, app, "OnRestartYes", true);
+            Anchor(yes, 0.06f, 0.08f, 0.48f, 0.36f, Vector2.zero, Vector2.zero);
+            var no = TextButton(box, "No Button", "やめる", font, tk, app, "OnRestartNo", false);
+            Anchor(no, 0.52f, 0.08f, 0.94f, 0.36f, Vector2.zero, Vector2.zero);
+            dim.SetActive(false);
+            app.confirmModal = dim;
+        }
+
+        // 文字だけの長方形ボタン. accent=true なら強調色
+        static RectTransform TextButton(Transform parent, string name, string text, TMP_FontAsset font, Tokens tk, NudeNyangEterPix app, string eventName, bool accent)
+        {
+            var b = Box(parent, name, accent ? null : tk.panel);
+            var img = b.GetComponent<Image>();
+            if (accent) img.color = Accent;
+            var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
+            var l = Label(b, "Label", text, font, 28, TextAlignmentOptions.Center, accent ? null : tk.text);
+            if (accent) l.color = Dark;
+            Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            Wire(btn, app, eventName);
+            return b;
         }
 
         static void BuildStart(NudeNyangEterPix app, RectTransform screen, TMP_FontAsset font, Sprite logo, Tokens tk)

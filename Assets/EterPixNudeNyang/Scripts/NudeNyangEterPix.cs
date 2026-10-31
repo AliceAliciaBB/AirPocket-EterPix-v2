@@ -36,6 +36,22 @@ namespace NudeNyang
         // ヘッダー
         public TMP_Text infoButtonLabel;
         public TMP_Text groupButtonLabel;
+        public TMP_Text counterLabel;
+
+        // スワイプ画面
+        public EterPixNudeNyang.EterPixAppGeometry geometry;
+        public RectTransform cardFrame;
+        public RectTransform photoRect;
+        public RawImage photo;
+        public TMP_Text userLabel;
+        public TMP_Text worldLabel;
+        public TMP_Text cardNotice;
+        public GameObject buttonRow;
+        public GameObject endScreen;
+        public TMP_Text endSummary;
+        public GameObject confirmModal;
+        // 現在のカードから先に取っておく投稿数
+        public int lookAhead = 6;
 
         // 起動画面
         public GameObject loadingRow;
@@ -69,9 +85,15 @@ namespace NudeNyang
         [HideInInspector] public bool isDark = true;
         [HideInInspector] public bool ready;
 
+        // 現在のカード(feed の添字)と、気になる印
+        [HideInInspector] public int cursor;
+        [HideInInspector] public bool[] liked = new bool[0];
+        [HideInInspector] public int likedCount;
+
         private bool visible;
         private bool fetchStarted;
         private bool themeApplied;
+        private bool started;
 
         // NudeNyangTabletShell から毎フレーム呼ばれる(パッチP6)
         public void Present()
@@ -110,7 +132,99 @@ namespace NudeNyang
         // EterPixAppImages から呼ばれる(画像が届いた・あきらめた)
         public void OnImageLoaded()
         {
+            if (started)
+            {
+                // 見ているカードの画像が届いたら描き直す
+                if (screen == ScreenSwipe || returnScreen == ScreenSwipe) ShowCard();
+                return;
+            }
             RefreshStart();
+        }
+
+        // ---- スワイプ ----
+
+        // 現在のカードを表示する(画像が未着なら読み込み中の表示)。すべて見終わったら終了画面
+        private void ShowCard()
+        {
+            if (feed == null || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk || photo == null) return;
+            int count = feed.Count;
+            bool finished = cursor >= count;
+            cardFrame.gameObject.SetActive(!finished);
+            buttonRow.SetActive(!finished);
+            endScreen.SetActive(finished);
+            if (finished)
+            {
+                counterLabel.text = count + " / " + count;
+                endSummary.text = "すべての投稿を見ました\n気になる: " + likedCount + " 件";
+                return;
+            }
+            counterLabel.text = (cursor + 1) + " / " + count;
+            userLabel.text = feed.UserLabel[cursor];
+            worldLabel.text = feed.WorldLabel[cursor];
+            int coid = feed.Coid[cursor];
+            Texture2D tex = images != null ? images.GetTexture(coid) : null;
+            if (tex != null)
+            {
+                // 写真は正立させて(coro 回)、枠に収まる最大の大きさで出す。縦写真は縦のまま余白が出る
+                int turns = ((feed.Coro[cursor] % 4) + 4) % 4;
+                photo.texture = tex;
+                photo.uvRect = geometry.CellUv(feed.Copo[cursor]);
+                photoRect.sizeDelta = geometry.FitSize(cardFrame.rect.width, cardFrame.rect.height, turns);
+                photoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
+                photo.gameObject.SetActive(true);
+                cardNotice.gameObject.SetActive(false);
+            }
+            else
+            {
+                photo.gameObject.SetActive(false);
+                cardNotice.gameObject.SetActive(true);
+                cardNotice.text = images != null && images.IsFailed(coid) ? "画像を取得できませんでした" : "読み込み中...";
+            }
+            WantWindow();
+            Debug.Log("[EtpTrace] eterpix-app card cursor=" + cursor + "/" + count + " coid=" + coid + " copo=" + feed.Copo[cursor]
+                + " coro=" + feed.Coro[cursor] + " loaded=" + (tex != null) + " liked=" + likedCount);
+        }
+
+        // 現在のカードから lookAhead 件ぶんのコラージュを、近い順に取る
+        private void WantWindow()
+        {
+            if (images == null) return;
+            int last = Mathf.Min(feed.Count, cursor + lookAhead + 1);
+            images.BeginWindow();
+            for (int i = cursor; i < last; i++) images.Want(feed.Coid[i], i - cursor);
+            images.EndWindow();
+        }
+
+        // 左(気にならない)・右(気になる)
+        public void OnPass() { Advance(false); }
+        public void OnLike() { Advance(true); }
+
+        private void Advance(bool like)
+        {
+            if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
+            if (like && !liked[cursor]) { liked[cursor] = true; likedCount++; }
+            cursor++;
+            ShowCard();
+        }
+
+        // もう一度見る: 確認モーダル → はい で気になる選択を消して先頭へ
+        public void OnRestartAsk()
+        {
+            if (confirmModal != null) confirmModal.SetActive(true);
+        }
+
+        public void OnRestartNo()
+        {
+            if (confirmModal != null) confirmModal.SetActive(false);
+        }
+
+        public void OnRestartYes()
+        {
+            if (confirmModal != null) confirmModal.SetActive(false);
+            for (int i = 0; i < liked.Length; i++) liked[i] = false;
+            likedCount = 0;
+            cursor = 0;
+            ShowCard();
         }
 
         // 先頭から startupPreload 枚ぶんの(重複しない)コラージュを先に取る
@@ -129,6 +243,8 @@ namespace NudeNyang
                 wanted++;
             }
             images.EndWindow();
+            liked = new bool[feed.Count];
+            likedCount = 0;
             Debug.Log("[EtpTrace] eterpix-app startup preload=" + wanted);
         }
 
@@ -188,6 +304,7 @@ namespace NudeNyang
             // 押すと開いた画面を閉じて元へ戻れるよう、ボタンの表示を×にする
             if (infoButtonLabel != null) infoButtonLabel.text = next == ScreenInfo ? "×" : "i";
             if (groupButtonLabel != null) groupButtonLabel.text = next == ScreenGroup ? "×" : "G";
+            if (counterLabel != null) counterLabel.gameObject.SetActive(next == ScreenSwipe);
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
         }
 
@@ -209,7 +326,10 @@ namespace NudeNyang
         public void OnStart()
         {
             if (!ready) return;
+            started = true;
+            cursor = 0;
             ShowScreen(ScreenSwipe);
+            ShowCard();
         }
 
         public void OnTheme()
