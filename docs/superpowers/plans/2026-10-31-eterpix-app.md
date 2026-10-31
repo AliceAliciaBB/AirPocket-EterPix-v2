@@ -293,6 +293,13 @@
   - **未確認**: アプリ画面の見た目(撮影では対象のタブレットが映らなかった。画面の中身が出来る Task 4 で撮影する)、既存アプリ(ライブラリ等)が従来どおり開くこと
 - 再生時に出る `IsNetworkingSupported cannot be changed after the UdonBehaviour has been initialized` は VRChat SDK の `UdonManager.OnSceneLoaded` 由来で、本作業とは無関係
 
+### Task 2 完了(2026-10-31)
+- `EterPixAppFeed.cs`: `GET https://eterpix.com/api/vrc/v1/public` を `VRCStringDownloader` で取得し、投稿を配列(`Poid/Pode/UserLabel/WorldLabel/WorldId/Coid/Copo/Coro`)に展開。表示名の合成(`usna[称号]`、`wopf`+`wona`)は契約どおり。**R18(`po18==1`)はコード中に固定で除外**、`coid` が無い投稿も使わない。`Status`: 0読込中/1正常/2URL未許可/3サーバー停止/4 0件
+- 本番で検証(ClientSim): `feed count=144 skippedR18=3 status=ok`。展開の統計: コラージュ26枚、`copo` 1〜6、`coro` 0/1/3、縦写真48件、ワールド名128件、称号付き投稿者名113件、投稿者名・`poid` の空は0
+- **サーバーの 423 Locked**: 初回の取得で `423 Locked`(リング更新中)が返り、`5秒×2回` の再試行(既存 downloader と同じ予算)でも3回とも 423 になって `status=3` で終わった。約1分後の再取得は成功。curl でも「1回目 423 → 以降 200(83KB)」を確認。→ **Task 9 で、サーバー停止の表示に「もう一度取得」の手段を付ける**。再試行の予算を増やすかは Task 9 で決める(合意書に記載なし = 変える場合は確認する)
+- 数字の含意(Task 3 へ): 144件 = コラージュ26枚。VRChatの5秒間隔なので全部取ると約130秒。**最初の数枚を優先して取り、起動画面の進行度は「先読み分」で出す**必要がある(合意書の「ロードは約4秒(モックの値)」と実機の差は未決として報告する)
+- 配線: `EterPixAppBuilder` が `Feed` 子オブジェクトを作り `feedUrl` を焼く。新しいU#スクリプトを足したときは、Builder が プログラムアセットを作って `CompileAllCsPrograms` を呼び、コンパイル完了後にもう一度実行する流れ
+
 ### ライセンスと連絡先(確認済み)
 - 取扱説明書(`guide.nudenyang.com`)は利用者向けで、アドオン開発手順の記載なし。ただし第26章に「SDKのダウンロードは5秒間隔のため画像をアトラスにまとめる」とあり、本計画のコラージュ取得と同じ前提
 - 製品ライセンスの文面(ユーザー提示 2026-10-31): 追加アプリ・アドオンの制作と、そのための**製品の改変は許可**。配布は**自作ファイル + パッチ/インストールツール**で、製品の元ファイル・改変済み本体の再配布は不可。商品説明には「正規製品が別途必要」「対応バージョン」「アドオン制作者の連絡先」を明記し、公式製品・公式サポート対象と誤認させない。→ 本計画の設計(`Assets/EterPixNudeNyang/` + パッチャ、本体はgitignoreのまま)は適合。README(Task 10)に上記3点を書く

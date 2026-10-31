@@ -16,8 +16,10 @@ namespace NudeNyang
         public RectTransform panel;
         public CanvasGroup group;
         public TMP_Text title;
+        public EterPixNudeNyang.EterPixAppFeed feed;
 
         private bool visible;
+        private bool fetchStarted;
 
         // NudeNyangTabletShell から毎フレーム呼ばれる(パッチP6)
         public void Present()
@@ -30,10 +32,22 @@ namespace NudeNyang
                 panel.gameObject.SetActive(show);
                 Debug.Log("[EtpTrace] eterpix-app visible=" + show);
             }
+            // 初めて開いたときに投稿を取りに行く(VRChatのダウンロードは5秒間隔なので、開くまで取らない)
+            if (show && !fetchStarted && feed != null)
+            {
+                fetchStarted = true;
+                feed.Fetch();
+            }
             if (!show) return;
             // 他のプレイヤーの操作に追従している間・ジェスチャ中は入力を受けない
             bool follow = pad.FollowingUI();
             group.interactable = group.blocksRaycasts = pad.shell.view == 2 && !pad.shell.GestureActive() && !follow;
+        }
+
+        // EterPixAppFeed から呼ばれる(取得完了・失敗)
+        public void OnFeedChanged()
+        {
+            Debug.Log("[EtpTrace] eterpix-app feed status=" + feed.Status + " count=" + feed.Count);
         }
 
         // ポータルの配置通知先(Task 8 で使う)

@@ -13,6 +13,7 @@ namespace EterPixNudeNyang
     public static class EterPixAppBuilder
     {
         const string FontPath = "Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold SDF.asset";
+        const string FeedUrl = "https://eterpix.com/api/vrc/v1/public";
         const string IconPath = "Assets/EterPixNudeNyang/Art/EterPixAppIcon.png";
         static readonly Color Dark = new Color32(0x14, 0x14, 0x14, 0xFF);
         static readonly Color Accent = new Color32(0x9D, 0x6F, 0xFF, 0xFF);
@@ -25,6 +26,15 @@ namespace EterPixNudeNyang
                 Debug.LogError("[EtpTrace] builder: パッチが未適用です. 先にメニュー「パッチを適用」を実行してください");
                 return;
             }
+            // 新しい U# スクリプトにはプログラムアセットが要り、作成直後は未コンパイルで配線に失敗する
+            bool created = EnsureProgram("Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix");
+            created |= EnsureProgram("Assets/EterPixNudeNyang/Scripts/EterPixAppFeed");
+            if (created)
+            {
+                UdonSharp.UdonSharpProgramAsset.CompileAllCsPrograms(true);
+                Debug.LogWarning("[EtpTrace] builder: U#プログラムを作成しました. コンパイルの完了を待って、もう一度実行してください");
+                return;
+            }
             var pads = Object.FindObjectsOfType<NudeNyangTablet>(true).Where(p => !EditorUtility.IsPersistent(p) && p.gameObject.scene == UnityEngine.SceneManagement.SceneManager.GetActiveScene()).ToArray();
             foreach (var pad in pads) Build(pad);
             Debug.Log("[EtpTrace] builder: " + pads.Length + " 台のタブレットに EterPix-app を配線しました");
@@ -32,7 +42,6 @@ namespace EterPixNudeNyang
 
         public static void Build(NudeNyangTablet pad)
         {
-            EnsureProgram("Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix");
             var shell = pad.shell;
             if (shell != null && shell.homeRoot != null && shell.homeIcons != null && shell.homeIcons.Length > 0) EnsureHomeTiles(shell);
             if (shell == null || shell.appFrame == null || shell.homeIcons == null || shell.homeIcons.Length < NudeNyangEterPix.AppId)
@@ -42,29 +51,14 @@ namespace EterPixNudeNyang
             }
 
             // サービス(U#コンポーネント)
-            var serviceT = pad.transform.Find("EterPix app service");
-            // U#のプログラムが無い状態で作られた空の UdonBehaviour が残っていたら作り直す
-            if (serviceT != null)
-            {
-                var existing = serviceT.GetComponent<NudeNyangEterPix>();
-                var backing = existing != null ? UdonSharpEditorUtility.GetBackingUdonBehaviour(existing) : null;
-                if (existing != null && backing != null && backing.programSource != null) goto keepService;
-            }
-            if (serviceT != null)
-            {
-                Object.DestroyImmediate(serviceT.gameObject);
-                serviceT = null;
-            }
-            keepService:
-            if (serviceT == null)
-            {
-                var go = new GameObject("EterPix app service");
-                go.transform.SetParent(pad.transform, false);
-                serviceT = go.transform;
-            }
-            var app = serviceT.GetComponent<NudeNyangEterPix>();
-            if (app == null) app = serviceT.gameObject.AddUdonSharpComponent<NudeNyangEterPix>();
+            var app = EnsureBehaviour<NudeNyangEterPix>(pad.transform, "EterPix app service");
             app.pad = pad;
+            var feed = EnsureBehaviour<EterPixAppFeed>(app.transform, "Feed");
+            feed.feedUrl = new VRC.SDKBase.VRCUrl(FeedUrl);
+            feed.owner = app;
+            app.feed = feed;
+            UdonSharpEditorUtility.CopyProxyToUdon(feed);
+            EditorUtility.SetDirty(feed);
 
             // パネル(アプリの面いっぱい)
             var panelT = shell.appFrame.Find("EterPix app") as RectTransform;
@@ -127,13 +121,30 @@ namespace EterPixNudeNyang
         }
 
         // U#のスクリプトには UdonSharpProgramAsset が要る(無いと AddUdonSharpComponent が失敗する)
-        static void EnsureProgram(string pathWithoutExt)
+        static bool EnsureProgram(string pathWithoutExt)
         {
-            if (AssetDatabase.LoadAssetAtPath<UdonSharp.UdonSharpProgramAsset>(pathWithoutExt + ".asset") != null) return;
+            if (AssetDatabase.LoadAssetAtPath<UdonSharp.UdonSharpProgramAsset>(pathWithoutExt + ".asset") != null) return false;
             var p = ScriptableObject.CreateInstance<UdonSharp.UdonSharpProgramAsset>();
             p.sourceCsScript = AssetDatabase.LoadAssetAtPath<MonoScript>(pathWithoutExt + ".cs");
             AssetDatabase.CreateAsset(p, pathWithoutExt + ".asset");
             AssetDatabase.SaveAssets();
+            return true;
+        }
+
+        // 子オブジェクトに U# コンポーネントを1つ持たせる. プログラムが無い状態で作られた空の UdonBehaviour は作り直す
+        static T EnsureBehaviour<T>(Transform parent, string name) where T : UdonSharp.UdonSharpBehaviour
+        {
+            var t = parent.Find(name);
+            if (t != null)
+            {
+                var existing = t.GetComponent<T>();
+                var backing = existing != null ? UdonSharpEditorUtility.GetBackingUdonBehaviour(existing) : null;
+                if (existing != null && backing != null && backing.programSource != null) return existing;
+                Object.DestroyImmediate(t.gameObject);
+            }
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            return go.AddUdonSharpComponent<T>();
         }
 
         // ホームの配列を AppCount まで伸ばし、12番目のタイルを作る.
