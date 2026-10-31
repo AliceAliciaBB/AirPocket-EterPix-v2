@@ -1,0 +1,247 @@
+# EterPix-app (NudeNyang 12番目のアプリ) 実装計画
+
+> **実装者へ**: `superpowers:subagent-driven-development`(推奨)または `superpowers:executing-plans` でタスク単位に進める。チェックボックスで進捗を管理する。
+> **状態**: ドラフト。**ユーザー承認前は実装に入らない**(グローバルルール Step 2)。
+
+**Goal:** VRChat内のNudeNyangタブレットに、EterPixの公開投稿をスワイプで見て「気になる」を溜められるアプリ「EterPix-app」を載せる。
+
+**Architecture:** 新規コードは追跡される `Assets/EterPixNudeNyang/` に置き、取得は既存の `eterpix_downloader` を再利用せず、vrc-api v1 の `GET /api/vrc/v1/public` と `/public/<hex>` を、このアプリ専用の小さな取得キューで読む(理由は「決めること」D2)。NudeNyang本体(gitignore下・第三者製 v1.0.2)への変更は、**冪等な Editor パッチャ**に閉じ込めて追跡する。
+
+**Tech Stack:** UdonSharp / VRChat SDK 3.10.x(VRCStringDownloader・VRCImageDownloader・VRCUrl)、Unity UGUI(Text/RawImage/Button、NudeNyang流の Editor Builder)、既存 `NudeNyangTravelPortal`。
+
+## 一次資料
+- 合意書: `D:\git\eterpix_integrated_management\.claude\worktrees\docs-item-count-note\docs\VRC-NudeNyangTablet_app.md`(ブランチ `worktree-docs-item-count-note`。**main の同名ファイルは古い初期案**なので、まずこのブランチを main へ取り込む = Task 0)
+- HTMLモック: 同ブランチの `docs/mocks/eterpix-app-mock.html`
+- UI規則: `docs/eterpix-monitor-ui-remake-spec.md`(長方形・線なし・余白8/16・面の色はボタンだけ・NotoSansJP-Bold)
+- API: `docs/contracts/vrc-api-v1-schema.md` / `image-formats.md`(統合管理リポジトリ)
+
+## Global Constraints
+- 全要素は長方形(角丸・ピル形なし)、線なし、区切りは余白(単位8・外側16)、ボタンだけが面の色を持つ、文字は不透明1色
+- フォントは `Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold SDF.asset`
+- 色: 黒テーマ #141414 / 白テーマ #FAFAFA、ボタン #2A2A2A / #E6E6E6、押下 #3A3A3A / #D4D4D4、アクセント #9D6FFF(上の文字 #141414)
+- 例外: 写真の下端の情報帯だけ、文字を50%半透明で重ねてよい
+- ヘッダー高さ40・ボタン40×40・上余白16。左ロゴ「EterPix-app」/ 中央(スワイプ画面のみ)「現在 / 総数」/ 右は左から ♡(ロード後)→テーマ→グループ→i。♡・グループ・i は開いている間 ✕ に変わり同じボタンで戻る
+- 情報画面(i)の末尾に「最新情報は X @_alicilia」
+- 状態表示: 通常 / 読み込み中(写真枠が明滅)/ URL未許可 / サーバー停止 / 投稿0件。ヘッダーは常に表示
+- ポータルは既存 `NudeNyangTravelPortal` を使い、新しいポータルは作らない(床指し配置・同時1つ・再配置30秒・15秒で消える)
+- U# には static フィールド・インターフェース・ジェネリクスの制約がある(`docs/projects/unity.md` 参照)。NudeNyangのコードは1行詰めの書式だが、**我々の新規コードは通常の書式**で書く
+- 作業は専用 worktree / ブランチで行う。**共有リポジトリで `commit -a` しない**(自分のファイルだけ add)。スクリプト編集後は Unity で import まで済ませる。デバッグログは `[EtpTrace]` 接頭辞でコンソールへ常時出す
+
+## ファイル構成
+
+| パス | 役割 |
+|---|---|
+| `Assets/EterPixNudeNyang/Scripts/EterPixAppFeed.cs` | JSON取得・パース・投稿配列(poid/coid/copo/coro/表示名/ワールド/説明)。状態(0読込中/1正常/2URL未許可/3サーバー停止/4 0件) |
+| `Assets/EterPixNudeNyang/Scripts/EterPixAppImages.cs` | コラージュ画像の直列DL(5秒制限)、テクスチャのキャッシュ予算・追い出し、UV/回転計算 |
+| `Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix.cs` | アプリ本体(画面遷移・ヘッダー・起動/スワイプ/拡大/一覧/共通画面・気になる集合)。`namespace NudeNyang`。`Present()` / `Open()` / `PlacementNotice` / `PlacementAllowed` をTravelと同じ形で持つ |
+| `Assets/EterPixNudeNyang/Scripts/EterPixAppGeometry.cs` | 純粋な計算(UV、K-4の長辺合わせ・回転、1:1切り取り)。static を使えないので U# 内の公開メソッド |
+| `Assets/EterPixNudeNyang/Editor/EterPixAppBuilder.cs` | UI階層の生成・配線(NudeNyangTravelBuilder と同じ流儀)。メニュー `NudeNyang/EterPix-appを配置` |
+| `Assets/EterPixNudeNyang/Editor/NudeNyangEterPixPatcher.cs` | NudeNyang本体への変更を冪等に当てる/外す/検査するツール |
+| `Assets/EterPixNudeNyang/Editor/Tests/EterPixAppGeometryTests.cs` | 幾何計算のEditModeテスト(U#の外に切り出した同一式を検証。下記Task 3) |
+| `Assets/EterPixNudeNyang/README.md` | 使い方・パッチ手順・NudeNyang更新時の再適用 |
+
+## 決めること(承認時に確認。推奨を既定として計画を組んでいる)
+
+- **D1 配置**: 全部 `Assets/EterPixNudeNyang/`(推奨)か、`Packages/com.aliciliabb.eterpix` に入れるか。→ 推奨は前者。EterPix本体パッケージはVPMで配るため、有償の第三者アセットに依存させない。NudeNyang側も asmdef が無く(Assembly-CSharp)、パッケージ asmdef からは参照できない
+- **D2 取得層**: `eterpix_downloader` を拡張して共用(画像の受け手は `eterpix_monitor` 型固定で、U#にインターフェースが無く拡張が大きい)か、専用の取得キュー(推奨)か。→ 推奨は専用。代償は、同じワールドの既存モニターと VRChat の5秒制限を取り合うこと(Pad の K-12 のような優先は付かない)。**ワールドにモニターを置く場合は影響を実機で確認する**
+- **D3 合意書の「未決」**: WEB / 高画質 の動作、ポータル方式 A/B、サーバー保存、起動→開始の関係など。本計画は「**気になる = ローカルのみ(セッション内、再起動で消える)**」「**ポータルは方式A(`BeginPlacement`)**」「**ボタン WEB・高画質は Task 10 まで押せない表示で置く**」を仮に採る。変えるなら、その Task が変わる(WEB は VRChat から外部ブラウザを開けないため、NudeNyangのブラウザ連携か URL 表示になる可能性が高い。要相談)
+
+---
+
+### Task 0: 合意書を main へ取り込み、NudeNyang変更点を確定する(調査・実装なし)
+
+**Files:**
+- 統合管理リポジトリ: ブランチ `worktree-docs-item-count-note` を main へ(自分の worktree で、`node scripts/check-decisions.js` を通してから)
+- Modify: 本計画書の「パッチ一覧」節(下の Task 1 の表を実測で埋め直す)
+
+**Produces:** 確定したパッチ一覧(ファイル・行・アンカー文字列)。
+
+- [ ] **Step 1**: 統合管理リポジトリで上記ブランチを `origin/main` にマージする方針をユーザーに確認し、マージ。これで合意書の正本が main になる
+- [ ] **Step 2**: NudeNyang の次の箇所を grep し、**12番目のアプリを足すのに変える全箇所**を書き出す(下はこれまでに見つけた分。漏れを探す)
+  - `NudeNyangTabletShell.cs:18` `AppCount=11` / `:556` `AppName(id)` / `:611` `OpenTravel` 相当の `OpenEterPix` / `:629-` `Launch(int id)` の分岐 / `:1515` `travel.Present()` / `:1582,:1629` 最近使った・ドックのアイコン色(`appSprites` `appColors` の長さ)/ `homeIcons`(アイコン配列の長さ)
+  - `NudeNyangSharedControls.cs:352,1472,1554`(`AppCount` 検証。4ビット×5=12は収まる)/ `:1271,:1288,:1292`(`methods="|…|OpenTravel|"` の許可リスト)/ `:117,:127,:518,:1200,:1389`(app==11 のスクロール連携。EterPix-appがスクロールを共有しないなら不要)
+  - `NudeNyangMediaKeyboard.cs:298`(`OpenTravel`→11 の対応表。キーボードを使わないなら不要)
+  - `NudeNyangTabletShellBuilder.cs:173,:215`(ホームのアイコン生成 `i==10`)/ `NudeNyangHomeAppIconsBuilder.cs` / `NudeNyangTravelIconBuilder.cs`(アイコン)
+  - `NudeNyangTravelPortal.cs` の `BeginPlacement(string, NudeNyangTravel)`・`CancelFor(NudeNyangTravel)`・`placingApp`(型が `NudeNyangTravel` 固定)
+- [ ] **Step 3**: 「ホームのアイコンが12個目に収まるか」「お気に入り/ドックの `favoriteApps`」「`ShellDisplay`」の挙動を Unity 上のテンプレシーンで確認し、収まらない場合はユーザーに相談する(**見た目が変わるので勝手に直さない**)
+- [ ] **Step 4**: 結果を本計画書に反映(Edit)してコミット
+
+---
+
+### Task 1: 空のアプリがタブレットから開く(縦串スモーク) + パッチャ
+
+**Files:**
+- Create: `Assets/EterPixNudeNyang/Editor/NudeNyangEterPixPatcher.cs`
+- Create: `Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix.cs`(今は `Open` `Present` `Close` と空パネルだけ)
+- Create: `Assets/EterPixNudeNyang/Editor/EterPixAppBuilder.cs`(空パネルを作って `shell.eterpix` に接続)
+
+**Interfaces:**
+- Produces(パッチ後の NudeNyang 側): `NudeNyangTabletShell.eterpix : NudeNyangEterPix`、`OpenEterPix()`、`AppCount=12`、`AppName(12)="EterPix"`。`NudeNyangTravelPortal.BeginPlacement(string worldId, UdonSharpBehaviour app)` と `CancelFor(UdonSharpBehaviour app)`(既存の `NudeNyangTravel` 版は残し、中で新版へ委譲する。EterPix-app は `PlacementNotice(string)` / `PlacementAllowed()` を持つ)
+- Produces(我々): `NudeNyangEterPix.Open()`, `Present()`, `Close()`, `PlacementNotice(string)`, `PlacementAllowed()`
+
+パッチャの仕様(ここが肝):
+```csharp
+// 1パッチ = ファイル + アンカー(現在の文字列)+ 置換後 + 適用済み判定の目印.
+// 適用: 目印が既にあれば何もしない(冪等). アンカーが1回ちょうど無ければ「NudeNyangが更新された可能性」で停止して報告する.
+// 初回は元ファイルを <名前>.eterpix-orig として隣に退避する(gitignore下でも手元には残る).
+// 検査: Menu "NudeNyang/EterPix-app/パッチを検査" で全パッチの状態(適用済/未適用/アンカー不一致)をログに出す.
+// installed-release.json の version が 1.0.2 でなければ警告する.
+```
+
+- [ ] **Step 1**: パッチャを書く。まずは Task 0 の一覧のうち「コンパイルが通る最小」(`AppCount`、`eterpix` フィールド、`OpenEterPix`、`Launch` の分岐、`AppName`、ポータル型の汎用化、SharedControls の許可リスト)だけ
+- [ ] **Step 2**: `NudeNyang/EterPix-app/パッチを検査` を実行 → 未適用が列挙される(失敗の確認)
+- [ ] **Step 3**: 適用 → 検査で全て「適用済」、Unity のコンソールにコンパイルエラーなし(`read_console`)。再度適用しても差分が出ないこと(冪等)を確認
+- [ ] **Step 4**: `NudeNyangEterPix` の最小実装と Builder を書き、テンプレシーンで「ホームに12個目のアイコン → タップ → 空パネル(「EterPix-app」とだけ表示)→ ホームへ戻る」をClient Sim(またはPlayモード)で確認。**Travel等の既存アプリが従来どおり開くこと**も確認
+- [ ] **Step 5**: コミット(`Assets/EterPixNudeNyang/` と本計画書だけ add。NudeNyang本体は gitignore なので入らないことを `git status` で確認)
+
+---
+
+### Task 2: 投稿データ(JSON取得とパース)
+
+**Files:**
+- Create: `Assets/EterPixNudeNyang/Scripts/EterPixAppFeed.cs`
+- Modify: `NudeNyangEterPix.cs`(フィードを保持し `Open()` で取得開始)
+- Modify: `EterPixAppBuilder.cs`(`VRCUrl feedUrl` を設定)
+
+**Interfaces:**
+- Produces: `EterPixAppFeed`
+  - `public VRCUrl feedUrl;`(= `https://eterpix.com/api/vrc/v1/public`。Builder が設定。**VRCUrl はビルド時に焼く必要がある**)
+  - `public int Status` (0読込中 / 1正常 / 2URL未許可 / 3サーバー停止 / 4 0件)
+  - `public int Count`、`public string[] Poid, Pode, UserLabel, WorldLabel, WorldId;` `public int[] Coid, Copo, Coro;`
+  - `public void Fetch()`、完了時に `owner.SendCustomEvent("OnFeedChanged")`
+- 表示名の合成(契約どおり): `UserLabel = usna + (ussf があれば "[" + usst[ussf[0]] + "]")`、`WorldLabel = (wopf の各IDを wopt で引いて連結。未知IDは読み飛ばす) + woda[woid].wona`。`woid` が null/空なら `WorldId=""`
+- 取得: `VRCStringDownloader.LoadUrl(feedUrl, (IUdonEventReceiver)this)`。`OnStringLoadError` で `result.ErrorCode` を見て、URL未許可(`401`系/例外)とサーバー停止を分ける(既存 `eterpix_downloader.cs:661` の判定を踏襲)。R18(`po18==1`)は**除外する**(NudeNyangのユーザーに見せない。要確認 = 下記「確認事項」)
+
+- [ ] **Step 1**: v1の実レスポンス(`curl https://eterpix.com/api/vrc/v1/public`。出力は件数とキーの確認のみで、投稿者名等は記録に残さない)でキーを確認する
+- [ ] **Step 2**: `EterPixAppFeed` を書く。パース後に `[EtpTrace] feed count=N status=S` を必ず出す
+- [ ] **Step 3**: Playモードで開き、コンソールに件数が出る・Untrusted OFF では status=2 になる・オフラインで status=3 になることを確認
+- [ ] **Step 4**: コミット
+
+---
+
+### Task 3: 画像(コラージュ取得・キャッシュ・UV/回転)
+
+**Files:**
+- Create: `Assets/EterPixNudeNyang/Scripts/EterPixAppImages.cs`、`EterPixAppGeometry.cs`
+- Create: `Assets/EterPixNudeNyang/Editor/Tests/EterPixAppGeometryTests.cs`
+- Modify: `EterPixAppBuilder.cs`(256件の `VRCUrl[] imageUrls` = `https://eterpix.com/api/vrc/v1/public/00`〜`FF` を設定。`vrcurllist` と同じ生成)
+
+**Interfaces:**
+- `EterPixAppGeometry`(U#の外でも同じ式で検証できるよう、式は `public static` ではなく **インスタンスメソッド**にし、テストは同じ式を書いた純C#ヘルパ `EterPixAppMath`(Editor側 `Tests/` 内)と突き合わせる)
+  - `Rect CellUv(int copo)`: `col=(copo-1)%2; row=(copo-1)/2; new Rect(col*0.5f, 1f-(row+1)/3f, 0.5f, 1f/3f)`
+  - `bool IsPortrait(int coro)`: `coro % 2 == 1`
+  - `Vector2 FitSize(Vector2 box, bool portrait)`: K-4。写真の長辺を箱の長辺に、短辺を短辺に合わせ、食い違うときは90°回す(縦写真を横長の箱へ入れるなら回して長辺を合わせる)。戻り値は回転後の表示サイズ、回すかどうかは別の `bool NeedsQuarterTurn(Vector2 box, bool portrait)`
+  - `Rect SquareCropUv(Rect cell, bool portrait)`: 一覧用の中央1:1切り取り(横写真は左右、縦写真は上下が切れる)
+- `EterPixAppImages`
+  - `Texture2D GetTexture(int coid)`(未取得は null)、`void Want(int coid)`、`int maxCached`(既定は仮 24。**実機で決める**。D3/合意書「件数」)
+  - 直列DL: `VRCImageDownloader.DownloadImage(url, null, this, null)`。1件ずつ、完了するまで次を始めない(コールバックに識別子が無いため `pendingCoid` を1つ持つ。`eterpix_downloader` と同じ方針)。タイムアウトは警告ログのみ
+  - 追い出し: 現在のカードの前後 `LookAhead` 件が使う `coid` を優先して残し、超過分は `Destroy`/`Dispose`(`IVRCImageDownload.Dispose()`)
+  - 進行度: `Loaded / Total` を返す(起動画面の「ロード中...〇%」。Total = 現在の投稿が使う異なる `coid` の数)
+
+- [ ] **Step 1**: 失敗するテストを書く。`CellUv(1)=(0,2/3,0.5,1/3)`、`CellUv(6)=(0.5,0,0.5,1/3)`、`IsPortrait(1)=true/IsPortrait(2)=false`、`FitSize` が「横長の箱 + 縦写真」で回転ありを返す、`SquareCropUv` が横写真で左右が切れる、を各1ケース以上
+- [ ] **Step 2**: `Run: mcp run_tests (EditMode)` で FAIL を確認
+- [ ] **Step 3**: 式を実装(EditorのヘルパとU#側に同じ式を置く。コメントで相互参照)
+- [ ] **Step 4**: テストが PASS
+- [ ] **Step 5**: `EterPixAppImages` を実装し、`[EtpTrace] img coid=N loaded loadedCount=a/b evicted=c` を出す。Playモードで最初の数枚が順に取得され、5秒間隔で進むことを確認
+- [ ] **Step 6**: コミット
+
+---
+
+### Task 4: 起動画面と共通ヘッダー
+
+**Files:** Modify `NudeNyangEterPix.cs`、`EterPixAppBuilder.cs`
+
+**Interfaces:** `NudeNyangEterPix` に画面状態 `screen`(0起動 / 1スワイプ / 2一覧 / 3情報 / 4グループ)と、押す前の画面 `returnScreen` を持つ。`ShowScreen(int)`、`ToggleOverlay(int)`(♡/グループ/i は同じボタンで元へ戻る)。テーマ `isDark`(ローカル)
+
+- [ ] **Step 1**: Builder にヘッダー(ロゴ・ボタン4つ)と起動画面(ロゴ・紹介文・進行バー・「push to start」・フッター)を足す。文面は合意書の初期案のとおり
+- [ ] **Step 2**: ロード中は `push to start` を隠し「ロード中... 〇%」とバーを出す。`Images.Loaded/Total` と `Feed.Status` から更新。完了で `push to start` を出し、押すと `ShowScreen(1)`。**0件・URL未許可・サーバー停止ではロードが終わらない代わりにその状態を写真枠に出す**(合意書「状態の表示」)
+- [ ] **Step 3**: i / グループ / テーマ の共通画面。✕ への切り替え。情報画面末尾に「最新情報は X @_alicilia」。グループ説明は仮文面(合意書で「仮」)
+- [ ] **Step 4**: テーマ切替(黒/白)を、色のトークン(上の Global Constraints)を Builder で作った `Graphic[]` に配って切り替える。NudeNyang本体のテーマ(`NudeNyangTabletTheme`)とは**独立**にする(合意書にNudeNyangテーマ連動の記載なし。要確認)
+- [ ] **Step 5**: Playモードで 起動→(ロード)→開始 / i・グループの開閉 / テーマ切替 を目視確認し、スクリーンショットを `docs/superpowers/plans/screens/` に残す
+- [ ] **Step 6**: コミット
+
+---
+
+### Task 5: スワイプ画面
+
+**Files:** Modify `NudeNyangEterPix.cs`、`EterPixAppBuilder.cs`
+
+**Interfaces:** `int cursor`(現在のカード)、`bool[] liked`(`Count` 長)、`int likedCount`。`SwipeLeft()` / `SwipeRight()`(= 気にならない / 気になる)、`OnDragCard()`(ドラッグ量)。カードは2枚だけ実体化して使い回す(現在 + 真下に隠れた次)
+
+- [ ] **Step 1**: カード(RawImage + UV)と情報帯(投稿者名[称号]・ワールド名、50%半透明)を作る。写真は枠いっぱい・縦横比維持、縦判定は `IsPortrait(coro)`
+- [ ] **Step 2**: ヘッダー中央に「現在 / 総数」。写真の下の帯に左右ボタン(左 = 気にならない / 右 = 気になる)。ドラッグ中は色づく。**VRChatのレーザー/タッチでのドラッグ**は、NudeNyang流の `NudeNyangTouchSlop` / ジェスチャの扱いに合わせる(Task 0 で読んだ結果に従い、ここでは「ボタン操作を必須、ドラッグ・矢印キーを追加」の順で実装する)
+- [ ] **Step 3**: すべて見終わったら「気になる投稿一覧を見る」と「もう一度見る」を出す。「もう一度見る」→モーダル「気になる選択はなくなります。いいですか?」→「はい」で `liked` を全消去して `cursor=0`、「やめる」で戻る
+- [ ] **Step 4**: 画像が来ていないカードは写真枠を明滅(マテリアルは `NudeNyangInk.mat` ではなく、既存モニターの明滅マテリアルを参照して流用)。先読みは `Want(coid)` を `cursor±LookAhead` に対して呼ぶ
+- [ ] **Step 5**: Playモードで 20件前後を最後まで送り、気になる件数・「もう一度見る」の挙動を確認。スクリーンショットを残す
+- [ ] **Step 6**: コミット
+
+---
+
+### Task 6: 拡大(UIあり → UIなし → 戻る)
+
+**Files:** Modify `NudeNyangEterPix.cs`、`EterPixAppBuilder.cs`
+
+- [ ] **Step 1**: 写真を押す → 拡大(情報帯だけ。ヘッダー・フッターは出さない)→ 押す → UIなし → 押す → 元の画面。`zoomMode`(0なし/1UIあり/2UIなし)と、`zoomReturn`(スワイプ画面 or 一覧)を持つ
+- [ ] **Step 2**: 表示サイズは `FitSize(アプリ面の寸法, portrait)`、`NeedsQuarterTurn` のとき RawImage を時計回りに90°回す(回転の向きは合意書「未決」。仮に時計回り)
+- [ ] **Step 3**: 横写真・縦写真の両方で確認(Padと同じ見え方になること)
+- [ ] **Step 4**: コミット
+
+---
+
+### Task 7: 気になる投稿一覧
+
+**Files:** Modify `NudeNyangEterPix.cs`、`EterPixAppBuilder.cs`
+
+- [ ] **Step 1**: ♡で開く。`ScrollRect` + 行テンプレート(件数分は作らず、`likedCount` 分だけ有効化。上限は `Count`)。1件は2段「画像 | 説明」「画像(続き) | ボタン」
+- [ ] **Step 2**: 画像は `SquareCropUv` で中央1:1。押すと Task 6 の拡大に入り、最後は一覧へ戻る
+- [ ] **Step 3**: ボタンは右寄せ、左から「WEB | 高画質 | ポータルを開く」。WEB・高画質は文字を変えない。高画質は押すと面の色だけ変わる(動作は D3)
+- [ ] **Step 4**: `woid` が空の行は、ポータルのボタンを出さず「ワールド情報なし」
+- [ ] **Step 5**: スワイプ画面で気になるを数件付け、一覧に出る・順番・0件のときの表示(合意書に記載なし。「気になる投稿はありません」と出す案をユーザーに確認)を確認
+- [ ] **Step 6**: コミット
+
+---
+
+### Task 8: ポータル(方式A)
+
+**Files:** Modify `NudeNyangEterPix.cs`、`EterPixAppBuilder.cs`、(Task 1 のパッチで済んでいなければ)`NudeNyangEterPixPatcher.cs`
+
+- [ ] **Step 1**: Builder で `NudeNyangEterPix.portal` に、シーン内の既存 `NudeNyangTravelPortal` を接続する(無ければビルド時にエラー)
+- [ ] **Step 2**: ボタン文言の遷移「ポータルを開く」→(押す)「ポータルを置く」→(置いた)「ポータル開いた」→元に戻る。`PlacementNotice(string)` で受け取り、`PlacementAllowed()` は「このアプリを表示中」のとき true
+- [ ] **Step 3**: `Close()` / 別画面への遷移で `portal.CancelFor(this)` を呼ぶ(Travelと同じ。置きかけのポータルが残らないように)
+- [ ] **Step 4**: 実機相当(VR/デスクトップ)で、床を指して配置できること、30秒の再配置待ち中に押したときの通知、他のプレイヤーに同期されることを確認(2アカウント or Client Sim の複数クライアント)
+- [ ] **Step 5**: コミット
+
+---
+
+### Task 9: 状態表示の仕上げ
+
+**Files:** Modify `NudeNyangEterPix.cs`
+
+- [ ] **Step 1**: 通常 / 読み込み中 / URL未許可(「Allow Untrusted URLs」をONにしてください)/ サーバー停止 / 投稿0件 の文言を、Padの K-46 の文言に揃えて写真枠の中に出す。ヘッダーは常に表示
+- [ ] **Step 2**: 各状態を、Untrusted OFF・ネットワーク切断・空フィード(モックのURLを差し替え)で再現して確認
+- [ ] **Step 3**: コミット
+
+---
+
+### Task 10: 実機確認・上限調査・文書
+
+**Files:** Create `Assets/EterPixNudeNyang/README.md`、Modify `V:\...\CLAUDE.md`(使い方・既知の制約)、統合管理リポジトリ `docs/projects/unity.md` と `docs/decisions.md`(決定の追記は統合管理の手順どおり、承認後)
+
+- [ ] **Step 1**: VRChat にアップロードして実機のタブレットで一通り操作。**画像キャッシュの上限(`maxCached`)を、メモリ使用量とクラッシュ有無を見ながら決める**(合意書「投稿の件数」の未確認事項)
+- [ ] **Step 2**: 既存モニター/Padと同居するワールドで、5秒制限の取り合いによる遅延を測る(D2 の代償の確認)
+- [ ] **Step 3**: D3 の未決(WEB・高画質・サーバー保存・縦写真の見せ方・回転向き)の結果を反映する Task を追加する(未決のまま閉じない)
+- [ ] **Step 4**: README(パッチ手順・NudeNyang更新時の再適用・VRCUrlの焼き込み)を `.md` で書き、BUGS(未修正) を CLAUDE.md に載せる
+- [ ] **Step 5**: コミット・プッシュ
+
+---
+
+## 確認事項(未決だが計画には影響する)
+- R18 投稿(`po18==1`)を出すか(Task 2 は除外で仮置き)。既存モニターは R18 フィルタを持つので揃える想定
+- NudeNyangのテーマ(白/黒)と連動させるか(Task 4 は独立で仮置き)
+- 「気になる」を再起動後も残すか(PlayerData)。合意書は「サーバー保存するか」が未決
+- 有償アセットを改変・パッチすることのライセンス上の扱い(配布はせず、ワールド作者が手元で適用する形にする。READMEに明記)
+
+## セルフレビュー結果
+- 仕様網羅: 起動/スワイプ/拡大/一覧/ポータル/共通画面/状態表示/件数上限調査 → Task 4–10 に対応。「WEB・高画質」は D3 で未決のため Task 10 の追加 Task に回した(穴ではなく意図的)
+- 型の一貫性: `Status`(0–4)、`Count`、`Coid/Copo/Coro`、`liked`、`zoomMode`、`PlacementNotice/PlacementAllowed` を各Taskで同名で使用
+- 弱点: NudeNyang本体(第三者・1行詰め・gitignore)へのパッチは、Task 0 の実測まで確定できない。Task 1 の縦串スモークで早期に可否が分かる構成にしてある
