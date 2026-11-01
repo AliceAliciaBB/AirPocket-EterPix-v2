@@ -1,5 +1,6 @@
 using UdonSharp;
 using UnityEngine;
+using VRC.SDKBase;
 using UnityEngine.UI;
 using TMPro;
 
@@ -7,9 +8,19 @@ namespace NudeNyang
 {
     // NudeNyangタブレットの12番目のアプリ「EterPix-app」.
     // 計画: docs/superpowers/plans/2026-10-31-eterpix-app.md
-    [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
+    [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class NudeNyangEterPix : UdonSharpBehaviour
     {
+        // ---- 画面の同期(他のプレイヤーにも自分の画面が見える) ----
+        // NudeNyang 本体の XFeed と同じ作法: 操作した人がオーナーになり RequestSerialization、他の人は OnDeserialization で追従.
+        // 投稿は添字でなく poid(投稿ID)で指す(フィードの順が人によって違い得るため)
+        [UdonSynced] private int sRev;
+        [UdonSynced] private int sScreen, sReturn, sBack, sZoomMode;
+        [UdonSynced] private bool sStarted, sDark;
+        [UdonSynced] private string sCursor = "", sZoomPoid = "", sLiked = "";
+        private bool syncDirty, applyingRemote, pendingRemote;
+        private float nextSend, retryAt;
+        private const float SyncInterval = 0.2f;
         // NudeNyangTabletShell.AppCount の12番目. パッチ(P1〜P9)で追加される
         public const int AppId = 12;
 
@@ -183,6 +194,7 @@ namespace NudeNyang
         // 毎フレーム(表示中のスワイプ画面だけ). 矢印キーと明滅はシェルの Present に依存させない
         private void Update()
         {
+            SyncTick();
             if (!visible || group == null) return;
             UpdateOrientation();
             // 一覧のスクロールに合わせた行の付け替えも、シェルの Present に頼らず毎フレーム見る
@@ -208,6 +220,116 @@ namespace NudeNyang
                 c.a = failed ? 1f : 0.35f + 0.65f * (0.5f + 0.5f * Mathf.Sin(Time.time * 4f));
                 cardNotice.color = c;
             }
+        }
+
+        // ---- 同期の実装 ----
+
+        // 自分が操作したときに呼ぶ(他の人の状態を適用している間は呼ばない)
+        private void MarkDirty()
+        {
+            if (applyingRemote) return;
+            syncDirty = true;
+        }
+
+        private void SyncTick()
+        {
+            if (!Utilities.IsValid(Networking.LocalPlayer)) return;
+            if (syncDirty && Time.unscaledTime >= nextSend && !Networking.IsClogged)
+            {
+                syncDirty = false;
+                nextSend = Time.unscaledTime + SyncInterval;
+                SendSync();
+            }
+            // 受けた状態は、自分のフィード・画像が揃ってから適用する
+            if (pendingRemote && Time.unscaledTime >= retryAt && visible && feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk) ApplyRemote();
+        }
+
+        private void SendSync()
+        {
+            if (!Networking.IsOwner(gameObject)) Networking.SetOwner(Networking.LocalPlayer, gameObject);
+            bool feedOk = feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk;
+            sScreen = screen; sReturn = returnScreen; sBack = overlayBack;
+            sStarted = started; sDark = isDark; sZoomMode = zoomMode;
+            sCursor = (started && feedOk) ? (cursor >= feed.Count ? "#end" : feed.Poid[cursor]) : "";
+            sZoomPoid = (feedOk && zoomMode != 0 && zoomIndex >= 0 && zoomIndex < feed.Count) ? feed.Poid[zoomIndex] : "";
+            string l = "";
+            if (feedOk)
+            {
+                for (int i = 0; i < liked.Length && i < feed.Count; i++)
+                {
+                    if (liked[i]) l += (l.Length > 0 ? "," : "") + feed.Poid[i];
+                }
+            }
+            sLiked = l;
+            sRev++;
+            RequestSerialization();
+            Debug.Log("[EtpTrace] eterpix-app sync send rev=" + sRev + " screen=" + sScreen + " started=" + sStarted
+                + " cursor=" + sCursor + " zoom=" + sZoomMode + " liked=" + likedCount);
+        }
+
+        public override void OnDeserialization()
+        {
+            if (sRev == 0) return; // まだ誰も送っていない
+            pendingRemote = true;
+            Debug.Log("[EtpTrace] eterpix-app sync recv rev=" + sRev + " screen=" + sScreen + " started=" + sStarted
+                + " cursor=" + sCursor + " zoom=" + sZoomMode);
+        }
+
+        private int IndexOfPoid(string poid)
+        {
+            if (feed == null || string.IsNullOrEmpty(poid)) return -1;
+            for (int i = 0; i < feed.Count; i++)
+            {
+                if (feed.Poid[i] == poid) return i;
+            }
+            return -1;
+        }
+
+        // 他のプレイヤーの状態を、自分の画面へ映す
+        private void ApplyRemote()
+        {
+            pendingRemote = false;
+            applyingRemote = true;
+            if (sDark != isDark) { isDark = sDark; ApplyTheme(); }
+            bool needRetry = false;
+            if (sStarted)
+            {
+                started = true;
+                if (liked == null || liked.Length != feed.Count) liked = new bool[feed.Count];
+                for (int i = 0; i < liked.Length; i++) liked[i] = false;
+                likedCount = 0;
+                string[] ids = sLiked.Split(',');
+                for (int k = 0; k < ids.Length; k++)
+                {
+                    int li = IndexOfPoid(ids[k]);
+                    if (li >= 0 && !liked[li]) { liked[li] = true; likedCount++; }
+                }
+                if (sCursor == "#end") cursor = feed.Count;
+                else
+                {
+                    int ci = IndexOfPoid(sCursor);
+                    if (ci >= 0) cursor = ci; else needRetry = sCursor != "";
+                }
+                int zi = sZoomMode != 0 ? IndexOfPoid(sZoomPoid) : -1;
+                if (zi >= 0)
+                {
+                    if (images != null && images.GetTexture(feed.Coid[zi]) != null)
+                    {
+                        zoomIndex = zi; zoomMode = sZoomMode;
+                        zoomRoot.SetActive(true);
+                        RefreshZoom();
+                    }
+                    else { images.Want(feed.Coid[zi], 0); needRetry = true; }
+                }
+                else if (zoomMode != 0) { zoomMode = 0; zoomIndex = -1; zoomRoot.SetActive(false); }
+            }
+            returnScreen = sReturn; overlayBack = sBack;
+            if (screen != sScreen) ShowScreen(sScreen);
+            else if (screen == ScreenSwipe && started) ShowCard();
+            else if (screen == ScreenList) OpenList();
+            applyingRemote = false;
+            if (needRetry) { pendingRemote = true; retryAt = Time.unscaledTime + 0.5f; } // 画像・投稿が届くまで、0.5秒おきに取り直す
+            Debug.Log("[EtpTrace] eterpix-app sync applied rev=" + sRev + " screen=" + screen + " cursor=" + cursor + " zoom=" + zoomMode + " retry=" + needRetry);
         }
 
         // 実際の枠の大きさ. タブレットを縦向きにすると変わる(スリープ中は rect が0になるので、ビルド時の大きさで代用)
@@ -645,6 +767,7 @@ namespace NudeNyang
             zoomMode = 1;
             zoomRoot.SetActive(true);
             RefreshZoom();
+            MarkDirty();
         }
 
         public void OnZoomTap()
@@ -661,6 +784,7 @@ namespace NudeNyang
                 zoomRoot.SetActive(false);
             }
             Debug.Log("[EtpTrace] eterpix-app zoom mode=" + zoomMode);
+            MarkDirty();
         }
 
         private void RefreshZoom()
@@ -701,6 +825,7 @@ namespace NudeNyang
             if (like && !liked[cursor]) { liked[cursor] = true; likedCount++; }
             cursor++;
             ShowCard();
+            MarkDirty();
         }
 
         // もう一度見る: 確認モーダル → はい で気になる選択を消して先頭へ
@@ -721,6 +846,7 @@ namespace NudeNyang
             likedCount = 0;
             cursor = 0;
             ShowCard();
+            MarkDirty();
         }
 
         // 先頭から startupPreload 枚ぶんの(重複しない)コラージュを先に取る
@@ -810,6 +936,7 @@ namespace NudeNyang
             if (next == ScreenInfo && infoUrlField != null) SetCopyText(infoUrlField, InfoUrl);
             if (next == ScreenSwipe && started) ShowCard(); // 一覧などで入れ替わった先読みを、現在のカードに合わせて取り直す
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
+            if (fetchStarted) MarkDirty();
         }
 
         // i・グループは同じボタンで開閉する(開く前の画面へ戻る)
@@ -839,6 +966,7 @@ namespace NudeNyang
             cursor = 0;
             ShowScreen(ScreenSwipe);
             ShowCard();
+            MarkDirty();
         }
 
         public void OnTheme()
@@ -846,6 +974,7 @@ namespace NudeNyang
             isDark = !isDark;
             ApplyTheme();
             Debug.Log("[EtpTrace] eterpix-app theme dark=" + isDark);
+            MarkDirty();
         }
 
         private void ApplyTheme()

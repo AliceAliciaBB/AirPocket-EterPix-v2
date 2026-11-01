@@ -9,7 +9,7 @@ EterPix の写真を、タブレットの中でスワイプして見られます
 ## 必要なもの
 
 - **NudeNyang Tablet の正規製品(別途購入)**。このリポジトリ/配布物には本体のファイルを含みません。
-- 対応バージョン: **NudeNyang 1.0.4**(1.0.2 から更新して検証. 更新後は「Prepare pads in scene」と Builder をやり直す)(`Assets/NudeNyang/InstallManager/Editor/Updates/installed-release.json` の `version`)
+- 対応バージョン: **NudeNyang 1.0.5**(1.0.4 から更新. 全パッチが適用でき、アンカー不一致なし. Play で起動・同期ログを確認. 更新すると本体のファイルが上書きされてパッチが消えるので、更新後は「パッチを検査 → 適用」と Builder をやり直す)(`Assets/NudeNyang/InstallManager/Editor/Updates/installed-release.json` の `version`)
 - 本体は公式の場所 `Assets/NudeNyang/` に入れてください(旧い配置 `Assets/アセット(同期しない)/NudeNyang/` も検出しますが、非推奨)
 - VRChat SDK(Worlds)+ UdonSharp
 
@@ -85,6 +85,8 @@ NudeNyang を更新したら、3 → 4 をもう一度行います。`アンカ�
 - 投稿の説明(API の `pode`)を、スワイプの情報帯(投稿者の下・2行まで)・拡大の情報帯・一覧の各行(ワールドの下・2行まで)に出します。改行は空白に直し、説明が無い投稿は欄を出さず情報帯を低いままにします。一覧の日付は出しません(説明で置き換え)
 - 一覧と情報ページは、ボタンの無い所(行の余白・一覧の下の空き・情報ページ全体)でもレーザーでスクロールできます。本体が X フィードの空白部に使う「面の入力」(`NudeNyangTouchSlopBuilder.ConfigureViewportInput`: viewport に ScrollRect・Slider・EventTrigger を付けて触り判定ゲートへ結ぶ)を、ビルダーが一覧・情報ページにも付けます
 - 一覧の上に固定の見出し「気になる投稿 N 件」があります
+- **画面の同期**(2026-11-01): 操作した人の画面(基準の画面・今のカード・拡大・白黒・気になる一覧)を、他のプレイヤーのタブレットにも映します. NudeNyang 本体の XFeed と同じ作法で、`BehaviourSyncMode.Manual`・操作した人がオーナー・0.2秒間隔で `RequestSerialization`、他の人は `OnDeserialization` で追従します. 投稿は添字ではなく `poid` で指す(フィードの順が人によって違っても合う). 受けた側のフィード・画像が揃っていなければ 0.5 秒おきに取り直します. ログ: `sync send` / `sync recv` / `sync applied`. **Play(単独)では送信と、同期変数を書き換えての受信適用までを確認済み. 複数クライアントでの実機確認は未了**
+- 拡大の優先(2026-11-01): 引き量がカード幅の 4% 未満の離しはタップとして拡大する / 離した後のタップ抑止はスワイプが確定したときだけ / 0.35 秒以内のダブルタップは抑止を無視して必ず拡大する
 - 情報ページはモニターの案内文から、モニター固有の操作(ページ切替・再読み込み)を除き、アプリの操作説明を足した文面です。縦にスクロールでき、投稿ページの URL は一覧の WEB/高画質と同じコピー用の欄です。グループページの文面もモニターと同じ構成です
 - 画面の行き来: 一覧(☆)・i・グループは重なる画面です。一覧→i→一覧のあとに×を押しても、スワイプへ戻れます(`returnScreen`=基準の画面、`overlayBack`=i・グループを閉じたときの戻り先)
 - 一覧のスクロール枠とサムネ枠は、`RectMask2D` ではなくステンシルの `Mask` で切ります(NudeNyang は縦向きのとき viewport を回し、`RectMask2D` だと範囲が負になって行が全部消える。NudeNyang 本体の NudeNyangScrollBuilder と同じ対処)
