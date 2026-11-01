@@ -62,7 +62,7 @@ NudeNyang を更新したら、3 → 4 をもう一度行います。`アンカ�
 - 新規コードは `Assets/EterPixNudeNyang/` のみ(本体のコードは含めない。`Assets/NudeNyang/` は gitignore)
 - 画像は VRChat のダウンロード間隔(5秒)に合わせ、専用の取得キューで直列に取り、写真を「コラージュ」のアトラスから切り出して表示します(`EterPixAppImages` / `EterPixAppGeometry`)
 - 画像の URL(VRCUrl)はビルド時に配列として焼き込みます
-- 取得先: WEB `https://eterpix.com/web/post/<poid>` / 高画質 `https://eterpix.com/api/images/<poid>`
+- 取得先: WEB `https://eterpix.com/web/post/<poid>` / 高画質(Pad 用 URL. モニターと同じ) `https://eterpix.com/api/vrc/v1/pad/<poid>`
 - eterpix.com は VRChat の信頼済みドメインではないため、プレイヤー側で **「Allow Untrusted URLs」をON** にする必要があります(OFF のときはアプリ内にそう表示されます)
 
 ## 開発用メニュー
@@ -80,4 +80,8 @@ NudeNyang を更新したら、3 → 4 をもう一度行います。`アンカ�
 - 縦写真(`coro` が奇数)は、**スワイプ画面では縦のまま(正立)枠に収めます**(2026-11-01 のユーザー指示で、決定 D-112 の「Pad と同じ=倒す」から変更。拡大画面は従来どおり Pad の K-4=枠の長辺に合わせて反時計回りに倒す)
 - タブレットを縦向きにしたときは、実際の枠の大きさ(`panel.rect`)で写真を作り直し、カード・ボタンを横いっぱいに広げます(縦写真が大きくなる)。縦向きになると `[EtpTrace] eterpix-app layout panel=... portrait=True rowHeight=...` が出ます
 - 気になる一覧の行は、モックの縦向きと同じ構成です(画像は左で全段ぶん、右に名前・ワールド・ボタン。右寄せのボタンは、幅に収まらなければ次の段へ折り返す=縦向きは WEB/高画質 の下にポータルを開く)。行の高さは向きで変わります(`rowHeight`)
+- ボタンの配色はモニターと同じです(通常=`--btn` 黒 `#2a2a2a` / 白 `#e6e6e6`、強調=accent `#9d6fff`。ヘッダーの4ボタン・スワイプの左右・WEB/高画質・「やめる」「もう一度見る」は通常色、「ポータルを開く」「はい」「push to start」は accent)。スワイプのドラッグ中だけ、方向のボタンが accent に色づきます
+- 一覧の上に固定の見出し「気になる投稿 N 件」があります
+- 情報ページはモニターの案内文から、モニター固有の操作(ページ切替・再読み込み)を除き、アプリの操作説明を足した文面です。縦にスクロールでき、投稿ページの URL は一覧の WEB/高画質と同じコピー用の欄です。グループページの文面もモニターと同じ構成です
+- 画面の行き来: 一覧(☆)・i・グループは重なる画面です。一覧→i→一覧のあとに×を押しても、スワイプへ戻れます(`returnScreen`=基準の画面、`overlayBack`=i・グループを閉じたときの戻り先)
 - 一覧のスクロール枠とサムネ枠は、`RectMask2D` ではなくステンシルの `Mask` で切ります(NudeNyang は縦向きのとき viewport を回し、`RectMask2D` だと範囲が負になって行が全部消える。NudeNyang 本体の NudeNyangScrollBuilder と同じ対処)

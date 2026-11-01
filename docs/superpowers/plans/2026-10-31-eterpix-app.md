@@ -45,7 +45,7 @@
 - **D1 配置**: 全部 `Assets/EterPixNudeNyang/`(推奨)か、`Packages/com.aliciliabb.eterpix` に入れるか。→ 推奨は前者。EterPix本体パッケージはVPMで配るため、有償の第三者アセットに依存させない。NudeNyang側も asmdef が無く(Assembly-CSharp)、パッケージ asmdef からは参照できない
 - **D2 取得層**: `eterpix_downloader` を拡張して共用(画像の受け手は `eterpix_monitor` 型固定で、U#にインターフェースが無く拡張が大きい)か、専用の取得キュー(推奨)か。→ 推奨は専用。代償は、同じワールドの既存モニターと VRChat の5秒制限を取り合うこと(Pad の K-12 のような優先は付かない)。**ワールドにモニターを置く場合は影響を実機で確認する**
 - **D3 合意書の「未決」**: ポータル方式 A/B、サーバー保存、起動→開始の関係など。本計画は「**気になる = ローカルのみ(セッション内、再起動で消える)**」「**ポータルは方式A(`BeginPlacement`)**」を仮に採る
-- **D4 WEB / 高画質 = コピペ方式(ユーザー決定 2026-10-31)**: EterPix-beta のモニター(`eterpix_monitor.cs:545-562`)と同じく、**読み取り専用の入力欄に URL を入れ、押すと VRChat の入力 UI が開いてコピーできる**方式。UI は NudeNyang が持つ同じ型の部品に合わせる(NudeNyang側は `UnityEngine.UI.InputField` に実行時にテキストを入れる作り: `NudeNyangBrowserShare.publicAddress`(「원문 주소를 복사하여…」の原文アドレス欄)と `NudeNyangMediaKeyboard.copyField`)。新しいコピー機構は作らない。URL は `https://eterpix.com` + WEB `/web/post/<poid>`(モニターの `WebPostPath`)/ 高画質 `/api/images/<poid>`(`image-formats.md`。サフィックスなし = フル画質)。`VRCUrlInputField` は `VRCUrl`(ビルド時固定)が要るので**使わない**。`InputField` なら投稿ごとの動的な文字列を入れられる
+- **D4 WEB / 高画質 = コピペ方式(ユーザー決定 2026-10-31)**: EterPix-beta のモニター(`eterpix_monitor.cs:545-562`)と同じく、**読み取り専用の入力欄に URL を入れ、押すと VRChat の入力 UI が開いてコピーできる**方式。UI は NudeNyang が持つ同じ型の部品に合わせる(NudeNyang側は `UnityEngine.UI.InputField` に実行時にテキストを入れる作り: `NudeNyangBrowserShare.publicAddress`(「원문 주소를 복사하여…」の原文アドレス欄)と `NudeNyangMediaKeyboard.copyField`)。新しいコピー機構は作らない。URL は `https://eterpix.com` + WEB `/web/post/<poid>`(モニターの `WebPostPath`)/ 高画質 `/api/vrc/v1/pad/<poid>`(`image-formats.md`。サフィックスなし = フル画質)。`VRCUrlInputField` は `VRCUrl`(ビルド時固定)が要るので**使わない**。`InputField` なら投稿ごとの動的な文字列を入れられる
 
 ---
 
@@ -232,7 +232,7 @@
 
 - [ ] **Step 1**: ♡で開く。`ScrollRect` + 行テンプレート(件数分は作らず、`likedCount` 分だけ有効化。上限は `Count`)。1件は2段「画像 | 説明」「画像(続き) | ボタン」
 - [ ] **Step 2**: 画像は `SquareCropUv` で中央1:1。押すと Task 6 の拡大に入り、最後は一覧へ戻る
-- [ ] **Step 3**: ボタンは右寄せ、左から「WEB | 高画質 | ポータルを開く」。WEB・高画質は **D4 のコピペ方式**: ボタンの枠の中に、読み取り専用の `InputField`(文字は透明、枠いっぱいに重ねる。モニターの `SetShareField` と同じく、枠ごと出し入れする)を置き、行が有効になるときに `field.text = "https://eterpix.com/web/post/" + poid` / `"https://eterpix.com/api/images/" + poid` を入れる。押すと VRChat の入力 UI が開き、そこでコピーできる。文字は変えない。高画質は押すと面の色だけ変わる(押下の見た目はボタン側の色遷移)
+- [ ] **Step 3**: ボタンは右寄せ、左から「WEB | 高画質 | ポータルを開く」。WEB・高画質は **D4 のコピペ方式**: ボタンの枠の中に、読み取り専用の `InputField`(文字は透明、枠いっぱいに重ねる。モニターの `SetShareField` と同じく、枠ごと出し入れする)を置き、行が有効になるときに `field.text = "https://eterpix.com/web/post/" + poid` / `"https://eterpix.com/api/vrc/v1/pad/" + poid` を入れる。押すと VRChat の入力 UI が開き、そこでコピーできる。文字は変えない。高画質は押すと面の色だけ変わる(押下の見た目はボタン側の色遷移)
   - 実装の手本はこの2つを読んでから書く: `NudeNyangBrowserShare.cs` の `publicAddress` の使われ方(`:1327`, `:1572`)と、`NudeNyangMediaKeyboard.cs:905-915` の `RefreshHandoff`(「ラベルが空のまま残る」対策に `ForceLabelUpdate()` と `textComponent.RecalculateMasking()` を呼んでいる。同じ現象が出るので同じ対策を入れる)
   - 一覧の行は使い回すので、行を再利用するたびに `field.text` を入れ直す(`copyField` と同じく、導出される値は毎回合わせる)
 - [ ] **Step 4**: `woid` が空の行は、ポータルのボタンを出さず「ワールド情報なし」
@@ -244,7 +244,7 @@
 - D4(コピペ方式): 計画の「読み取り専用」ではなく、NudeNyang の `copyField` と同じ「通常の InputField(文字は透明)+入力を終えたら元の値へ戻す(`OnCopyEnd` → 2フレーム後にも再設定)」にした。`ForceLabelUpdate()` と `RecalculateMasking()` も入れた。VRChat 実機での「入力UIが開いてコピーできる」ことは Client Sim では確認できない → Task 10 の実機確認に残す。
 - ヘッダーの ♡ は `NotoSansJP-Bold SDF` に無く □ になるため、仮に ☆ にした(合意書の ♡ から見た目が変わる → 要確認。♡を使うなら画像アイコン化が要る)。
 - ポータルのボタンは行に作ってあるが、Task 8 まで非表示(`portalEnabled=false`)。`woid` が空の行は「ワールド情報なし」。
-- 検証: Play で 3件に気になる → 一覧で 3行・サムネ(縦写真は正立)・URL(`web/post/<poid>`・`api/images/<poid>`)・拡大→戻る・☆の開閉を確認(スクショ `screens/task7-list.png`)。未確認: 8行を超えるスクロール(件数が少なく)、0件の表示。
+- 検証: Play で 3件に気になる → 一覧で 3行・サムネ(縦写真は正立)・URL(`web/post/<poid>`・`api/vrc/v1/pad/<poid>`)・拡大→戻る・☆の開閉を確認(スクショ `screens/task7-list.png`)。未確認: 8行を超えるスクロール(件数が少なく)、0件の表示。
 
 ---
 

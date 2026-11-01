@@ -18,18 +18,22 @@ namespace EterPixNudeNyang
             "ようこそ、EterPix-appへ。\nこのアプリは、VRChatの投稿をスワイプで見ることができるアプリです。\n詳しくは右上の[ i ]ボタンを押してご確認ください。";
 
         const string InfoText =
-            "EterPix-app について\n\n" +
-            "EterPixで投稿された写真を、スワイプで見られるアプリです。\n" +
-            "左スワイプ: 気にならない / 右スワイプ: 気になる\n" +
-            "気になる投稿は、あとで一覧で確認できます。\n" +
-            "気になる投稿は、このインスタンスを出ると消えます。\n\n" +
-            "R18の投稿は表示されません。\n\n" +
-            "最新情報は X @_alicilia";
+            "EterPixについて\n\n" +
+            "EterPixは、VRChatで撮影した写真を共有できるSNSです。このアプリでは、EterPixに投稿された公開写真を、スワイプで閲覧できます。R18の投稿は表示されません。\n\n" +
+            "<b>スワイプで選ぶ</b>\n写真を左右にドラッグして離すと、次の写真へ進みます。右へ離すと「気になる」、左へ離すと「気にならない」です。下のボタンを押しても同じ操作ができます。\n\n" +
+            "<b>写真を拡大する</b>\n写真を押すと拡大します。もう一度押すと情報が消え、さらに押すと閉じます。\n\n" +
+            "<b>気になる投稿の一覧</b>\n右上の☆で、気になる投稿の一覧を開きます。「WEB」「高画質」を押すと、それぞれのURLをコピーできます。気になる印は、このインスタンスを出ると消えます。\n\n" +
+            "<b>ワールドへ行く</b>\n一覧の「ポータルを開く」を押すと、撮影されたワールドへのポータルが開きます。\n\n" +
+            "<b>表示色を変える</b>\n右上の切替ボタンで、黒と白を切り替えられます。\n\n" +
+            "<b>写真を投稿する</b>\n投稿はWebから行えます。下のURLを押すとコピーできます。ブラウザで開いてください。";
+        // 本文のあとに、コピーできるURLの欄が入る(URL は NudeNyangEterPix.InfoUrl)
+        const string InfoFooter = "最新情報は X @_alicilia をご確認ください";
 
         // 仮の文面(合意書でも「仮」)
         const string GroupText =
-            "EterPix グループ\n\n" +
-            "(ここにグループの説明が入ります。仮)";
+            "グループ\n\n" +
+            "ここにグループの説明が入ります(文面は仮)。\n\n" +
+            "EterPix は、VRChatで撮った写真を共有する人たちの集まりです。投稿された写真は、このアプリのほか、ワールドのモニターでも見られます。";
 
         class Tokens
         {
@@ -37,6 +41,7 @@ namespace EterPixNudeNyang
             public List<Graphic> panel = new List<Graphic>();
             public List<Graphic> text = new List<Graphic>();
             public List<Graphic> sub = new List<Graphic>();
+            public List<Graphic> btn = new List<Graphic>(); // ボタン(モニターの --btn: 黒 #2a2a2a / 白 #e6e6e6)
         }
 
         static void BuildUi(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Sprite logo)
@@ -70,10 +75,11 @@ namespace EterPixNudeNyang
             var groupIconRt = (RectTransform)groupIconGo.transform; groupIconRt.SetParent(header.Find("Group Button"), false);
             Anchor(groupIconRt, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-18, -18), new Vector2(18, 18));
             var groupIconImg = groupIconGo.GetComponent<Image>();
-            groupIconImg.sprite = groupSprite; groupIconImg.color = Dark; groupIconImg.preserveAspect = true; groupIconImg.raycastTarget = false;
+            groupIconImg.sprite = groupSprite; groupIconImg.color = Color.white; groupIconImg.preserveAspect = true; groupIconImg.raycastTarget = false;
+            tk.text.Add(groupIconImg); // アイコンの色は文字色に従う(モニターの currentColor)
             app.groupIcon = groupIconGo;
             HeaderButton(header, "Theme Button", "", font, 2, tk, app, "OnTheme");
-            BuildThemeIcon((RectTransform)header.Find("Theme Button"));
+            BuildThemeIcon((RectTransform)header.Find("Theme Button"), tk);
             // ☆(気になる一覧。♡はフォントに無いため仮). ロード完了後に出る
             app.heartLabel = HeaderButton(header, "Heart Button", "☆", font, 3, tk, app, "OnHeart");
             app.heartButton = header.Find("Heart Button").gameObject;
@@ -95,7 +101,7 @@ namespace EterPixNudeNyang
 
             BuildList(app, root, font, tk);
 
-            app.infoScreen = TextScreen(root, "Info Screen", InfoText, font, tk);
+            app.infoScreen = BuildInfo(app, root, font, tk);
             app.groupScreen = TextScreen(root, "Group Screen", GroupText, font, tk);
 
             BuildZoom(app, root, font);
@@ -110,6 +116,7 @@ namespace EterPixNudeNyang
 
             app.bgGraphics = tk.bg.ToArray();
             app.panelGraphics = tk.panel.ToArray();
+            app.btnGraphics = tk.btn.ToArray();
             app.textGraphics = tk.text.ToArray();
             app.subGraphics = tk.sub.ToArray();
         }
@@ -167,7 +174,7 @@ namespace EterPixNudeNyang
             Anchor(rowRt, 0.17f, 0, 0.83f, 0, new Vector2(0, 8), new Vector2(0, 84));
             var pass = TextButton(rowRt, "Pass Button", "気にならない", font, tk, app, "OnPass", false);
             Anchor(pass, 0, 0, 0.48f, 1, Vector2.zero, Vector2.zero);
-            var like = TextButton(rowRt, "Like Button", "気になる", font, tk, app, "OnLike", true);
+            var like = TextButton(rowRt, "Like Button", "気になる", font, tk, app, "OnLike", false);
             Anchor(like, 0.52f, 0, 1, 1, Vector2.zero, Vector2.zero);
             // ドラッグ中に方向のボタンを明るくする重ね(透明から始まり、ドラッグ量で濃くなる)
             app.passHot = BuildHot(pass);
@@ -207,7 +214,11 @@ namespace EterPixNudeNyang
             var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
             var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = false;
             viewport.GetComponent<Mask>().showMaskGraphic = false;
-            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, 0));
+            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, -56));
+            // 見出し「気になる投稿 N 件」(スクロールしない固定の見出し)
+            var heading = Label(screen, "Heading", "気になる投稿 0 件", font, 30, TextAlignmentOptions.MidlineLeft, tk.text);
+            Anchor(heading.rectTransform, 0, 1, 1, 1, new Vector2(24, -56), new Vector2(-24, 0));
+            app.listHeading = heading;
             var content = new GameObject("Content", typeof(RectTransform));
             var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
             contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0.5f, 1);
@@ -273,11 +284,13 @@ namespace EterPixNudeNyang
 
             // 2段目: ボタン(右寄せ。左から WEB | 高画質 | ポータルを開く)
             const float btnH = 52f, portalW = 220f, copyW = 150f, gap = 10f, edge = 16f;
-            var portal = Box(row, "Portal Button", tk.bg);
+            var portal = Box(row, "Portal Button", null);
+            portal.GetComponent<Image>().color = Accent;
             portal.anchorMin = portal.anchorMax = new Vector2(1, 0); portal.pivot = new Vector2(1, 0);
             portal.sizeDelta = new Vector2(portalW, btnH); portal.anchoredPosition = new Vector2(-edge, 10);
             var pBtn = portal.gameObject.AddComponent<Button>(); pBtn.targetGraphic = portal.GetComponent<Image>(); pBtn.navigation = new Navigation { mode = Navigation.Mode.None };
-            var pLabel = Label(portal, "Label", "ポータルを開く", font, 24, TextAlignmentOptions.Center, tk.text);
+            var pLabel = Label(portal, "Label", "ポータルを開く", font, 24, TextAlignmentOptions.Center, null);
+            pLabel.color = Dark;
             Anchor(pLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             Wire(pBtn, app, "OnRowPortal" + k);
             app.rowPortalLabels[k] = pLabel;
@@ -295,7 +308,7 @@ namespace EterPixNudeNyang
         // 編集されても、入力を終えたら元の値へ戻す(NudeNyangの copyField と同じ方式)
         static InputField CopyButton(NudeNyangEterPix app, RectTransform row, string name, string label, TMP_FontAsset font, Tokens tk, float x, float w, float h)
         {
-            var b = Box(row, name, tk.bg);
+            var b = Box(row, name, tk.btn);
             b.anchorMin = b.anchorMax = new Vector2(1, 0); b.pivot = new Vector2(1, 0);
             b.sizeDelta = new Vector2(w, h); b.anchoredPosition = new Vector2(x, 10);
             var img = b.GetComponent<Image>();
@@ -377,14 +390,14 @@ namespace EterPixNudeNyang
             var rt = (RectTransform)go.transform; rt.SetParent(button, false);
             Anchor(rt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             rt.SetAsFirstSibling();
-            var img = go.GetComponent<Image>(); img.color = new Color(1, 1, 1, 0); img.raycastTarget = false;
+            var img = go.GetComponent<Image>(); img.color = new Color(Accent.r, Accent.g, Accent.b, 0); img.raycastTarget = false; // ドラッグ中だけ accent に色づく
             return img;
         }
 
         // 文字だけの長方形ボタン. accent=true なら強調色
         static RectTransform TextButton(Transform parent, string name, string text, TMP_FontAsset font, Tokens tk, NudeNyangEterPix app, string eventName, bool accent)
         {
-            var b = Box(parent, name, accent ? null : tk.panel);
+            var b = Box(parent, name, accent ? null : tk.btn);
             var img = b.GetComponent<Image>();
             if (accent) img.color = Accent;
             var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
@@ -445,6 +458,45 @@ namespace EterPixNudeNyang
             app.statusLabel = status;
         }
 
+        // 情報ページ: 縦にスクロールできる面に、本文・コピーできるURL欄・最新情報の順で並べる
+        static GameObject BuildInfo(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            var screen = Screen(root, "Info Screen");
+            // 縦向きの viewport 回転でも消えないよう、一覧と同じステンシルの Mask で切る
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
+            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = false;
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
+            Anchor(viewportRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
+            contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0.5f, 1);
+            contentRt.offsetMin = Vector2.zero; contentRt.offsetMax = Vector2.zero;
+            var vlg = content.GetComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(48, 48, 24, 24); vlg.spacing = 20;
+            vlg.childControlWidth = true; vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
+            vlg.childAlignment = TextAnchor.UpperLeft;
+            content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var scroll = screen.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewportRt; scroll.content = contentRt;
+            scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f; scroll.inertia = true;
+            var catcher = screen.gameObject.AddComponent<Image>(); catcher.color = new Color(0, 0, 0, 0);
+
+            var body = Label(contentRt, "Body", InfoText, font, 26, TextAlignmentOptions.TopLeft, tk.text);
+            // コピーできるURL欄(一覧の WEB / 高画質 と同じ方式)
+            var field = CopyButton(app, contentRt, "Url Button", NudeNyangEterPix.InfoUrl, font, tk, 0, 520, 52);
+            var fieldRt = (RectTransform)field.transform;
+            fieldRt.anchorMin = new Vector2(0, 1); fieldRt.anchorMax = new Vector2(0, 1); fieldRt.pivot = new Vector2(0, 1);
+            var le = field.gameObject.AddComponent<LayoutElement>(); le.preferredWidth = 520; le.preferredHeight = 52;
+            field.text = NudeNyangEterPix.InfoUrl;
+            var footer = Label(contentRt, "Footer Text", InfoFooter, font, 26, TextAlignmentOptions.TopLeft, tk.text);
+            app.infoUrlField = field;
+            screen.gameObject.SetActive(false);
+            return screen.gameObject;
+        }
+
         static GameObject TextScreen(RectTransform root, string name, string body, TMP_FontAsset font, Tokens tk)
         {
             var screen = Screen(root, name);
@@ -465,7 +517,7 @@ namespace EterPixNudeNyang
 
         // テーマ切り替えのアイコン: モニターの btn_ThemeButton と同じ構成(20×20 の四角. 左半分が塗り、右半分が枠). 長方形4枚.
         // モニターの寸法(中心からの位置)を、ヘッダーのボタンに合わせて 1.6 倍する
-        static void BuildThemeIcon(RectTransform button)
+        static void BuildThemeIcon(RectTransform button, Tokens tk)
         {
             const float k = 1.6f;
             // (x, y, 幅, 高さ): 中心からの左下の位置と大きさ. Fill / Top / Bottom / Right
@@ -487,20 +539,20 @@ namespace EterPixNudeNyang
                 Anchor(rt, 0.5f, 0.5f, 0.5f, 0.5f,
                     new Vector2(parts[i][0] * k, parts[i][1] * k),
                     new Vector2((parts[i][0] + parts[i][2]) * k, (parts[i][1] + parts[i][3]) * k));
-                var img = go.GetComponent<Image>(); img.color = Dark; img.raycastTarget = false;
+                var img = go.GetComponent<Image>(); img.color = Color.white; img.raycastTarget = false;
+                tk.text.Add(img);
             }
         }
 
         static TMP_Text HeaderButton(RectTransform header, string name, string text, TMP_FontAsset font, int slot, Tokens tk, NudeNyangEterPix app, string eventName)
         {
-            var b = Box(header, name, null);
-            var img = b.GetComponent<Image>(); img.color = Accent;
+            var b = Box(header, name, tk.btn);
+            var img = b.GetComponent<Image>();
             // 右端から詰めて並べる(幅56・間隔12)
             float right = -24 - slot * 68;
             Anchor(b, 1, 0.5f, 1, 0.5f, new Vector2(right - 56, -22), new Vector2(right, 22));
             var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
-            var l = Label(b, "Label", text, font, 28, TextAlignmentOptions.Center, null);
-            l.color = Dark;
+            var l = Label(b, "Label", text, font, 28, TextAlignmentOptions.Center, tk.text);
             Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             Wire(btn, app, eventName);
             return l;

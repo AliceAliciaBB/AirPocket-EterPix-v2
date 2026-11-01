@@ -74,6 +74,9 @@ namespace NudeNyang
         public RectTransform listContent;
         public RectTransform listViewport;
         public TMP_Text listEmpty;
+        public TMP_Text listHeading;
+        public InputField infoUrlField;
+        public const string InfoUrl = "https://eterpix.com/";
         public GameObject[] rowRoots;
         public RawImage[] rowThumbs;
         public TMP_Text[] rowNames;
@@ -106,6 +109,9 @@ namespace NudeNyang
         // テーマ(NudeNyang本体のテーマとは独立. 合意書に連動の記載なし)
         public Graphic[] bgGraphics;
         public Graphic[] panelGraphics;
+        public Graphic[] btnGraphics;
+        public Color darkBtn = new Color32(0x2A, 0x2A, 0x2A, 0xFF);
+        public Color lightBtn = new Color32(0xE6, 0xE6, 0xE6, 0xFF);
         public Graphic[] textGraphics;
         public Graphic[] subGraphics;
         public Color darkBg = new Color(0.078f, 0.078f, 0.078f, 1f);
@@ -124,6 +130,7 @@ namespace NudeNyang
 
         [HideInInspector] public int screen = ScreenStart;
         [HideInInspector] public int returnScreen = ScreenStart;
+        [HideInInspector] public int overlayBack = ScreenStart;
         [HideInInspector] public bool isDark = true;
         [HideInInspector] public bool ready;
 
@@ -357,6 +364,7 @@ namespace NudeNyang
             listContent.sizeDelta = new Vector2(0f, Mathf.Max(total * rowHeight, listViewport.rect.height));
             listContent.anchoredPosition = Vector2.zero;
             listEmpty.gameObject.SetActive(total == 0);
+            if (listHeading != null) listHeading.text = "気になる投稿 " + total + " 件";
             listFirst = -1;
             UpdateListRows(true);
             Debug.Log("[EtpTrace] eterpix-app list open liked=" + total + " viewport=" + listViewport.rect.size
@@ -464,7 +472,7 @@ namespace NudeNyang
                 rowPortalButtons[k].SetActive(hasWorld && portalEnabled);
                 if (rowPortalLabels != null && rowPortalLabels.Length > k) rowPortalLabels[k].text = PortalLabel(post);
                 SetCopyText(rowWebFields[k], "https://eterpix.com/web/post/" + feed.Poid[post]);
-                SetCopyText(rowHqFields[k], "https://eterpix.com/api/images/" + feed.Poid[post]);
+                SetCopyText(rowHqFields[k], "https://eterpix.com/api/vrc/v1/pad/" + feed.Poid[post]);
                 int coid = feed.Coid[post];
                 if (images != null) images.Want(coid, k);
                 BindThumb(k, post);
@@ -495,6 +503,7 @@ namespace NudeNyang
         // 入力を終えたら(書き換えられていても)値を戻す。ラベルが空のまま残ることがあるので2フレーム後にも直す
         public void OnCopyEnd()
         {
+            if (infoUrlField != null) SetCopyText(infoUrlField, InfoUrl); // 情報ページのURL欄も元の値へ戻す
             RebindList();
             SendCustomEventDelayedFrames(nameof(RebindList), 2);
         }
@@ -772,6 +781,7 @@ namespace NudeNyang
             if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "☆";
             if (next != ScreenList) CancelPortal();
             if (next == ScreenList) OpenList();
+            if (next == ScreenInfo && infoUrlField != null) SetCopyText(infoUrlField, InfoUrl);
             if (next == ScreenSwipe && started) ShowCard(); // 一覧などで入れ替わった先読みを、現在のカードに合わせて取り直す
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
         }
@@ -779,12 +789,17 @@ namespace NudeNyang
         // i・グループは同じボタンで開閉する(開く前の画面へ戻る)
         public void ToggleOverlay(int target)
         {
+            // returnScreen = 基準の画面(起動/スワイプ). 一覧は i・グループと重なる画面なので基準にしない
+            // (一覧→i→一覧のあと×を押しても、一覧自身へ戻ってスワイプへ戻れなくなる不具合の修正)
+            // overlayBack = i・グループを閉じたときの戻り先(基準の画面か一覧)
             if (screen == target)
             {
-                ShowScreen(returnScreen);
+                if (target == ScreenList) ShowScreen(returnScreen);
+                else ShowScreen(overlayBack);
                 return;
             }
-            if (screen != ScreenInfo && screen != ScreenGroup) returnScreen = screen;
+            if (screen == ScreenStart || screen == ScreenSwipe) returnScreen = screen;
+            if ((target == ScreenInfo || target == ScreenGroup) && screen != ScreenInfo && screen != ScreenGroup) overlayBack = screen;
             ShowScreen(target);
         }
 
@@ -811,6 +826,7 @@ namespace NudeNyang
         {
             Paint(bgGraphics, isDark ? darkBg : lightBg);
             Paint(panelGraphics, isDark ? darkPanel : lightPanel);
+            Paint(btnGraphics, isDark ? darkBtn : lightBtn);
             Paint(textGraphics, isDark ? darkText : lightText);
             Paint(subGraphics, isDark ? darkSub : lightSub);
         }
