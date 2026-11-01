@@ -207,7 +207,10 @@ namespace EterPixNudeNyang
             var reload = NavButton(rowRt, "Reload Button", "", font, tk, app, "OnReload", 1);
             var reloadIcon = (RectTransform)HeaderIcon(reload, ReloadIconPath, tk).transform; // モニターと同じ再読み込みアイコン(文字色に従う)
             reloadIcon.offsetMin = new Vector2(-20, -20); reloadIcon.offsetMax = new Vector2(20, 20);
-            var portalBtn = NavButton(rowRt, "Portal Button", "◎", font, tk, app, "OnSwipePortal", 2);
+            var portalBtn = NavButton(rowRt, "Portal Button", "", font, tk, app, "OnSwipePortal", 2);
+            var portalIcon = (RectTransform)HeaderIcon(portalBtn, PortalIconPath, tk).transform; // Material Symbols "public"(Apache-2.0)
+            portalIcon.offsetMin = new Vector2(-20, -20); portalIcon.offsetMax = new Vector2(20, 20);
+            app.navPortalIcon = portalIcon.gameObject;
             var star = NavButton(rowRt, "Star Button", "", font, tk, app, "OnStarToggle", 3);
             var right = NavButton(rowRt, "Next Button", "進む", font, tk, app, "OnNavRight", 4);
             app.navLeftLabel = left.GetComponentInChildren<TMP_Text>();
@@ -272,10 +275,10 @@ namespace EterPixNudeNyang
             var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = true; // 行の無い所でも触れてスクロールできる(面の入力. Builder が付ける)
             viewport.GetComponent<Mask>().showMaskGraphic = false;
             // モックの .lmain: 左右の余白 19(16×1.2)、見出しは上から 10 の位置に高さ 43・文字 29、行は上から 72 から
-            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(19, 0), new Vector2(-19, -72));
+            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(Margin, 0), new Vector2(-Margin, -72)); // 左右の余白は全画面共通の16
             // 見出し「気になる投稿 N 件」(スクロールしない固定の見出し)
             var heading = Label(screen, "Heading", "気になる投稿 0 件", font, 29, TextAlignmentOptions.MidlineLeft, tk.text);
-            Anchor(heading.rectTransform, 0, 1, 1, 1, new Vector2(19, -53), new Vector2(-19, -10));
+            Anchor(heading.rectTransform, 0, 1, 1, 1, new Vector2(Margin, -53), new Vector2(-Margin, -10));
             app.listHeading = heading;
             var content = new GameObject("Content", typeof(RectTransform));
             var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
@@ -643,7 +646,7 @@ namespace EterPixNudeNyang
             contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0.5f, 1);
             contentRt.offsetMin = Vector2.zero; contentRt.offsetMax = Vector2.zero;
             var vlg = content.GetComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(48, 48, 24, 24); vlg.spacing = 20;
+            vlg.padding = new RectOffset((int)Margin, (int)Margin, (int)Margin, (int)Margin); vlg.spacing = 20; // 余白は全周16
             vlg.childControlWidth = true; vlg.childControlHeight = true;
             vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
             vlg.childAlignment = TextAnchor.UpperLeft;
@@ -726,7 +729,7 @@ namespace EterPixNudeNyang
         {
             var screen = Screen(root, name);
             var t = Label(screen, "Body", body, font, 26, TextAlignmentOptions.TopLeft, tk.text);
-            Anchor(t.rectTransform, 0, 0, 1, 1, new Vector2(48, 24), new Vector2(-48, -24));
+            Anchor(t.rectTransform, 0, 0, 1, 1, new Vector2(Margin, Margin), new Vector2(-Margin, -Margin));
             screen.gameObject.SetActive(false);
             return screen.gameObject;
         }

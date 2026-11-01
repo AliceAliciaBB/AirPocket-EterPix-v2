@@ -84,6 +84,7 @@ namespace NudeNyang
         public TMP_Text navLeftLabel;
         public TMP_Text navRightLabel;
         public TMP_Text navPortalLabel;
+        public GameObject navPortalIcon;
         public CanvasGroup navLeftGroup;
         public CanvasGroup navRightGroup;
         public CanvasGroup navReloadGroup;
@@ -1108,7 +1109,9 @@ namespace NudeNyang
             bool lk = onCard && cursor < liked.Length && liked[cursor];
             if (starOutline != null) starOutline.SetActive(!lk);
             if (starFilled != null) starFilled.SetActive(lk);
-            if (navPortalLabel != null) navPortalLabel.text = onCard && portalPost == cursor && portalState == "placing" ? "×" : "◎";
+            bool placingNow = onCard && portalPost == cursor && portalState == "placing";
+            if (navPortalLabel != null) navPortalLabel.text = placingNow ? "×" : "";
+            if (navPortalIcon != null) navPortalIcon.SetActive(!placingNow); // 置いている最中は×(取り消し)、それ以外は地球アイコン
         }
 
         // もう一度見る: 確認モーダル → はい で気になる選択を消して先頭へ
