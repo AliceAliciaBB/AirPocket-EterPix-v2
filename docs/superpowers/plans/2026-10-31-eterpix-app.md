@@ -373,3 +373,20 @@
 - 仕様網羅: 起動/スワイプ/拡大/一覧/ポータル/共通画面/状態表示/件数上限調査 → Task 4–10 に対応。WEB・高画質は D4 のコピペ方式で Task 7 に含めた
 - 型の一貫性: `Status`(0–4)、`Count`、`Coid/Copo/Coro`、`liked`、`zoomMode`、`PlacementNotice/PlacementAllowed` を各Taskで同名で使用
 - 弱点: NudeNyang本体(第三者・1行詰め・gitignore)へのパッチは、Task 0 の実測まで確定できない。Task 1 の縦串スモークで早期に可否が分かる構成にしてある
+
+## 追加計画 S: 画面の同期(他のプレイヤーにも自分の画面が見える) — 承認待ち(2026-11-01)
+ユーザー要望: 「画面の同期がされていない. 確認して同期させる」→ 意図は「他の人にも自分の画面が見える」(確認済み).
+
+**現状**: `NudeNyangEterPix` は `BehaviourSyncMode.None` で同期変数が無く、各クライアントがローカルに動く(他の人には自分のスワイプ・拡大・一覧が映らない).
+
+**NudeNyang 本体の作法(これに合わせる)**: `NudeNyangXFeed` は `BehaviourSyncMode.Manual`. 操作した人が `Networking.SetOwner` でオーナーになり、変化があれば間隔(0.2秒以上)を空けて `RequestSerialization()`. 他の人は `OnDeserialization()` で状態へ追従する.
+
+**実装(案)**
+1. `NudeNyangEterPix` を `Manual` に. 同期変数(最小): `syncScreen`(基準画面), `syncCursorCoid`(今のカードの投稿ID. 添字は各自のフィードで順が違い得るので使わない), `syncZoomMode`, `syncZoomCoid`, `syncDark`(白/黒), `syncLikedCoids`(気になる投稿IDの配列, 上限64), `syncRevision`
+2. 操作した側(`Advance`/`OpenZoom`/`OnZoomTap`/`ToggleOverlay`/`OnTheme`/`OnHeart` の戻り等)で、オーナーになり `dirty` を立て、`Update` で間隔制限つきに `RequestSerialization()`
+3. 見ている側: `OnDeserialization` で状態を保存 → 自分のフィードから投稿IDで添字を探して `cursor`/`zoomIndex` に反映し、`ShowCard`/`RefreshZoom`/`ShowScreen` を呼ぶ. 画像は見る側が自分の取得キューで取る(`WantWindow`).
+4. 見る側が操作したら、その人がオーナーになって引き継ぐ(XFeed と同じ). 途中参加者は、現在の同期値を受けて起動前なら「待機表示」のまま追従
+5. 投稿IDが自分のフィードに無い場合は、そのカードを出さず「読み込み中」表示にする(エラーにしない)
+
+**リスク/未確定**: フィードの取得順・内容がクライアント間でずれる可能性(投稿ID照合で緩和). 画像の取得は各自の5秒キュー. ClientSim 単独では同期の実挙動を検証できない(複数クライアントの実機確認が必要).
+**逸脱の確認ポイント**: 見た目は変わらない. 新規ファイル・依存の追加なし(`NudeNyangEterPix.cs` と README のみ).
