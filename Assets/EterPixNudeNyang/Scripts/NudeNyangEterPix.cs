@@ -16,7 +16,7 @@ namespace NudeNyang
         // 投稿は添字でなく poid(投稿ID)で指す(フィードの順が人によって違い得るため)
         [UdonSynced] private int sRev;
         [UdonSynced] private int sScreen, sReturn, sBack, sZoomMode;
-        [UdonSynced] private bool sStarted, sDark;
+        [UdonSynced] private bool sStarted, sDark, sWorldOpen;
         [UdonSynced] private string sCursor = "", sZoomPoid = "", sLiked = "";
         private bool syncDirty, applyingRemote, pendingRemote;
         private float nextSend, retryAt;
@@ -280,6 +280,7 @@ namespace NudeNyang
             bool feedOk = feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk;
             sScreen = screen; sReturn = returnScreen; sBack = overlayBack;
             sStarted = started; sDark = isDark; sZoomMode = zoomMode;
+            sWorldOpen = WorldModalOpen();
             sCursor = (started && feedOk) ? (cursor >= feed.Count ? "#end" : feed.Poid[cursor]) : "";
             sZoomPoid = (feedOk && zoomMode != 0 && zoomIndex >= 0 && zoomIndex < feed.Count) ? feed.Poid[zoomIndex] : "";
             string l = "";
@@ -357,6 +358,14 @@ namespace NudeNyang
             if (screen != sScreen) ShowScreen(sScreen);
             else if (screen == ScreenSwipe && started) ShowCard();
             else if (screen == ScreenList) OpenList();
+            // ワールド詳細モーダル: 相手が開いていれば同じ投稿で開き、閉じていれば閉じる(リロード中の自分は触らない)
+            if (!reloading)
+            {
+                bool wantWorld = sStarted && sWorldOpen && screen == ScreenSwipe && cursor >= 0 && cursor < feed.Count
+                    && !string.IsNullOrEmpty(feed.WorldId[cursor]);
+                if (wantWorld) { if (!WorldModalOpen() || worldShownPost != cursor) OpenWorldModal(cursor); }
+                else if (WorldModalOpen()) OnWorldClose();
+            }
             applyingRemote = false;
             if (needRetry) { pendingRemote = true; retryAt = Time.unscaledTime + 0.5f; } // 画像・投稿が届くまで、0.5秒おきに取り直す
             Debug.Log("[EtpTrace] eterpix-app sync applied rev=" + sRev + " screen=" + screen + " cursor=" + cursor + " zoom=" + zoomMode + " retry=" + needRetry);
@@ -520,10 +529,12 @@ namespace NudeNyang
         public CanvasGroup worldPortalGroup;
 
         private bool WorldModalOpen() { return worldModal != null && worldModal.activeSelf; }
+        private int worldShownPost = -1;
 
         private void OpenWorldModal(int post)
         {
             if (worldModal == null) return;
+            worldShownPost = post;
             worldNameLabel.text = feed.WorldLabel[post];
             string author = feed.WorldAuthor[post];
             worldAuthorLabel.text = string.IsNullOrEmpty(author) ? "" : "作者: " + author;
