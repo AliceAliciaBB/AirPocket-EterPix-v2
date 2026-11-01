@@ -95,7 +95,8 @@ namespace NudeNyang
         public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定(NudeNyang の感度をかけた量で比べる)
         public float swipeAxisLock = 0.02f;   // この割合を越えて動いた時点で、横(1)か縦(2)に軸を固定する
         public Image starHot;
-        public GameObject noWorldNotice;      // 下スワイプでワールド情報が無いときの一瞬の表示
+        public TMP_Text noticeLabel;
+        public GameObject noWorldNotice;     // 下スワイプでワールド情報が無いときの一瞬の表示
         private float noWorldUntil;
         private int swipeAxis;                // 0=未確定 1=横 2=縦
         private bool swipeDragging, swipeLeftUse, swipeRightUse;
@@ -503,12 +504,7 @@ namespace NudeNyang
             if (!CardLive() || cursor >= feed.Count) return;
             if (string.IsNullOrEmpty(feed.WorldId[cursor]))
             {
-                if (noWorldNotice != null)
-                {
-                    noWorldNotice.SetActive(true);
-                    noWorldUntil = Time.unscaledTime + 1.2f;
-                    SendCustomEventDelayedSeconds(nameof(HideNoWorldNotice), 1.3f);
-                }
+                ShowNotice("ワールド情報なし");
                 return;
             }
             OpenWorldModal(cursor);
@@ -576,6 +572,7 @@ namespace NudeNyang
         public void OnFeedChanged()
         {
             Debug.Log("[EtpTrace] eterpix-app feed status=" + feed.Status + " count=" + feed.Count);
+            if (reloading) { FinishReload(); return; }
             if (feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk) PlanStartup();
             RefreshStart();
         }
@@ -644,7 +641,7 @@ namespace NudeNyang
 
         // ---- 気になる一覧 ----
 
-        public void OnHeart() { ToggleOverlay(ScreenList); }
+        public void OnHeart() { if (reloading) return; ToggleOverlay(ScreenList); }
 
         // 一覧を開くたびに、気になる印の付いた投稿を feed の順で集め直す
         private void OpenList()
@@ -882,7 +879,7 @@ namespace NudeNyang
 
         private void RegisterPhotoTap()
         {
-            if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
+            if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count || reloading) return;
             if (!IsDoubleTap(-2)) return;
             if (zoomMode != 0) return;
             OpenZoom(cursor);
@@ -947,7 +944,7 @@ namespace NudeNyang
 
         // ---- ボタン列 [戻る][リロード][ポータル][☆/★][進む] ----
 
-        private bool ModalOpen() { return zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf) || WorldModalOpen(); }
+        private bool ModalOpen() { return zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf) || WorldModalOpen() || reloading; }
 
         private bool CardLive() { return started && screen == ScreenSwipe && feed != null && !ModalOpen(); }
 
@@ -989,7 +986,83 @@ namespace NudeNyang
             MarkDirty();
         }
 
-        public void OnReload() { /* ステップ6で実装 */ }
+        // ---- リロード(ボタンのみ) ----
+        // feed だけ読み直し、見ていた位置と気になるを poid で引き継ぐ(無くなった投稿は外れる). 画像は持っているぶんをそのまま使う.
+        // 読み込み中は全操作を押せなくし、失敗したら元のデータのまま「読み込みに失敗しました」を出す
+        private bool reloading;
+        private string reloadCurPoid = "";
+        private bool reloadAtEnd;
+        private string[] reloadLikedPoids = new string[0];
+
+        public void OnReload()
+        {
+            if (reloading || !started || screen != ScreenSwipe || feed == null || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk) return;
+            if (ModalOpen()) return;
+            reloading = true;
+            reloadAtEnd = cursor >= feed.Count;
+            reloadCurPoid = reloadAtEnd ? "" : feed.Poid[cursor];
+            string[] lp = new string[likedCount];
+            int n = 0;
+            for (int i = 0; i < liked.Length && n < lp.Length; i++)
+            {
+                if (liked[i]) { lp[n] = feed.Poid[i]; n++; }
+            }
+            reloadLikedPoids = lp;
+            counterTotal.text = "…";
+            RefreshNav();
+            Debug.Log("[EtpTrace] eterpix-app reload start cursor=" + cursor + " liked=" + likedCount);
+            feed.Reload();
+        }
+
+        private void FinishReload()
+        {
+            reloading = false;
+            if (feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk)
+            {
+                // 失敗(通信エラー・0件): 元の配列は残っているので、そのまま続ける
+                feed.Status = EterPixNudeNyang.EterPixAppFeed.StatusOk;
+                ShowNotice("読み込みに失敗しました");
+                Debug.Log("[EtpTrace] eterpix-app reload failed (keep old data)");
+                ShowCard();
+                return;
+            }
+            int count = feed.Count;
+            bool[] nl = new bool[count];
+            int nc = 0;
+            for (int k = 0; k < reloadLikedPoids.Length; k++)
+            {
+                for (int j = 0; j < count; j++)
+                {
+                    if (feed.Poid[j] == reloadLikedPoids[k]) { nl[j] = true; nc++; break; }
+                }
+            }
+            liked = nl;
+            likedCount = nc;
+            int idx = -1;
+            if (!reloadAtEnd)
+            {
+                for (int j = 0; j < count; j++)
+                {
+                    if (feed.Poid[j] == reloadCurPoid) { idx = j; break; }
+                }
+            }
+            if (reloadAtEnd) cursor = count;
+            else if (idx >= 0) cursor = idx;
+            else cursor = Mathf.Min(cursor, count - 1); // 無くなった投稿: 同じ番号(末尾を超えるなら最後)へ
+            Debug.Log("[EtpTrace] eterpix-app reload done count=" + count + " cursor=" + cursor + " liked=" + likedCount);
+            ShowCard();
+            MarkDirty();
+        }
+
+        // カードの下端に一瞬だけ出す知らせ(「ワールド情報なし」「読み込みに失敗しました」)
+        private void ShowNotice(string text)
+        {
+            if (noWorldNotice == null) return;
+            if (noticeLabel != null) noticeLabel.text = text;
+            noWorldNotice.SetActive(true);
+            noWorldUntil = Time.unscaledTime + 1.2f;
+            SendCustomEventDelayedSeconds(nameof(HideNoWorldNotice), 1.3f);
+        }
 
         // いまのカードのワールドへのポータル(一覧と同じ流れ)
         public void OnSwipePortal()
@@ -1011,13 +1084,13 @@ namespace NudeNyang
         private void RefreshNav()
         {
             if (navLeftLabel == null) return;
-            bool live = started && feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk;
+            bool live = started && feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk && !reloading;
             bool onCard = live && cursor < feed.Count;
             navLeftLabel.text = swapNav ? "進む" : "戻る";
             navRightLabel.text = swapNav ? "戻る" : "進む";
             SetNav(navLeftGroup, live && SlotEnabled(false));
             SetNav(navRightGroup, live && SlotEnabled(true));
-            SetNav(navReloadGroup, true);
+            SetNav(navReloadGroup, !reloading); // 読み込み中は押せない(終了画面では押せる)
             bool hasWorld = onCard && !string.IsNullOrEmpty(feed.WorldId[cursor]);
             SetNav(navPortalGroup, hasWorld && portalEnabled && portal != null);
             SetNav(navStarGroup, onCard);

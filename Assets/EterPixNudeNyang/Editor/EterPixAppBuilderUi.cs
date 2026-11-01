@@ -227,13 +227,14 @@ namespace EterPixNudeNyang
             // 下スワイプでワールド情報が無いときの一瞬の表示(カードの下端に重ねる. 動かない)
             var nw = new GameObject("No World Notice", typeof(RectTransform), typeof(Image));
             var nwRt = (RectTransform)nw.transform; nwRt.SetParent(screen, false);
-            Anchor(nwRt, 0.5f, 0, 0.5f, 0, new Vector2(-130, 110), new Vector2(130, 154));
+            Anchor(nwRt, 0.5f, 0, 0.5f, 0, new Vector2(-170, 110), new Vector2(170, 154));
             nw.GetComponent<Image>().color = new Color(0, 0, 0, 0.7f); nw.GetComponent<Image>().raycastTarget = false;
             var nwLabel = Label(nwRt, "Label", "ワールド情報なし", font, 24, TextAlignmentOptions.Center, null);
             nwLabel.color = Color.white;
             Anchor(nwLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             nw.SetActive(false);
             app.noWorldNotice = nw;
+            app.noticeLabel = nwLabel;
             app.swipeScroll = swipe;
             app.swipeBody = bodyRt;
 

@@ -43,6 +43,7 @@ namespace EterPixNudeNyang
         [HideInInspector] public int[] Coro = new int[0];
 
         private bool _fetching;
+        private bool _reloading;
         private int _busyRetry;
 
         public void Fetch()
@@ -57,6 +58,17 @@ namespace EterPixNudeNyang
             _fetching = true;
             Status = StatusLoading;
             Debug.Log("[EtpTrace] feed: fetch " + feedUrl.Get());
+            VRCStringDownloader.LoadUrl(feedUrl, (IUdonEventReceiver)this);
+        }
+
+        // 読み直し: Status は動かさず(見ているデータをそのまま使い続け)、取れたら配列を入れ替えて通知する
+        public void Reload()
+        {
+            if (_fetching) return;
+            _reloading = true;
+            if (feedUrl == null || VRCUrl.IsNullOrEmpty(feedUrl)) { Finish(StatusServerError); return; }
+            _fetching = true;
+            Debug.Log("[EtpTrace] feed: reload " + feedUrl.Get());
             VRCStringDownloader.LoadUrl(feedUrl, (IUdonEventReceiver)this);
         }
 
@@ -75,7 +87,7 @@ namespace EterPixNudeNyang
             if (result.ErrorCode == BusyStatusCode && _busyRetry < BusyMaxRetries)
             {
                 _busyRetry++;
-                SendCustomEventDelayedSeconds(nameof(Fetch), BusyRetryDelaySeconds);
+                SendCustomEventDelayedSeconds(_reloading ? nameof(Reload) : nameof(Fetch), BusyRetryDelaySeconds);
                 return;
             }
             _busyRetry = 0;
@@ -109,6 +121,14 @@ namespace EterPixNudeNyang
             for (int i = 0; i < posts.Count; i++)
             {
                 if (IsUsable(posts, i)) usable++;
+            }
+
+            // 使える投稿が0件なら、いまの配列(読み直しのときは見ていたデータ)をそのまま残す
+            if (usable == 0)
+            {
+                Debug.Log("[EtpTrace] feed count=0 status=empty");
+                Finish(StatusEmpty);
+                return;
             }
 
             Poid = new string[usable];
@@ -167,6 +187,7 @@ namespace EterPixNudeNyang
 
         private void Finish(int status)
         {
+            _reloading = false;
             Status = status;
             if (owner != null) owner.SendCustomEvent("OnFeedChanged");
         }
