@@ -71,15 +71,27 @@ namespace EterPixNudeNyang
             app.title = titleLabel;
 
             // 現在/全体(スワイプ画面のときだけ出る). 左寄せ。「000/000」が入る幅を常に取っておき、数字が増えても隣の部品がずれない
-            var counter = Label(header, "Counter", "", font, 28, TextAlignmentOptions.MidlineLeft, tk.text);
-            counter.enableWordWrapping = false;
-            float counterW = Mathf.Ceil(counter.GetPreferredValues("000/000").x) + 4f;
-            counter.rectTransform.anchorMin = counter.rectTransform.anchorMax = new Vector2(0, 0.5f);
-            counter.rectTransform.pivot = new Vector2(0, 0.5f);
-            counter.rectTransform.sizeDelta = new Vector2(counterW, HeaderBtn);
-            counter.rectTransform.anchoredPosition = new Vector2(Margin + titleW + Margin, 0);
-            counter.gameObject.SetActive(false);
-            app.counterLabel = counter;
+            // 現在値・「/」・全体数をそれぞれ別の枠にし、現在値と全体数には3桁ぶんの幅を取る(現在値は右寄せ・全体数は左寄せ)ので、桁が変わっても「/」が動かない
+            var counterGo = new GameObject("Counter", typeof(RectTransform)); var counterRt = (RectTransform)counterGo.transform;
+            counterRt.SetParent(header, false);
+            var cur = Label(counterRt, "Current", "", font, 28, TextAlignmentOptions.MidlineRight, tk.text);
+            var slash = Label(counterRt, "Slash", "/", font, 28, TextAlignmentOptions.Midline, tk.text);
+            var tot = Label(counterRt, "Total", "", font, 28, TextAlignmentOptions.MidlineLeft, tk.text);
+            cur.enableWordWrapping = slash.enableWordWrapping = tot.enableWordWrapping = false;
+            float digitsW = Mathf.Ceil(cur.GetPreferredValues("000").x) + 2f;
+            float slashW = Mathf.Ceil(slash.GetPreferredValues("/").x) + 2f;
+            float counterW = digitsW * 2f + slashW;
+            counterRt.anchorMin = counterRt.anchorMax = new Vector2(0, 0.5f);
+            counterRt.pivot = new Vector2(0, 0.5f);
+            counterRt.sizeDelta = new Vector2(counterW, HeaderBtn);
+            counterRt.anchoredPosition = new Vector2(Margin + titleW + Margin, 0);
+            SetCounterPart(cur.rectTransform, 0f, digitsW);
+            SetCounterPart(slash.rectTransform, digitsW, slashW);
+            SetCounterPart(tot.rectTransform, digitsW + slashW, digitsW);
+            counterGo.SetActive(false);
+            app.counterRoot = counterGo;
+            app.counterCurrent = cur;
+            app.counterTotal = tot;
             Debug.Log("[EtpTrace] builder: header title=" + titleW + " counter=" + counterW + " buttons=" + (4 * (HeaderBtn + HeaderGap)));
 
             app.infoButtonLabel = HeaderButton(header, "Info Button", "i", font, 0, tk, app, "OnInfo");
@@ -190,7 +202,9 @@ namespace EterPixNudeNyang
             Anchor(rowRt, 0.17f, 0, 0.83f, 0, new Vector2(0, 8), new Vector2(0, 84));
             // [戻る][リロード][ポータル][☆/★][進む](入れ替え時は左右の文字と動作だけ替わる. 実行時に文字を付ける)
             var left = NavButton(rowRt, "Back Button", "戻る", font, tk, app, "OnNavLeft", 0);
-            var reload = NavButton(rowRt, "Reload Button", "更新", font, tk, app, "OnReload", 1);
+            var reload = NavButton(rowRt, "Reload Button", "", font, tk, app, "OnReload", 1);
+            var reloadIcon = (RectTransform)HeaderIcon(reload, ReloadIconPath, tk).transform; // モニターと同じ再読み込みアイコン(文字色に従う)
+            reloadIcon.offsetMin = new Vector2(-20, -20); reloadIcon.offsetMax = new Vector2(20, 20);
             var portalBtn = NavButton(rowRt, "Portal Button", "◎", font, tk, app, "OnSwipePortal", 2);
             var star = NavButton(rowRt, "Star Button", "", font, tk, app, "OnStarToggle", 3);
             var right = NavButton(rowRt, "Next Button", "進む", font, tk, app, "OnNavRight", 4);
@@ -433,6 +447,14 @@ namespace EterPixNudeNyang
             Anchor(no, 0.52f, 0.08f, 0.94f, 0.36f, Vector2.zero, Vector2.zero);
             dim.SetActive(false);
             app.confirmModal = dim;
+        }
+
+        static void SetCounterPart(RectTransform rt, float x, float w)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 0.5f);
+            rt.pivot = new Vector2(0, 0.5f);
+            rt.sizeDelta = new Vector2(w, HeaderBtn);
+            rt.anchoredPosition = new Vector2(x, 0);
         }
 
         // ボタン列の1つ(5等分の i 番目. 薄くして押せなくするための CanvasGroup 付き)

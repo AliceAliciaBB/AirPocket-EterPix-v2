@@ -55,7 +55,9 @@ namespace NudeNyang
         public TMP_Text groupButtonLabel;
         public TMP_Text settingsButtonLabel;
         public GameObject settingsIcon; // 歯車の画像. 設定を開いている間は隠して×の文字を出す
-        public TMP_Text counterLabel;
+        public GameObject counterRoot;     // 現在値 / 全体数(それぞれ3桁ぶんの幅)
+        public TMP_Text counterCurrent;
+        public TMP_Text counterTotal;
 
         // スワイプ画面
         public EterPixNudeNyang.EterPixAppGeometry geometry;
@@ -519,13 +521,13 @@ namespace NudeNyang
             endScreen.SetActive(finished);
             if (finished)
             {
-                counterLabel.text = count + "/" + count;
+                counterCurrent.text = count.ToString(); counterTotal.text = count.ToString();
                 endSummary.text = "すべての投稿を見ました\n気になる: " + likedCount + " 件";
                 RefreshNav();
                 return;
             }
             RefreshNav();
-            counterLabel.text = (cursor + 1) + "/" + count;
+            counterCurrent.text = (cursor + 1).ToString(); counterTotal.text = count.ToString();
             userLabel.text = feed.UserLabel[cursor];
             worldLabel.text = feed.WorldLabel[cursor];
             SetDescription(swipeDes, swipeBandRect, DescText(cursor), 76f, 130f);
@@ -1042,7 +1044,7 @@ namespace NudeNyang
             if (next == ScreenSettings) RefreshSettings();
             if (settingsButtonLabel != null) settingsButtonLabel.text = next == ScreenSettings ? "×" : "";
             if (settingsIcon != null) settingsIcon.SetActive(next != ScreenSettings);
-            if (counterLabel != null) counterLabel.gameObject.SetActive(next == ScreenSwipe);
+            if (counterRoot != null) counterRoot.SetActive(next == ScreenSwipe);
             if (listScreen != null) listScreen.SetActive(next == ScreenList);
             if (heartButton != null) heartButton.SetActive(started);
             if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "";
