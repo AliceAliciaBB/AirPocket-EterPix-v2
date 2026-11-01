@@ -65,7 +65,8 @@ namespace NudeNyang
 
         // 気になる投稿一覧(スクロールする行を使い回す. 見えている分だけ実体を持つ)
         public const int RowPool = 8;
-        public const float RowHeight = 140f;
+        public const float RowHeight = 140f;      // 横向きの行の高さ(Builder が最初に作る高さ)
+        [HideInInspector] public float rowHeight = 140f; // いまの行の高さ(縦向きはボタンが折り返すので高くなる)
         public GameObject heartButton;
         public GameObject groupIcon; // グループのアイコン(画像). 開いている間は隠して×の文字を出す
         public TMP_Text heartLabel;
@@ -223,9 +224,15 @@ namespace NudeNyang
                 RectTransform br = (RectTransform)buttonRow.transform;
                 br.anchorMin = new Vector2(lo, br.anchorMin.y); br.anchorMax = new Vector2(hi, br.anchorMax.y);
             }
-            Debug.Log("[EtpTrace] eterpix-app layout panel=" + p + " card=" + CardFrame() + " portrait=" + portrait);
+            ApplyRowLayout(portrait);
+            Debug.Log("[EtpTrace] eterpix-app layout panel=" + p + " card=" + CardFrame() + " portrait=" + portrait + " rowHeight=" + rowHeight);
             if (screen == ScreenSwipe && started) ShowCard();
             RefreshZoom();
+            if (screen == ScreenList)
+            {
+                listContent.sizeDelta = new Vector2(0f, Mathf.Max(likedIndices.Length * rowHeight, listViewport.rect.height));
+                UpdateListRows(true);
+            }
         }
 
         // カードのドラッグ量を見る. 方向のボタンを明るくし、閾値を越えたら次へ送る.
@@ -347,7 +354,7 @@ namespace NudeNyang
             {
                 if (liked[i]) { likedIndices[n] = i; n++; }
             }
-            listContent.sizeDelta = new Vector2(0f, Mathf.Max(total * RowHeight, listViewport.rect.height));
+            listContent.sizeDelta = new Vector2(0f, Mathf.Max(total * rowHeight, listViewport.rect.height));
             listContent.anchoredPosition = Vector2.zero;
             listEmpty.gameObject.SetActive(total == 0);
             listFirst = -1;
@@ -356,13 +363,88 @@ namespace NudeNyang
                 + " content=" + listContent.sizeDelta + " rows=" + RowPool + " portal=" + portalEnabled);
         }
 
+        // 行の配置を向きに合わせて組み直す(モックと同じ. 画像は左で全段ぶん、右にテキストとボタン.
+        // 幅に収まらないボタンは次の段へ折り返し、各段は右寄せ). 横向きは Builder が作った配置と同じ値.
+        private void ApplyRowLayout(bool portrait)
+        {
+            if (rowRoots == null || listViewport == null) return;
+            const float btnH = 52f, portalW = 220f, copyW = 150f, gap = 10f, edge = 16f, baseY = 10f;
+            float rowW = listViewport.rect.width - 8f;
+            if (rowW < 100f) rowW = portrait ? 628f : 1141f;
+            bool wrapped = portrait;
+            bool twoLine = true;
+            float h = RowHeight;
+            if (portrait)
+            {
+                // 名前 + ワールド + ボタンの2段. 右列に WEB と 高画質 が並ばない幅なら3段
+                float text = 8f + 34f + 26f + gap;
+                float avail = rowW - (RowHeight + 40f) - edge;
+                twoLine = 2f * copyW + gap <= avail;
+                int lines = twoLine ? 2 : 3;
+                h = text + baseY + lines * btnH + (lines - 1) * gap + 10f;
+                if (h < RowHeight) h = RowHeight;
+            }
+            rowHeight = h;
+            for (int k = 0; k < rowRoots.Length; k++)
+            {
+                RectTransform row = (RectTransform)rowRoots[k].transform;
+                row.sizeDelta = new Vector2(-8f, h - 8f);
+                RectTransform tb = (RectTransform)rowThumbs[k].transform.parent;
+                tb.sizeDelta = new Vector2(h - 24f, h - 24f);
+                ((RectTransform)rowThumbs[k].transform).sizeDelta = tb.sizeDelta;
+                RectTransform name = (RectTransform)rowNames[k].gameObject.transform, world = (RectTransform)rowWorlds[k].gameObject.transform, no = (RectTransform)rowNoWorld[k].gameObject.transform;
+                if (!portrait)
+                {
+                    name.anchorMin = new Vector2(0f, 0.5f); name.anchorMax = new Vector2(1f, 1f);
+                    name.offsetMin = new Vector2(h, 0f); name.offsetMax = new Vector2(-12f, -6f);
+                    world.anchorMin = new Vector2(0f, 0.32f); world.anchorMax = new Vector2(1f, 0.5f);
+                    world.offsetMin = new Vector2(h, 0f); world.offsetMax = new Vector2(-12f, 0f);
+                    no.anchorMin = new Vector2(0.5f, 0f); no.anchorMax = new Vector2(1f, 0.32f);
+                    no.offsetMin = Vector2.zero; no.offsetMax = new Vector2(-16f, 0f);
+                    rowNoWorld[k].alignment = TextAlignmentOptions.MidlineRight;
+                }
+                else
+                {
+                    name.anchorMin = new Vector2(0f, 1f); name.anchorMax = new Vector2(1f, 1f);
+                    name.offsetMin = new Vector2(h, -42f); name.offsetMax = new Vector2(-12f, -8f);
+                    world.anchorMin = new Vector2(0f, 1f); world.anchorMax = new Vector2(1f, 1f);
+                    world.offsetMin = new Vector2(h, -68f); world.offsetMax = new Vector2(-12f, -42f);
+                    no.anchorMin = new Vector2(0f, 1f); no.anchorMax = new Vector2(1f, 1f);
+                    no.offsetMin = new Vector2(h, -68f); no.offsetMax = new Vector2(-12f, -42f);
+                    rowNoWorld[k].alignment = TextAlignmentOptions.MidlineLeft;
+                }
+                RectTransform portal = (RectTransform)rowPortalButtons[k].transform;
+                RectTransform hq = (RectTransform)rowHqFields[k].transform, web = (RectTransform)rowWebFields[k].transform;
+                if (!wrapped)
+                {
+                    portal.anchoredPosition = new Vector2(-edge, baseY);
+                    hq.anchoredPosition = new Vector2(-edge - portalW - gap, baseY);
+                    web.anchoredPosition = new Vector2(-edge - portalW - gap - copyW - gap, baseY);
+                }
+                else if (twoLine)
+                {
+                    // 2段: 上に WEB / 高画質(右寄せ)、下にポータルを開く(右寄せ)
+                    float upper = baseY + btnH + gap;
+                    hq.anchoredPosition = new Vector2(-edge, upper);
+                    web.anchoredPosition = new Vector2(-edge - copyW - gap, upper);
+                    portal.anchoredPosition = new Vector2(-edge, baseY);
+                }
+                else
+                {
+                    web.anchoredPosition = new Vector2(-edge, baseY + 2f * (btnH + gap));
+                    hq.anchoredPosition = new Vector2(-edge, baseY + btnH + gap);
+                    portal.anchoredPosition = new Vector2(-edge, baseY);
+                }
+            }
+        }
+
         // スクロール位置から、先頭の行を決めて行を付け替える
         private void UpdateListRows(bool force)
         {
             if (listContent == null || rowRoots == null) return;
             int total = likedIndices.Length;
             int maxFirst = Mathf.Max(0, total - RowPool);
-            int first = Mathf.Clamp(Mathf.FloorToInt(listContent.anchoredPosition.y / RowHeight), 0, maxFirst);
+            int first = Mathf.Clamp(Mathf.FloorToInt(listContent.anchoredPosition.y / rowHeight), 0, maxFirst);
             if (!force && first == listFirst) return;
             listFirst = first;
             if (images != null) images.BeginWindow();
@@ -374,7 +456,7 @@ namespace NudeNyang
                 if (!active) continue;
                 int post = likedIndices[item];
                 RectTransform rt = (RectTransform)rowRoots[k].transform;
-                rt.anchoredPosition = new Vector2(0f, -item * RowHeight);
+                rt.anchoredPosition = new Vector2(0f, -item * rowHeight);
                 rowNames[k].text = feed.UserLabel[post];
                 bool hasWorld = !string.IsNullOrEmpty(feed.WorldId[post]);
                 rowWorlds[k].text = hasWorld ? feed.WorldLabel[post] : "";

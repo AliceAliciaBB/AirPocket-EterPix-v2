@@ -201,8 +201,12 @@ namespace EterPixNudeNyang
         {
             var screen = Screen(root, "List Screen");
 
-            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
+            // RectMask2D は、NudeNyang が縦向きのときに回す viewport の中では範囲が負になり、すべて消える.
+            // NudeNyang 本体(NudeNyangScrollBuilder)と同じく、ステンシルの Mask(マスク自体は見せない)で切る
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
             var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
+            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = false;
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
             Anchor(viewportRt, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, 0));
             var content = new GameObject("Content", typeof(RectTransform));
             var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
@@ -242,8 +246,10 @@ namespace EterPixNudeNyang
             row.sizeDelta = new Vector2(-8, h - 8); row.anchoredPosition = new Vector2(0, -k * h - 4);
 
             // 写真(正方形に切り取る). 押すと拡大
-            var thumbBox = new GameObject("Thumb Mask", typeof(RectTransform), typeof(RectMask2D));
+            var thumbBox = new GameObject("Thumb Mask", typeof(RectTransform), typeof(Image), typeof(Mask));
             var thumbBoxRt = (RectTransform)thumbBox.transform; thumbBoxRt.SetParent(row, false);
+            var tbImg = thumbBox.GetComponent<Image>(); tbImg.color = Color.white; tbImg.raycastTarget = false;
+            thumbBox.GetComponent<Mask>().showMaskGraphic = false;
             thumbBoxRt.anchorMin = thumbBoxRt.anchorMax = new Vector2(0, 0.5f); thumbBoxRt.pivot = new Vector2(0, 0.5f);
             thumbBoxRt.sizeDelta = new Vector2(h - 24, h - 24); thumbBoxRt.anchoredPosition = new Vector2(12, 0);
             var thumb = new GameObject("Thumb", typeof(RectTransform), typeof(RawImage));

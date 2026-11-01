@@ -78,4 +78,6 @@ NudeNyang を更新したら、3 → 4 をもう一度行います。`アンカ�
 - ドラッグでのスワイプ: カードを横に引く(ScrollRect の弾性)と、方向のボタンが明るくなり、カード幅の12%を越えた状態で**指を離すと**確定して次へ(引いている間は今のカードのまま。閾値未満で離すと戻るだけ)。離した検出は Card 上の EventTrigger(EndDrag)→`OnSwipeRelease`。エディタでは擬似入力で確認済み。VRChat で EventTrigger が呼ばれない場合は `swipe release` ログが出ない。**実際のレーザー/タッチでの手触りと閾値(`swipeHotStart` 0.04 / `swipeCommit` 0.12)は実機で調整**。離したときに `[EtpTrace] eterpix-app swipe release dx=... commit=...` が出る
 - 未実装(ドラッグ関連): カードが飛ぶアニメ、次カードが下に見える重なり(矢印キーは実機未確認)
 - 縦写真(`coro` が奇数)は、**スワイプ画面では縦のまま(正立)枠に収めます**(2026-11-01 のユーザー指示で、決定 D-112 の「Pad と同じ=倒す」から変更。拡大画面は従来どおり Pad の K-4=枠の長辺に合わせて反時計回りに倒す)
-- タブレットを縦向きにしたときは、実際の枠の大きさ(`panel.rect`)で写真を作り直し、カード・ボタンを横いっぱいに広げます(縦写真が大きくなる)。縦向きになると `[EtpTrace] eterpix-app layout panel=... portrait=True` が出ます
+- タブレットを縦向きにしたときは、実際の枠の大きさ(`panel.rect`)で写真を作り直し、カード・ボタンを横いっぱいに広げます(縦写真が大きくなる)。縦向きになると `[EtpTrace] eterpix-app layout panel=... portrait=True rowHeight=...` が出ます
+- 気になる一覧の行は、モックの縦向きと同じ構成です(画像は左で全段ぶん、右に名前・ワールド・ボタン。右寄せのボタンは、幅に収まらなければ次の段へ折り返す=縦向きは WEB/高画質 の下にポータルを開く)。行の高さは向きで変わります(`rowHeight`)
+- 一覧のスクロール枠とサムネ枠は、`RectMask2D` ではなくステンシルの `Mask` で切ります(NudeNyang は縦向きのとき viewport を回し、`RectMask2D` だと範囲が負になって行が全部消える。NudeNyang 本体の NudeNyangScrollBuilder と同じ対処)
