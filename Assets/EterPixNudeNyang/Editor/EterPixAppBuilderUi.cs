@@ -127,6 +127,12 @@ namespace EterPixNudeNyang
             swipe.viewport = card; swipe.content = bodyRt;
             swipe.horizontal = true; swipe.vertical = false; swipe.movementType = ScrollRect.MovementType.Elastic;
             swipe.elasticity = 0.1f; swipe.inertia = false; swipe.scrollSensitivity = 0f;
+            // 指(レーザー)を離したときに確定する. ScrollRect と同じ Card 上の EventTrigger の EndDrag で U# を呼ぶ
+            var trig = card.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var endEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.EndDrag };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(endEntry.callback,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnSwipeRelease");
+            trig.triggers.Add(endEntry);
             var photoGo = new GameObject("Photo", typeof(RectTransform), typeof(RawImage));
             var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(bodyRt, false);
             photoRt.anchorMin = photoRt.anchorMax = new Vector2(0.5f, 0.5f); photoRt.sizeDelta = new Vector2(160, 90);

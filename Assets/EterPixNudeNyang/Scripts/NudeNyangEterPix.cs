@@ -57,7 +57,6 @@ namespace NudeNyang
         public Image likeHot;
         public float swipeHotStart = 0.04f;   // カード幅に対する割合: ここからボタンが明るくなる
         public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定
-        private bool swipeReenable;
         public GameObject endScreen;
         public TMP_Text endSummary;
         public GameObject confirmModal;
@@ -168,7 +167,6 @@ namespace NudeNyang
         // 毎フレーム(表示中のスワイプ画面だけ). 矢印キーと明滅はシェルの Present に依存させない
         private void Update()
         {
-            if (swipeReenable && swipeScroll != null) { swipeReenable = false; swipeScroll.enabled = true; }
             if (!visible || group == null) return;
             // 一覧のスクロールに合わせた行の付け替えも、シェルの Present に頼らず毎フレーム見る
             if (screen == ScreenList) UpdateListRows(false);
@@ -211,16 +209,20 @@ namespace NudeNyang
             float a = Mathf.Abs(dx) / w;
             float hot = Mathf.Clamp01((a - swipeHotStart) / Mathf.Max(0.001f, swipeCommit - swipeHotStart));
             SetHot(dx < 0f ? hot : 0f, dx > 0f ? hot : 0f);
-            if (a >= swipeCommit)
-            {
-                bool like = dx > 0f;
-                Debug.Log("[EtpTrace] eterpix-app swipe commit like=" + like + " dx=" + dx.ToString("F1") + " cursor=" + cursor);
-                swipeScroll.enabled = false;
-                swipeBody.anchoredPosition = Vector2.zero;
-                swipeReenable = true;
-                SetHot(0f, 0f);
-                Advance(like);
-            }
+        }
+
+        // 指(レーザー)を離した(EventTrigger の EndDrag から呼ばれる). 閾値を越えていれば確定、そうでなければ戻るだけ
+        public void OnSwipeRelease()
+        {
+            if (swipeBody == null || swipeScroll == null) return;
+            float dx = swipeBody.anchoredPosition.x;
+            bool commit = Mathf.Abs(dx) / cardSize.x >= swipeCommit && screen == ScreenSwipe && started && cursor < feed.Count
+                && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
+            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + dx.ToString("F1") + " commit=" + commit + " cursor=" + cursor);
+            swipeScroll.StopMovement();
+            swipeBody.anchoredPosition = Vector2.zero;
+            SetHot(0f, 0f);
+            if (commit) Advance(dx > 0f);
         }
 
         private void SetHot(float pass, float like)
