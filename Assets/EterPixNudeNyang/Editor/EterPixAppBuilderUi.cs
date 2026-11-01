@@ -51,7 +51,8 @@ namespace EterPixNudeNyang
             // ---- ヘッダー ----
             var header = Box(root, "Header", tk.panel);
             Anchor(header, 0, 1, 1, 1, new Vector2(0, -HeaderHeight), Vector2.zero);
-            var titleLabel = Label(header, "Title", "EterPix-app", font, 34, TextAlignmentOptions.MidlineLeft, tk.text);
+            var logoFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(LogoFontPath);
+            var titleLabel = Label(header, "Title", "EterPix-app", logoFont != null ? logoFont : font, 34, TextAlignmentOptions.MidlineLeft, tk.text);
             Anchor(titleLabel.rectTransform, 0, 0, 1, 1, new Vector2(24, 0), new Vector2(-300, 0));
             app.title = titleLabel;
 
@@ -62,7 +63,15 @@ namespace EterPixNudeNyang
             app.counterLabel = counter;
 
             app.infoButtonLabel = HeaderButton(header, "Info Button", "i", font, 0, tk, app, "OnInfo");
-            app.groupButtonLabel = HeaderButton(header, "Group Button", "G", font, 1, tk, app, "OnGroup");
+            app.groupButtonLabel = HeaderButton(header, "Group Button", "", font, 1, tk, app, "OnGroup");
+            // グループのアイコンは画像(開いている間は×の文字に替わる)
+            var groupSprite = EnsureSprite(GroupIconPath);
+            var groupIconGo = new GameObject("Group Icon", typeof(RectTransform), typeof(Image));
+            var groupIconRt = (RectTransform)groupIconGo.transform; groupIconRt.SetParent(header.Find("Group Button"), false);
+            Anchor(groupIconRt, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-18, -18), new Vector2(18, 18));
+            var groupIconImg = groupIconGo.GetComponent<Image>();
+            groupIconImg.sprite = groupSprite; groupIconImg.color = Dark; groupIconImg.preserveAspect = true; groupIconImg.raycastTarget = false;
+            app.groupIcon = groupIconGo;
             HeaderButton(header, "Theme Button", "T", font, 2, tk, app, "OnTheme");
             // ☆(気になる一覧。♡はフォントに無いため仮). ロード完了後に出る
             app.heartLabel = HeaderButton(header, "Heart Button", "☆", font, 3, tk, app, "OnHeart");
@@ -352,10 +361,11 @@ namespace EterPixNudeNyang
 
         static void BuildStart(NudeNyangEterPix app, RectTransform screen, TMP_FontAsset font, Sprite logo, Tokens tk)
         {
-            var logoGo = new GameObject("Logo", typeof(RectTransform), typeof(Image));
-            var logoRt = (RectTransform)logoGo.transform; logoRt.SetParent(screen, false);
-            Anchor(logoRt, 0.5f, 1, 0.5f, 1, new Vector2(-70, -190), new Vector2(70, -50));
-            var li = logoGo.GetComponent<Image>(); li.sprite = logo; li.preserveAspect = true; li.color = Accent; li.raycastTarget = false;
+            // ロゴ: モニターと同じロゴ用フォントの文字
+            var logoFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(LogoFontPath);
+            var logoText = Label(screen, "Logo", "EterPix", logoFont != null ? logoFont : font, 88, TextAlignmentOptions.Center, null);
+            logoText.color = Accent;
+            Anchor(logoText.rectTransform, 0.1f, 1, 0.9f, 1, new Vector2(0, -200), new Vector2(0, -60));
 
             var des = Label(screen, "Description", AppDescription, font, 26, TextAlignmentOptions.Center, tk.text);
             Anchor(des.rectTransform, 0.05f, 0.34f, 0.95f, 0.72f, Vector2.zero, Vector2.zero);

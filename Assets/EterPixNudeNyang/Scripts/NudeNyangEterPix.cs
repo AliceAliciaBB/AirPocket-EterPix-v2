@@ -60,6 +60,7 @@ namespace NudeNyang
         public const int RowPool = 8;
         public const float RowHeight = 140f;
         public GameObject heartButton;
+        public GameObject groupIcon; // グループのアイコン(画像). 開いている間は隠して×の文字を出す
         public TMP_Text heartLabel;
         public GameObject listScreen;
         public RectTransform listContent;
@@ -598,7 +599,8 @@ namespace NudeNyang
             if (groupScreen != null) groupScreen.SetActive(next == ScreenGroup);
             // 押すと開いた画面を閉じて元へ戻れるよう、ボタンの表示を×にする
             if (infoButtonLabel != null) infoButtonLabel.text = next == ScreenInfo ? "×" : "i";
-            if (groupButtonLabel != null) groupButtonLabel.text = next == ScreenGroup ? "×" : "G";
+            if (groupButtonLabel != null) groupButtonLabel.text = next == ScreenGroup ? "×" : "";
+            if (groupIcon != null) groupIcon.SetActive(next != ScreenGroup);
             if (counterLabel != null) counterLabel.gameObject.SetActive(next == ScreenSwipe);
             if (listScreen != null) listScreen.SetActive(next == ScreenList);
             if (heartButton != null) heartButton.SetActive(started);

@@ -13,6 +13,9 @@ namespace EterPixNudeNyang
     public static partial class EterPixAppBuilder
     {
         const string FontPath = "Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold SDF.asset";
+        // モニターと同じロゴ用フォント(StackSansNotch-Bold. ASCIIのみ)
+        const string LogoFontPath = "Packages/com.aliciliabb.eterpix/Fonts/StackSansNotch-Bold SDF.asset";
+        const string GroupIconPath = "Assets/EterPixNudeNyang/Art/EterPixGroupIcon.png";
         const string FeedUrl = "https://eterpix.com/api/vrc/v1/public";
         const string IconPath = "Assets/EterPixNudeNyang/Art/EterPixAppIcon.png";
         static readonly Color Dark = new Color32(0x14, 0x14, 0x14, 0xFF);
@@ -99,7 +102,7 @@ namespace EterPixNudeNyang
             panelT.gameObject.SetActive(false);
             panelT.SetAsLastSibling();
 
-            // ホームのアイコン(ロゴ: 2x3の格子. 合意書で「仮」)
+            // ホームのアイコン(サイトの favicon. 元の色のまま出す)
             var index = NudeNyangEterPix.AppId - 1;
             if (shell.appSprites != null && shell.appSprites.Length > index) shell.appSprites[index] = icon;
             if (shell.appColors != null && shell.appColors.Length > index) shell.appColors[index] = Accent;
@@ -110,7 +113,7 @@ namespace EterPixNudeNyang
                 if (tileImage != null) { tileImage.color = Accent; EditorUtility.SetDirty(tileImage); }
                 var glyph = tile.Find("Glyph");
                 var glyphImage = glyph != null ? glyph.GetComponent<Image>() : null;
-                if (glyphImage != null) { glyphImage.sprite = icon; glyphImage.color = Dark; EditorUtility.SetDirty(glyphImage); }
+                if (glyphImage != null) { glyphImage.sprite = icon; glyphImage.color = Color.white; EditorUtility.SetDirty(glyphImage); }
             }
 
             // パッチ前の素の製品でもこのファイルがコンパイルできるよう、パッチで足されるフィールドはリフレクションで設定する
@@ -196,7 +199,22 @@ namespace EterPixNudeNyang
             }
         }
 
-        // 2列×3行の長方形だけのロゴ. 長方形・線なしの規則に合わせる
+        // Art 内の PNG を Sprite として読み込む(Sprite 設定でなければ直す)
+        static Sprite EnsureSprite(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) { AssetDatabase.ImportAsset(path); importer = AssetImporter.GetAtPath(path) as TextureImporter; }
+            if (importer != null && importer.textureType != TextureImporterType.Sprite)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.mipmapEnabled = false; importer.alphaIsTransparency = true;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        }
+
+        // (旧)2列×3行の長方形のロゴ. ホームのアイコンは favicon に替えたので、Art に無いときだけ作る
         static Sprite EnsureIcon()
         {
             var existing = AssetDatabase.LoadAssetAtPath<Sprite>(IconPath);

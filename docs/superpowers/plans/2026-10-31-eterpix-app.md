@@ -290,6 +290,12 @@
 - 再現: Play で気になる20件の一覧 → 8行・サムネ8枚・スクロールで行の付け替え(listFirst 0→10)・写真の拡大→戻り・WEB/高画質のURLを確認。
 - 実機で「気になる画面が動かなかった」と報告あり。原因は未特定(実機ログには `list open liked=33` が出ており例外は無い)。念のため、一覧の行の付け替えをシェルの `Present` 頼みから `Update` に移し、`list open` のログに viewport/content/rows を追加した。実機で再確認が要る。
 
+**見た目の素材(2026-11-01 ユーザー指示)**
+- アプリアイコン = サイトの favicon(`eterpix-v10/public/android-chrome-192x192.png` を `Art/EterPixAppIcon.png` にコピー。色は #9D6FFF でアクセントと同じ)。ホームのタイルの glyph に元の色のまま使う。
+- ロゴ = モニターと同じロゴ用フォント `StackSansNotch-Bold SDF`(Packages/com.aliciliabb.eterpix/Fonts)。起動画面の「EterPix」(従来の2×3の格子の画像は廃止)とヘッダー左の「EterPix-app」に使う。ASCII のみ。
+- グループアイコン = 画像 `icon_group.png`(パッケージの UI からコピーして `Art/EterPixGroupIcon.png`)。ヘッダーの G の文字を置き換え、開いている間は × の文字に替わる。
+- 確認: Play で撮影(`screens/icons-start.png`, `icons-home.png`)。ホームのタイルは、NudeNyang のタイルの陰影のせいで favicon の角丸の四角が内側に少し見える。
+
 **実施メモ(Task 9)**
 - 文言を K-46 に揃えた: 読み込み中「読み込み中…」/ Untrusted「「Allow Untrusted URLs」をONにしてください」/ 失敗「読み込みに失敗しました」(サーバー停止・画像の失敗の両方)。投稿0件は K-46 に文言が無いため「まだ投稿がありません」のまま(仮)。いずれも `NotoSansJP-Bold SDF` に全字ある。
 - 423 Locked の取り直しは `EterPixAppFeed` に既にある(5秒おき・上限あり)ため、再試行の予算は変えていない。失敗後に手動で取り直す手段は無い(アプリを閉じて開き直しても `fetchStarted` により再取得しない)→ 要否は Task 10 の実機確認で判断。
