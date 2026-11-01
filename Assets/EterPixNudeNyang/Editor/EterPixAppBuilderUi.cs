@@ -11,7 +11,10 @@ namespace EterPixNudeNyang
     // アプリの画面(ヘッダー・起動画面・情報・グループ)を作る. 文面は合意書の初期案のとおり
     public static partial class EterPixAppBuilder
     {
-        const float HeaderHeight = 64f;
+        const float Margin = 16f;       // 画面の端からの余白(上下左右とも共通)
+        const float HeaderBtn = 44f;    // ヘッダーのボタンの一辺
+        const float HeaderGap = 12f;    // ヘッダーのボタンの間隔
+        const float HeaderHeight = Margin + HeaderBtn + Margin; // 76: ボタンの上下にも余白を取る
         const float FooterHeight = 56f; // 下端にNudeNyangのホームバーが重なるため高めに取る
 
         const string AppDescription =
@@ -54,34 +57,40 @@ namespace EterPixNudeNyang
             tk.bg.Add(bg);
 
             // ---- ヘッダー ----
+            // 左から タイトル・カウンタ(現在/全体. 左寄せ. 3桁ぶんの幅を確保). 右から i・グループ・歯車・★. 端から Margin(16)ずつ空ける
             var header = Box(root, "Header", tk.panel);
             Anchor(header, 0, 1, 1, 1, new Vector2(0, -HeaderHeight), Vector2.zero);
             var logoFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(LogoFontPath);
             var titleLabel = Label(header, "Title", "EterPix-app", logoFont != null ? logoFont : font, 34, TextAlignmentOptions.MidlineLeft, tk.text);
-            Anchor(titleLabel.rectTransform, 0, 0, 1, 1, new Vector2(24, 0), new Vector2(-300, 0));
+            titleLabel.enableWordWrapping = false;
+            float titleW = Mathf.Ceil(titleLabel.GetPreferredValues("EterPix-app").x) + 4f;
+            titleLabel.rectTransform.anchorMin = titleLabel.rectTransform.anchorMax = new Vector2(0, 0.5f);
+            titleLabel.rectTransform.pivot = new Vector2(0, 0.5f);
+            titleLabel.rectTransform.sizeDelta = new Vector2(titleW, HeaderBtn);
+            titleLabel.rectTransform.anchoredPosition = new Vector2(Margin, 0);
             app.title = titleLabel;
 
-            // 現在/総数(スワイプ画面のときだけ出る)
-            var counter = Label(header, "Counter", "", font, 28, TextAlignmentOptions.Center, tk.text);
-            Anchor(counter.rectTransform, 0.35f, 0, 0.65f, 1, Vector2.zero, Vector2.zero);
+            // 現在/全体(スワイプ画面のときだけ出る). 左寄せ。「000/000」が入る幅を常に取っておき、数字が増えても隣の部品がずれない
+            var counter = Label(header, "Counter", "", font, 28, TextAlignmentOptions.MidlineLeft, tk.text);
+            counter.enableWordWrapping = false;
+            float counterW = Mathf.Ceil(counter.GetPreferredValues("000/000").x) + 4f;
+            counter.rectTransform.anchorMin = counter.rectTransform.anchorMax = new Vector2(0, 0.5f);
+            counter.rectTransform.pivot = new Vector2(0, 0.5f);
+            counter.rectTransform.sizeDelta = new Vector2(counterW, HeaderBtn);
+            counter.rectTransform.anchoredPosition = new Vector2(Margin + titleW + Margin, 0);
             counter.gameObject.SetActive(false);
             app.counterLabel = counter;
+            Debug.Log("[EtpTrace] builder: header title=" + titleW + " counter=" + counterW + " buttons=" + (4 * (HeaderBtn + HeaderGap)));
 
             app.infoButtonLabel = HeaderButton(header, "Info Button", "i", font, 0, tk, app, "OnInfo");
             app.groupButtonLabel = HeaderButton(header, "Group Button", "", font, 1, tk, app, "OnGroup");
-            // グループのアイコンは画像(開いている間は×の文字に替わる)
-            var groupSprite = EnsureSprite(GroupIconPath);
-            var groupIconGo = new GameObject("Group Icon", typeof(RectTransform), typeof(Image));
-            var groupIconRt = (RectTransform)groupIconGo.transform; groupIconRt.SetParent(header.Find("Group Button"), false);
-            Anchor(groupIconRt, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-18, -18), new Vector2(18, 18));
-            var groupIconImg = groupIconGo.GetComponent<Image>();
-            groupIconImg.sprite = groupSprite; groupIconImg.color = Color.white; groupIconImg.preserveAspect = true; groupIconImg.raycastTarget = false;
-            tk.text.Add(groupIconImg); // アイコンの色は文字色に従う(モニターの currentColor)
-            app.groupIcon = groupIconGo;
-            HeaderButton(header, "Theme Button", "", font, 2, tk, app, "OnTheme");
-            BuildThemeIcon((RectTransform)header.Find("Theme Button"), tk);
-            // ☆(気になる一覧。♡はフォントに無いため仮). ロード完了後に出る
-            app.heartLabel = HeaderButton(header, "Heart Button", "☆", font, 3, tk, app, "OnHeart");
+            // グループ・歯車のアイコンは画像(開いている間は×の文字に替わる). 色は文字色に従う(モニターの currentColor)
+            app.groupIcon = HeaderIcon(header.Find("Group Button"), GroupIconPath, tk);
+            app.settingsButtonLabel = HeaderButton(header, "Settings Button", "", font, 2, tk, app, "OnSettings");
+            app.settingsIcon = HeaderIcon(header.Find("Settings Button"), SettingsIconPath, tk);
+            // 気になる一覧(ロード完了後に出る). 画像アイコン. 一覧を開いている間は×
+            app.heartLabel = HeaderButton(header, "Heart Button", "", font, 3, tk, app, "OnHeart");
+            app.heartIcon = HeaderIcon(header.Find("Heart Button"), LikedListIconPath, tk);
             app.heartButton = header.Find("Heart Button").gameObject;
             app.heartButton.SetActive(false);
 
@@ -103,6 +112,7 @@ namespace EterPixNudeNyang
 
             app.infoScreen = BuildInfo(app, root, font, tk);
             app.groupScreen = TextScreen(root, "Group Screen", GroupText, font, tk);
+            app.settingsScreen = BuildSettings(app, root, font, tk);
 
             BuildZoom(app, root, font);
             BuildConfirm(app, root, font, tk);
@@ -525,6 +535,61 @@ namespace EterPixNudeNyang
             return screen.gameObject;
         }
 
+        // 設定画面: 見出し「設定」・行1「テーマ [黒|白]」・行2「進む・戻るを入れ替え [しない|する]」. 端から Margin(16)ずつ.
+        // 選択中の側は accent 色. 色は実行時(RefreshSettings)に決める(テーマの塗り直しで上書きされないよう、トークンには入れない)
+        const float SetRowH = 56f, SetBtnW = 120f, SetBtnH = 44f;
+        static GameObject BuildSettings(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            var screen = Screen(root, "Settings Screen");
+            var heading = Label(screen, "Heading", "設定", font, 29, TextAlignmentOptions.MidlineLeft, tk.text);
+            Anchor(heading.rectTransform, 0, 1, 1, 1, new Vector2(Margin, -(Margin + 43f)), new Vector2(-Margin, -Margin));
+            var images = new Image[4]; var labels = new TMP_Text[4]; var icons = new Image[4];
+            BuildSettingRow(app, screen, 0, "テーマ", "", "OnThemeDark", "", "OnThemeLight", font, tk, images, labels, icons, 0, DarkModeIconPath, LightModeIconPath);
+            BuildSettingRow(app, screen, 1, "進む・戻るを入れ替え", "しない", "OnSwapOff", "する", "OnSwapOn", font, tk, images, labels, icons, 2, null, null);
+            app.settingImages = images; app.settingLabels = labels; app.settingIcons = icons;
+            screen.gameObject.SetActive(false);
+            return screen.gameObject;
+        }
+
+        static void BuildSettingRow(NudeNyangEterPix app, RectTransform screen, int index, string title, string leftText, string leftEvent,
+            string rightText, string rightEvent, TMP_FontAsset font, Tokens tk, Image[] images, TMP_Text[] labels, Image[] icons, int slot, string leftIcon, string rightIcon)
+        {
+            float top = Margin + 43f + Margin + index * (SetRowH + Margin);
+            var row = new GameObject("Row " + index, typeof(RectTransform)); var rowRt = (RectTransform)row.transform;
+            rowRt.SetParent(screen, false);
+            Anchor(rowRt, 0, 1, 1, 1, new Vector2(Margin, -(top + SetRowH)), new Vector2(-Margin, -top));
+            var lab = Label(rowRt, "Title", title, font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
+            lab.enableWordWrapping = false;
+            Anchor(lab.rectTransform, 0, 0, 1, 1, Vector2.zero, new Vector2(-(SetBtnW * 2 + HeaderGap), 0));
+            SetSegment(app, rowRt, "Right Button", rightText, rightEvent, font, 0, images, labels, icons, slot + 1, rightIcon);
+            SetSegment(app, rowRt, "Left Button", leftText, leftEvent, font, SetBtnW + HeaderGap, images, labels, icons, slot, leftIcon);
+        }
+
+        static void SetSegment(NudeNyangEterPix app, RectTransform row, string name, string text, string eventName, TMP_FontAsset font, float fromRight,
+            Image[] images, TMP_Text[] labels, Image[] icons, int slot, string iconPath)
+        {
+            var b = Box(row, name, null);
+            b.anchorMin = b.anchorMax = new Vector2(1, 0.5f); b.pivot = new Vector2(1, 0.5f);
+            b.sizeDelta = new Vector2(SetBtnW, SetBtnH); b.anchoredPosition = new Vector2(-fromRight, 0);
+            var img = b.GetComponent<Image>();
+            var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
+            var l = Label(b, "Label", text, font, 24, TextAlignmentOptions.Center, null);
+            l.enableWordWrapping = false;
+            Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            Wire(btn, app, eventName);
+            images[slot] = img; labels[slot] = l;
+            if (!string.IsNullOrEmpty(iconPath))
+            {
+                // 文字の代わりにアイコン(100px の画像を 32px で). 色は選択状態で実行時に決める
+                var ig = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+                var irt = (RectTransform)ig.transform; irt.SetParent(b, false);
+                Anchor(irt, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-16, -16), new Vector2(16, 16));
+                var iimg = ig.GetComponent<Image>();
+                iimg.sprite = EnsureSprite(iconPath); iimg.preserveAspect = true; iimg.raycastTarget = false;
+                icons[slot] = iimg;
+            }
+        }
+
         static GameObject TextScreen(RectTransform root, string name, string body, TMP_FontAsset font, Tokens tk)
         {
             var screen = Screen(root, name);
@@ -543,42 +608,26 @@ namespace EterPixNudeNyang
             return rt;
         }
 
-        // テーマ切り替えのアイコン: モニターの btn_ThemeButton と同じ構成(20×20 の四角. 左半分が塗り、右半分が枠). 長方形4枚.
-        // モニターの寸法(中心からの位置)を、ヘッダーのボタンに合わせて 1.6 倍する
-        static void BuildThemeIcon(RectTransform button, Tokens tk)
+        // ヘッダーのボタンの中の画像アイコン(文字色に従う)
+        static GameObject HeaderIcon(Transform button, string path, Tokens tk)
         {
-            const float k = 1.6f;
-            // (x, y, 幅, 高さ): 中心からの左下の位置と大きさ. Fill / Top / Bottom / Right
-            float[][] parts =
-            {
-                new[] { -10f, -10f, 10f, 20f },
-                new[] { 0f, 8f, 10f, 2f },
-                new[] { 0f, -10f, 10f, 2f },
-                new[] { 8f, -10f, 2f, 20f },
-            };
-            var root = new GameObject("Theme Icon", typeof(RectTransform));
-            var rootRt = (RectTransform)root.transform; rootRt.SetParent(button, false);
-            Anchor(rootRt, 0.5f, 0.5f, 0.5f, 0.5f, Vector2.zero, Vector2.zero);
-            string[] names = { "Fill", "Top", "Bottom", "Right" };
-            for (int i = 0; i < parts.Length; i++)
-            {
-                var go = new GameObject(names[i], typeof(RectTransform), typeof(Image));
-                var rt = (RectTransform)go.transform; rt.SetParent(rootRt, false);
-                Anchor(rt, 0.5f, 0.5f, 0.5f, 0.5f,
-                    new Vector2(parts[i][0] * k, parts[i][1] * k),
-                    new Vector2((parts[i][0] + parts[i][2]) * k, (parts[i][1] + parts[i][3]) * k));
-                var img = go.GetComponent<Image>(); img.color = Color.white; img.raycastTarget = false;
-                tk.text.Add(img);
-            }
+            var sprite = EnsureSprite(path);
+            var go = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform; rt.SetParent(button, false);
+            Anchor(rt, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-14, -14), new Vector2(14, 14));
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite; img.color = Color.white; img.preserveAspect = true; img.raycastTarget = false;
+            tk.text.Add(img);
+            return go;
         }
 
         static TMP_Text HeaderButton(RectTransform header, string name, string text, TMP_FontAsset font, int slot, Tokens tk, NudeNyangEterPix app, string eventName)
         {
             var b = Box(header, name, tk.btn);
             var img = b.GetComponent<Image>();
-            // 右端から詰めて並べる(幅56・間隔12)
-            float right = -24 - slot * 68;
-            Anchor(b, 1, 0.5f, 1, 0.5f, new Vector2(right - 56, -22), new Vector2(right, 22));
+            // 右端から詰めて並べる(一辺 HeaderBtn・間隔 HeaderGap. 右端と上下は Margin)
+            float right = -Margin - slot * (HeaderBtn + HeaderGap);
+            Anchor(b, 1, 0.5f, 1, 0.5f, new Vector2(right - HeaderBtn, -HeaderBtn / 2f), new Vector2(right, HeaderBtn / 2f));
             var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
             var l = Label(b, "Label", text, font, 28, TextAlignmentOptions.Center, tk.text);
             Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);

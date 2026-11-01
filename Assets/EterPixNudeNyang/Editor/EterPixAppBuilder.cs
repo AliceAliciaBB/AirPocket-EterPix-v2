@@ -16,6 +16,10 @@ namespace EterPixNudeNyang
         // モニターと同じロゴ用フォント(StackSansNotch-Bold. ASCIIのみ)
         const string LogoFontPath = "Packages/com.aliciliabb.eterpix/Fonts/StackSansNotch-Bold SDF.asset";
         const string GroupIconPath = "Assets/EterPixNudeNyang/Art/EterPixGroupIcon.png";
+        const string DarkModeIconPath = "Assets/EterPixNudeNyang/Art/EterPixDarkModeIcon.png";   // Material Symbols "dark_mode"
+        const string LightModeIconPath = "Assets/EterPixNudeNyang/Art/EterPixLightModeIcon.png"; // Material Symbols "light_mode"
+        const string LikedListIconPath = "Assets/EterPixNudeNyang/Art/EterPixLikedListIcon.png"; // Material Symbols "hotel_class"(気になる一覧)
+        const string SettingsIconPath = "Assets/EterPixNudeNyang/Art/EterPixSettingsIcon.png"; // Google Fonts の Material Symbols "settings"(Apache-2.0)
         const string FeedUrl = "https://eterpix.com/api/vrc/v1/public";
         const string IconPath = "Assets/EterPixNudeNyang/Art/EterPixAppIcon.png";
         static readonly Color Dark = new Color32(0x14, 0x14, 0x14, 0xFF);

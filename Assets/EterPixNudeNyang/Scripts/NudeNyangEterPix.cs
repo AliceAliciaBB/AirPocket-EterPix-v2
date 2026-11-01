@@ -30,6 +30,7 @@ namespace NudeNyang
         public const int ScreenList = 2;
         public const int ScreenInfo = 3;
         public const int ScreenGroup = 4;
+        public const int ScreenSettings = 5;
 
         public NudeNyangTablet pad;
         public RectTransform panel;
@@ -43,10 +44,17 @@ namespace NudeNyang
         public GameObject swipeScreen;
         public GameObject infoScreen;
         public GameObject groupScreen;
+        public GameObject settingsScreen;
+        public Image[] settingImages;   // 設定の分割ボタン 0:黒 1:白 2:しない 3:する
+        public TMP_Text[] settingLabels;
+        public Image[] settingIcons;    // テーマの2つは文字の代わりにアイコン(null=文字)
+        [HideInInspector] public bool swapNav; // 進む・戻るの入れ替え(自分の好み. 同期しない. セッション内だけ)
 
         // ヘッダー
         public TMP_Text infoButtonLabel;
         public TMP_Text groupButtonLabel;
+        public TMP_Text settingsButtonLabel;
+        public GameObject settingsIcon; // 歯車の画像. 設定を開いている間は隠して×の文字を出す
         public TMP_Text counterLabel;
 
         // スワイプ画面
@@ -89,6 +97,7 @@ namespace NudeNyang
         public GameObject heartButton;
         public GameObject groupIcon; // グループのアイコン(画像). 開いている間は隠して×の文字を出す
         public TMP_Text heartLabel;
+        public GameObject heartIcon;  // 気になる一覧ボタンの画像. 一覧を開いている間は隠して×の文字を出す
         public GameObject listScreen;
         public RectTransform listContent;
         public RectTransform listViewport;
@@ -496,11 +505,11 @@ namespace NudeNyang
             endScreen.SetActive(finished);
             if (finished)
             {
-                counterLabel.text = count + " / " + count;
+                counterLabel.text = count + "/" + count;
                 endSummary.text = "すべての投稿を見ました\n気になる: " + likedCount + " 件";
                 return;
             }
-            counterLabel.text = (cursor + 1) + " / " + count;
+            counterLabel.text = (cursor + 1) + "/" + count;
             userLabel.text = feed.UserLabel[cursor];
             worldLabel.text = feed.WorldLabel[cursor];
             SetDescription(swipeDes, swipeBandRect, DescText(cursor), 76f, 130f);
@@ -938,10 +947,15 @@ namespace NudeNyang
             if (infoButtonLabel != null) infoButtonLabel.text = next == ScreenInfo ? "×" : "i";
             if (groupButtonLabel != null) groupButtonLabel.text = next == ScreenGroup ? "×" : "";
             if (groupIcon != null) groupIcon.SetActive(next != ScreenGroup);
+            if (settingsScreen != null) settingsScreen.SetActive(next == ScreenSettings);
+            if (next == ScreenSettings) RefreshSettings();
+            if (settingsButtonLabel != null) settingsButtonLabel.text = next == ScreenSettings ? "×" : "";
+            if (settingsIcon != null) settingsIcon.SetActive(next != ScreenSettings);
             if (counterLabel != null) counterLabel.gameObject.SetActive(next == ScreenSwipe);
             if (listScreen != null) listScreen.SetActive(next == ScreenList);
             if (heartButton != null) heartButton.SetActive(started);
-            if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "☆";
+            if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "";
+            if (heartIcon != null) heartIcon.SetActive(next != ScreenList);
             if (next != ScreenList) CancelPortal();
             if (next == ScreenList) OpenList();
             if (next == ScreenInfo && infoUrlField != null) SetCopyText(infoUrlField, InfoUrl);
@@ -963,10 +977,14 @@ namespace NudeNyang
                 return;
             }
             if (screen == ScreenStart || screen == ScreenSwipe) returnScreen = screen;
-            if ((target == ScreenInfo || target == ScreenGroup) && screen != ScreenInfo && screen != ScreenGroup) overlayBack = screen;
+            if ((target == ScreenInfo || target == ScreenGroup || target == ScreenSettings) && !IsTextOverlay(screen)) overlayBack = screen;
             ShowScreen(target);
         }
 
+        // i・グループ・設定は、開く前の画面へ戻る重なる画面
+        private bool IsTextOverlay(int sc) { return sc == ScreenInfo || sc == ScreenGroup || sc == ScreenSettings; }
+
+        public void OnSettings() { ToggleOverlay(ScreenSettings); }
         public void OnInfo() { ToggleOverlay(ScreenInfo); }
         public void OnGroup() { ToggleOverlay(ScreenGroup); }
 
@@ -980,12 +998,45 @@ namespace NudeNyang
             MarkDirty();
         }
 
-        public void OnTheme()
+        public void OnTheme() { SetTheme(!isDark); }
+        public void OnThemeDark() { SetTheme(true); }
+        public void OnThemeLight() { SetTheme(false); }
+        public void OnSwapOff() { SetSwap(false); }
+        public void OnSwapOn() { SetSwap(true); }
+
+        private void SetTheme(bool dark)
         {
-            isDark = !isDark;
+            if (isDark == dark) return;
+            isDark = dark;
             ApplyTheme();
             Debug.Log("[EtpTrace] eterpix-app theme dark=" + isDark);
             MarkDirty();
+        }
+
+        private void SetSwap(bool swap)
+        {
+            if (swapNav == swap) return;
+            swapNav = swap;
+            RefreshSettings();
+            Debug.Log("[EtpTrace] eterpix-app swapNav=" + swapNav);
+        }
+
+        // 設定画面の分割ボタン: 選択中は accent、そうでなければボタン色
+        private void RefreshSettings()
+        {
+            if (settingImages == null || settingLabels == null || settingImages.Length < 4) return;
+            bool[] on = { isDark, !isDark, !swapNav, swapNav };
+            Color accent = new Color(0.616f, 0.435f, 1f, 1f);   // #9D6FFF
+            Color onText = new Color(0.078f, 0.078f, 0.078f, 1f); // #141414
+            Color btnColor = isDark ? darkBtn : lightBtn;
+            Color textColor = isDark ? darkText : lightText;
+            for (int i = 0; i < 4; i++)
+            {
+                if (settingImages[i] != null) settingImages[i].color = on[i] ? accent : btnColor;
+                Color fg = on[i] ? onText : textColor;
+                if (settingLabels[i] != null) settingLabels[i].color = fg;
+                if (settingIcons != null && i < settingIcons.Length && settingIcons[i] != null) settingIcons[i].color = fg;
+            }
         }
 
         private void ApplyTheme()
@@ -995,6 +1046,7 @@ namespace NudeNyang
             Paint(btnGraphics, isDark ? darkBtn : lightBtn);
             Paint(textGraphics, isDark ? darkText : lightText);
             Paint(subGraphics, isDark ? darkSub : lightSub);
+            RefreshSettings();
         }
 
         private void Paint(Graphic[] targets, Color c)
