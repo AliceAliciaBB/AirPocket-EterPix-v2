@@ -124,13 +124,13 @@ namespace EterPixNudeNyang
             UdonSharpEditorUtility.CopyProxyToUdon(app);
             UdonSharpEditorUtility.CopyProxyToUdon(shell);
             EditorUtility.SetDirty(app); EditorUtility.SetDirty(shell);
-            ConfigureTouchGates(pad);
+            ConfigureTouchGates(pad, app);
             Debug.Log("[EtpTrace] builder: " + pad.name + " 配線 homeIcons=" + shell.homeIcons.Length);
         }
 
         // 本体の触り判定ゲート(NudeNyangTouchSlop)を、作り直した画面のカード・一覧に付ける.
         // ゲートはボタン付きの ScrollRect すべてに付く本体の標準の仕組み(タップの許容値・離し検出). 本体の Editor 側にあるためリフレクションで呼ぶ
-        static void ConfigureTouchGates(NudeNyangTablet pad)
+        static void ConfigureTouchGates(NudeNyangTablet pad, NudeNyangEterPix app)
         {
             System.Type t = null;
             foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
@@ -142,6 +142,40 @@ namespace EterPixNudeNyang
             if (m == null) { Debug.LogWarning("[EtpTrace] builder: NudeNyangTouchSlopBuilder.Configure が見つかりません(ゲート未設定)"); return; }
             m.Invoke(null, new object[] { pad });
             Debug.Log("[EtpTrace] builder: " + pad.name + " 触り判定ゲートを設定");
+
+            // ボタンの無い所(行の余白・一覧の下の空き・情報ページ全体)でもレーザーでスクロールできるよう、
+            // 本体が X フィードの空白部に使う「面の入力」(ConfigureViewportInput)を、一覧と情報ページにも付ける
+            var viewportInput = t.GetMethod("ConfigureViewportInput", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            if (viewportInput == null) { Debug.LogWarning("[EtpTrace] builder: ConfigureViewportInput が見つかりません(面の入力は未設定)"); return; }
+            SurfaceInput(pad, viewportInput, app.listScreen);
+            SurfaceInput(pad, viewportInput, app.infoScreen);
+        }
+
+        // ScrollRect を持つ画面に、面の入力(押す→ドラッグ→離す)を付ける. ボタンが無くてゲートが無い画面には、ボタン0個のゲートを作る
+        static void SurfaceInput(NudeNyangTablet pad, System.Reflection.MethodInfo viewportInput, GameObject screen)
+        {
+            if (screen == null) return;
+            var scroll = screen.GetComponent<ScrollRect>();
+            if (scroll == null || scroll.viewport == null) return;
+            var gate = screen.GetComponent<NudeNyangTouchSlop>();
+            if (gate == null)
+            {
+                gate = screen.AddUdonSharpComponent<NudeNyangTouchSlop>();
+                gate.scroll = scroll;
+                gate.buttons = new Button[0];
+                gate.eventTargets = new VRC.Udon.UdonBehaviour[0]; gate.eventNames = new string[0]; gate.eventKinds = new int[0];
+                gate.gestureSettings = pad.shell == null ? null : pad.shell.gestureSettings;
+                var go = new GameObject("Touch displacement", typeof(RectTransform));
+                go.transform.SetParent(screen.transform, false);
+                gate.sample = (RectTransform)go.transform; gate.sample.sizeDelta = Vector2.one;
+            }
+            // 面が入力を受けられるよう、viewport の画像を当たり判定ありにする(マスクの見た目は変わらない)
+            var vpImg = scroll.viewport.GetComponent<Image>();
+            if (vpImg != null) vpImg.raycastTarget = true;
+            viewportInput.Invoke(null, new object[] { gate });
+            UdonSharpEditorUtility.CopyProxyToUdon(gate);
+            EditorUtility.SetDirty(gate);
+            Debug.Log("[EtpTrace] builder: " + screen.name + " に面の入力を設定");
         }
 
         // U#のスクリプトには UdonSharpProgramAsset が要る(無いと AddUdonSharpComponent が失敗する)

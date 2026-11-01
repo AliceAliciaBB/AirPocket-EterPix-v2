@@ -48,6 +48,10 @@ namespace NudeNyang
         public RawImage photo;
         public TMP_Text userLabel;
         public TMP_Text worldLabel;
+        public TMP_Text swipeDes;          // 投稿の説明(pode). スワイプの情報帯
+        public RectTransform swipeBandRect;
+        public TMP_Text zoomDes;           // 拡大の情報帯
+        public TMP_Text[] rowDes;          // 一覧の各行
         public TMP_Text cardNotice;
         public GameObject buttonRow;
         // ドラッグでのスワイプ(Card の ScrollRect を横に引く. 離すと元に戻る. 閾値を越えたら次へ)
@@ -373,6 +377,7 @@ namespace NudeNyang
             counterLabel.text = (cursor + 1) + " / " + count;
             userLabel.text = feed.UserLabel[cursor];
             worldLabel.text = feed.WorldLabel[cursor];
+            SetDescription(swipeDes, swipeBandRect, DescText(cursor), 76f, 130f);
             int coid = feed.Coid[cursor];
             Texture2D tex = images != null ? images.GetTexture(coid) : null;
             if (tex != null)
@@ -422,6 +427,26 @@ namespace NudeNyang
                 + " content=" + listContent.sizeDelta + " rows=" + RowPool + " portal=" + portalEnabled);
         }
 
+        // 投稿の説明(pode). 改行は空白に直して(モックの2行省略と同じ)、前後の空白を取る. 無ければ空
+        private string DescText(int post)
+        {
+            if (feed == null || feed.Pode == null || post < 0 || post >= feed.Pode.Length) return "";
+            string s = feed.Pode[post];
+            if (string.IsNullOrEmpty(s)) return "";
+            s = s.Replace("\r", " ").Replace("\n", " ").Trim();
+            return s;
+        }
+
+        // 説明の欄を出し入れし、情報帯の高さを合わせる(説明が無い投稿は低いまま)
+        private void SetDescription(TMP_Text label, RectTransform band, string text, float lowH, float highH)
+        {
+            if (label == null) return;
+            bool has = text.Length > 0;
+            label.text = text;
+            label.gameObject.SetActive(has);
+            if (band != null) band.offsetMax = new Vector2(band.offsetMax.x, has ? highH : lowH);
+        }
+
         // 行の配置を向きに合わせて組み直す(モックと同じ. 画像は左で全段ぶん、右にテキストとボタン.
         // 幅に収まらないボタンは次の段へ折り返し、各段は右寄せ). 横向きは Builder が作った配置と同じ値.
         private void ApplyRowLayout(bool portrait)
@@ -436,7 +461,7 @@ namespace NudeNyang
             if (portrait)
             {
                 // 名前 + ワールド + ボタンの2段. 右列に WEB と 高画質 が並ばない幅なら3段
-                float text = 8f + 34f + 26f + gap;
+                float text = 8f + 34f + 26f + 46f + gap; // 名前・ワールド・説明(2行)
                 float avail = rowW - (RowHeight + 40f) - edge;
                 twoLine = 2f * copyW + gap <= avail;
                 int lines = twoLine ? 2 : 3;
@@ -452,12 +477,16 @@ namespace NudeNyang
                 tb.sizeDelta = new Vector2(h - 24f, h - 24f);
                 ((RectTransform)rowThumbs[k].transform).sizeDelta = tb.sizeDelta;
                 RectTransform name = (RectTransform)rowNames[k].gameObject.transform, world = (RectTransform)rowWorlds[k].gameObject.transform, no = (RectTransform)rowNoWorld[k].gameObject.transform;
+                RectTransform des = (RectTransform)rowDes[k].gameObject.transform;
                 if (!portrait)
                 {
-                    name.anchorMin = new Vector2(0f, 0.5f); name.anchorMax = new Vector2(1f, 1f);
-                    name.offsetMin = new Vector2(h, 0f); name.offsetMax = new Vector2(-12f, -6f);
-                    world.anchorMin = new Vector2(0f, 0.32f); world.anchorMax = new Vector2(1f, 0.5f);
-                    world.offsetMin = new Vector2(h, 0f); world.offsetMax = new Vector2(-12f, 0f);
+                    // 名前・ワールドは上から、説明はその下の左(右はボタン)
+                    name.anchorMin = new Vector2(0f, 1f); name.anchorMax = new Vector2(1f, 1f);
+                    name.offsetMin = new Vector2(h, -40f); name.offsetMax = new Vector2(-12f, -6f);
+                    world.anchorMin = new Vector2(0f, 1f); world.anchorMax = new Vector2(1f, 1f);
+                    world.offsetMin = new Vector2(h, -68f); world.offsetMax = new Vector2(-12f, -40f);
+                    des.anchorMin = new Vector2(0f, 0f); des.anchorMax = new Vector2(1f, 0f);
+                    des.offsetMin = new Vector2(h, baseY); des.offsetMax = new Vector2(-(edge + portalW + gap + 2f * copyW + gap + 12f), h - 8f - 68f);
                     no.anchorMin = new Vector2(0.5f, 0f); no.anchorMax = new Vector2(1f, 0.32f);
                     no.offsetMin = Vector2.zero; no.offsetMax = new Vector2(-16f, 0f);
                     rowNoWorld[k].alignment = TextAlignmentOptions.MidlineRight;
@@ -468,6 +497,8 @@ namespace NudeNyang
                     name.offsetMin = new Vector2(h, -42f); name.offsetMax = new Vector2(-12f, -8f);
                     world.anchorMin = new Vector2(0f, 1f); world.anchorMax = new Vector2(1f, 1f);
                     world.offsetMin = new Vector2(h, -68f); world.offsetMax = new Vector2(-12f, -42f);
+                    des.anchorMin = new Vector2(0f, 1f); des.anchorMax = new Vector2(1f, 1f);
+                    des.offsetMin = new Vector2(h, -68f - 46f); des.offsetMax = new Vector2(-12f, -68f);
                     no.anchorMin = new Vector2(0f, 1f); no.anchorMax = new Vector2(1f, 1f);
                     no.offsetMin = new Vector2(h, -68f); no.offsetMax = new Vector2(-12f, -42f);
                     rowNoWorld[k].alignment = TextAlignmentOptions.MidlineLeft;
@@ -519,6 +550,7 @@ namespace NudeNyang
                 rowNames[k].text = feed.UserLabel[post];
                 bool hasWorld = !string.IsNullOrEmpty(feed.WorldId[post]);
                 rowWorlds[k].text = hasWorld ? feed.WorldLabel[post] : "";
+                if (rowDes != null && rowDes.Length > k) rowDes[k].text = DescText(post);
                 rowNoWorld[k].gameObject.SetActive(!hasWorld);
                 rowPortalButtons[k].SetActive(hasWorld && portalEnabled);
                 if (rowPortalLabels != null && rowPortalLabels.Length > k) rowPortalLabels[k].text = PortalLabel(post);
@@ -703,6 +735,7 @@ namespace NudeNyang
             zoomPhotoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
             zoomUser.text = feed.UserLabel[zoomIndex];
             zoomWorld.text = feed.WorldLabel[zoomIndex];
+            SetDescription(zoomDes, (RectTransform)zoomBand.transform, DescText(zoomIndex), 84f, 142f);
             zoomBand.SetActive(zoomMode == 1);
             Debug.Log("[EtpTrace] eterpix-app zoom index=" + zoomIndex + " mode=" + zoomMode + " turns=" + turns);
         }

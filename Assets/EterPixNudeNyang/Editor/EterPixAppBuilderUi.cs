@@ -160,13 +160,19 @@ namespace EterPixNudeNyang
             // 情報帯(半透明の黒。写真の上に重なるので、テーマの色には従わない)
             var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
             var bandRt = (RectTransform)band.transform; bandRt.SetParent(bodyRt, false);
-            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 76));
+            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 76)); // 説明があるときは実行時に高くする
             var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
+            // 上から 投稿者[称号]・説明(2行まで)・ワールド. 説明が無い投稿は帯を低くして詰める
             var user = Label(bandRt, "User", "", font, 26, TextAlignmentOptions.MidlineLeft, null);
-            Anchor(user.rectTransform, 0, 0.45f, 1, 1, new Vector2(16, 0), new Vector2(-16, 0));
+            Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(16, -38), new Vector2(-16, -4));
+            var des = Label(bandRt, "Description", "", font, 20, TextAlignmentOptions.TopLeft, null);
+            des.color = new Color(1, 1, 1, 0.9f); des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
+            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(16, -90), new Vector2(-16, -38));
+            des.gameObject.SetActive(false);
             var world = Label(bandRt, "World", "", font, 20, TextAlignmentOptions.MidlineLeft, null);
             world.color = new Color(1, 1, 1, 0.75f);
-            Anchor(world.rectTransform, 0, 0, 1, 0.45f, new Vector2(16, 0), new Vector2(-16, 0));
+            Anchor(world.rectTransform, 0, 0, 1, 0, new Vector2(16, 4), new Vector2(-16, 34));
+            app.swipeBandRect = bandRt; app.swipeDes = des;
 
             // 左(気にならない)・右(気になる)のボタン
             var row = new GameObject("Buttons", typeof(RectTransform)); var rowRt = (RectTransform)row.transform;
@@ -212,7 +218,7 @@ namespace EterPixNudeNyang
             // NudeNyang 本体(NudeNyangScrollBuilder)と同じく、ステンシルの Mask(マスク自体は見せない)で切る
             var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
             var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
-            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = false;
+            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = true; // 行の無い所でも触れてスクロールできる(面の入力. Builder が付ける)
             viewport.GetComponent<Mask>().showMaskGraphic = false;
             Anchor(viewportRt, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, -56));
             // 見出し「気になる投稿 N 件」(スクロールしない固定の見出し)
@@ -232,7 +238,7 @@ namespace EterPixNudeNyang
 
             int pool = NudeNyangEterPix.RowPool;
             app.rowRoots = new GameObject[pool]; app.rowThumbs = new RawImage[pool];
-            app.rowNames = new TMP_Text[pool]; app.rowWorlds = new TMP_Text[pool];
+            app.rowNames = new TMP_Text[pool]; app.rowWorlds = new TMP_Text[pool]; app.rowDes = new TMP_Text[pool];
             app.rowWebFields = new InputField[pool]; app.rowHqFields = new InputField[pool];
             app.rowPortalButtons = new GameObject[pool]; app.rowNoWorld = new TMP_Text[pool]; app.rowPortalLabels = new TMP_Text[pool];
             for (int k = 0; k < pool; k++) BuildRow(app, contentRt, k, font, tk);
@@ -276,9 +282,14 @@ namespace EterPixNudeNyang
 
             // 1段目: 名前[称号]・ワールド名
             var name = Label(row, "Name", "", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
-            Anchor(name.rectTransform, 0, 0.5f, 1, 1, new Vector2(h, 0), new Vector2(-12, -6));
+            Anchor(name.rectTransform, 0, 1, 1, 1, new Vector2(h, -40), new Vector2(-12, -6));
             var world = Label(row, "World", "", font, 20, TextAlignmentOptions.MidlineLeft, tk.sub);
-            Anchor(world.rectTransform, 0, 0.32f, 1, 0.5f, new Vector2(h, 0), new Vector2(-12, 0));
+            Anchor(world.rectTransform, 0, 1, 1, 1, new Vector2(h, -68), new Vector2(-12, -40));
+            // 説明(2行まで). 位置は実行時に向きに合わせて組み直す(ApplyRowLayout)
+            var des = Label(row, "Description", "", font, 20, TextAlignmentOptions.TopLeft, tk.sub);
+            des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
+            Anchor(des.rectTransform, 0, 0, 1, 0, new Vector2(h, 10), new Vector2(-578, 64));
+            app.rowDes[k] = des;
             var noWorld = Label(row, "No World", "ワールド情報なし", font, 22, TextAlignmentOptions.MidlineRight, tk.sub);
             Anchor(noWorld.rectTransform, 0.5f, 0, 1, 0.32f, Vector2.zero, new Vector2(-16, 0));
 
@@ -344,13 +355,18 @@ namespace EterPixNudeNyang
 
             var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
             var bandRt = (RectTransform)band.transform; bandRt.SetParent(zoomRt, false);
-            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 84));
+            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 84)); // 説明があるときは実行時に高くする
             var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
             var user = Label(bandRt, "User", "", font, 28, TextAlignmentOptions.MidlineLeft, null);
-            Anchor(user.rectTransform, 0, 0.45f, 1, 1, new Vector2(28, 0), new Vector2(-28, 0));
+            Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(28, -40), new Vector2(-28, -4));
+            var des = Label(bandRt, "Description", "", font, 22, TextAlignmentOptions.TopLeft, null);
+            des.color = new Color(1, 1, 1, 0.9f); des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
+            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(28, -98), new Vector2(-28, -40));
+            des.gameObject.SetActive(false);
             var world = Label(bandRt, "World", "", font, 22, TextAlignmentOptions.MidlineLeft, null);
             world.color = new Color(1, 1, 1, 0.75f);
-            Anchor(world.rectTransform, 0, 0, 1, 0.45f, new Vector2(28, 0), new Vector2(-28, 0));
+            Anchor(world.rectTransform, 0, 0, 1, 0, new Vector2(28, 4), new Vector2(-28, 38));
+            app.zoomDes = des;
 
             // 全面のタップで 情報帯あり → UIなし → 閉じる
             var tap = zoom.AddComponent<Button>(); tap.targetGraphic = zoom.GetComponent<Image>(); tap.navigation = new Navigation { mode = Navigation.Mode.None };
@@ -465,7 +481,7 @@ namespace EterPixNudeNyang
             // 縦向きの viewport 回転でも消えないよう、一覧と同じステンシルの Mask で切る
             var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
             var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
-            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = false;
+            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = true;
             viewport.GetComponent<Mask>().showMaskGraphic = false;
             Anchor(viewportRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
