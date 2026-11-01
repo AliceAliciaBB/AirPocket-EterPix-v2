@@ -76,8 +76,19 @@ namespace NudeNyang
         // ドラッグでのスワイプ(Card の ScrollRect を横に引く. 離すと元に戻る. 閾値を越えたら次へ)
         public ScrollRect swipeScroll;
         public RectTransform swipeBody;
-        public Image passHot;
-        public Image likeHot;
+        public Image leftHot;
+        public Image rightHot;
+        // ボタン列 [戻る][リロード][ポータル][☆/★][進む](入れ替え時は左右の文字と動作だけ替わる)
+        public TMP_Text navLeftLabel;
+        public TMP_Text navRightLabel;
+        public TMP_Text navPortalLabel;
+        public CanvasGroup navLeftGroup;
+        public CanvasGroup navRightGroup;
+        public CanvasGroup navReloadGroup;
+        public CanvasGroup navPortalGroup;
+        public CanvasGroup navStarGroup;
+        public GameObject starOutline;
+        public GameObject starFilled;
         public float swipeHotStart = 0.04f;   // カード幅に対する割合: ここからボタンが明るくなる
         public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定(NudeNyang の感度をかけた量で比べる)
         private NudeNyangTouchSlop swipeGate;  // 本体の触り判定ゲート(カードの ScrollRect に自動で付く). 縦横の変位を読む
@@ -214,11 +225,13 @@ namespace NudeNyang
         // スワイプ画面の矢印キー(← 気にならない / → 気になる)と、画像待ちの明滅
         private void UpdateSwipeInput()
         {
-            bool modal = zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf);
+            bool modal = ModalOpen();
             if (group.interactable && !modal)
             {
-                if (Input.GetKeyDown(KeyCode.LeftArrow)) Advance(false);
-                else if (Input.GetKeyDown(KeyCode.RightArrow)) Advance(true);
+                // ←/→ は画面上のスワイプ方向と同じ(入れ替え設定に従う). ↑ は ☆/★
+                if (Input.GetKeyDown(KeyCode.LeftArrow)) OnNavLeft();
+                else if (Input.GetKeyDown(KeyCode.RightArrow)) OnNavRight();
+                else if (Input.GetKeyDown(KeyCode.UpArrow)) OnStarToggle();
             }
             UpdateSwipeDrag(modal);
             if (cardNotice != null && cardNotice.gameObject.activeSelf)
@@ -398,7 +411,8 @@ namespace NudeNyang
             float a = Mathf.Abs(dx) * SwipeSensitivity() / w;
             float hot = Mathf.Clamp01((a - swipeHotStart) / Mathf.Max(0.001f, swipeCommit - swipeHotStart));
             if (!SwipeIsHorizontal()) hot = 0f;
-            SetHot(dx < 0f ? hot : 0f, dx > 0f ? hot : 0f);
+            // 押せない向き(先頭で戻る など)は光らせない
+            SetHot(dx < 0f && SlotEnabled(false) ? hot : 0f, dx > 0f && SlotEnabled(true) ? hot : 0f);
             if (dx != 0f) swipeDragging = true;
         }
 
@@ -460,14 +474,14 @@ namespace NudeNyang
             CancelSwipe();
             // スワイプが確定したときだけ、離した拍の写真タップ(拡大)を少し抑える
             if (commit) suppressTapUntil = Time.unscaledTime + 0.25f;
-            if (commit) Advance(dx > 0f);
+            if (commit) { if (dx > 0f) OnNavRight(); else OnNavLeft(); }
             else if (tapLike) RegisterPhotoTap();
         }
 
         private void SetHot(float pass, float like)
         {
-            if (passHot != null) { Color c = passHot.color; c.a = 0.3f * pass; passHot.color = c; }
-            if (likeHot != null) { Color c = likeHot.color; c.a = 0.3f * like; likeHot.color = c; }
+            if (leftHot != null) { Color c = leftHot.color; c.a = 0.3f * pass; leftHot.color = c; }
+            if (rightHot != null) { Color c = rightHot.color; c.a = 0.3f * like; rightHot.color = c; }
         }
 
         // EterPixAppFeed から呼ばれる(取得完了・失敗)
@@ -501,14 +515,16 @@ namespace NudeNyang
             int count = feed.Count;
             bool finished = cursor >= count;
             cardFrame.gameObject.SetActive(!finished);
-            buttonRow.SetActive(!finished);
+            buttonRow.SetActive(true); // 終了画面でも「戻る」「リロード」を使う
             endScreen.SetActive(finished);
             if (finished)
             {
                 counterLabel.text = count + "/" + count;
                 endSummary.text = "すべての投稿を見ました\n気になる: " + likedCount + " 件";
+                RefreshNav();
                 return;
             }
+            RefreshNav();
             counterLabel.text = (cursor + 1) + "/" + count;
             userLabel.text = feed.UserLabel[cursor];
             worldLabel.text = feed.WorldLabel[cursor];
@@ -702,7 +718,11 @@ namespace NudeNyang
         {
             int item = listFirst + k;
             if (!portalEnabled || portal == null || screen != ScreenList || item < 0 || item >= likedIndices.Length) return;
-            int post = likedIndices[item];
+            PortalToggle(likedIndices[item]);
+        }
+
+        private void PortalToggle(int post)
+        {
             // 置いている最中にもう一度押すと取り消す
             if (portalPost == post && portalState == "placing") { CancelPortal(); return; }
             if (!PlacementAllowed() || !pad.TryUI()) return;
@@ -726,6 +746,7 @@ namespace NudeNyang
             if (value == "cancelled") { ClearPortalState(); return; }
             if (value == "opened" || value == "failed") SendCustomEventDelayedSeconds(nameof(ClearPortalState), 3f);
             RebindList();
+            RefreshNav();
         }
 
         public void ClearPortalState()
@@ -733,6 +754,7 @@ namespace NudeNyang
             portalPost = -1;
             portalState = "";
             RebindList();
+            RefreshNav();
         }
 
         private string PortalLabel(int post)
@@ -835,17 +857,86 @@ namespace NudeNyang
             images.EndWindow();
         }
 
-        // 左(気にならない)・右(気になる)
-        public void OnPass() { Advance(false); }
-        public void OnLike() { Advance(true); }
+        // ---- ボタン列 [戻る][リロード][ポータル][☆/★][進む] ----
 
-        private void Advance(bool like)
+        private bool ModalOpen() { return zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf); }
+
+        private bool CardLive() { return started && screen == ScreenSwipe && feed != null && !ModalOpen(); }
+
+        // 左・右のボタン(入れ替え設定で 戻る/進む が替わる). 画面のスワイプ方向・矢印キーも同じ
+        public void OnNavLeft() { if (swapNav) GoForward(); else GoBack(); }
+        public void OnNavRight() { if (swapNav) GoBack(); else GoForward(); }
+
+        // 左右どちらの側の動作が、いま使えるか
+        private bool SlotEnabled(bool right)
         {
-            if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
-            if (like && !liked[cursor]) { liked[cursor] = true; likedCount++; }
+            if (feed == null) return false;
+            bool forward = right != swapNav;
+            return forward ? cursor < feed.Count : cursor > 0;
+        }
+
+        private void GoForward()
+        {
+            if (!CardLive() || cursor >= feed.Count) return;
             cursor++;
             ShowCard();
             MarkDirty();
+        }
+
+        private void GoBack()
+        {
+            if (!CardLive() || cursor <= 0) return;
+            cursor--;
+            ShowCard();
+            MarkDirty();
+        }
+
+        // ☆/★: いまのカードの気になる状態を切り替える(カードは進まない)
+        public void OnStarToggle()
+        {
+            if (!CardLive() || cursor >= feed.Count || cursor >= liked.Length) return;
+            if (liked[cursor]) { liked[cursor] = false; likedCount--; }
+            else { liked[cursor] = true; likedCount++; }
+            RefreshNav();
+            MarkDirty();
+        }
+
+        public void OnReload() { /* ステップ6で実装 */ }
+
+        // いまのカードのワールドへのポータル(一覧と同じ流れ)
+        public void OnSwipePortal()
+        {
+            if (!CardLive() || cursor >= feed.Count || !portalEnabled || portal == null) return;
+            if (string.IsNullOrEmpty(feed.WorldId[cursor])) return;
+            PortalToggle(cursor);
+        }
+
+        private void SetNav(CanvasGroup g, bool on)
+        {
+            if (g == null) return;
+            g.alpha = on ? 1f : 0.35f;
+            g.interactable = on;
+            g.blocksRaycasts = on;
+        }
+
+        // ボタン列の文字・薄さ・☆/★ をいまの状態に合わせる
+        private void RefreshNav()
+        {
+            if (navLeftLabel == null) return;
+            bool live = started && feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk;
+            bool onCard = live && cursor < feed.Count;
+            navLeftLabel.text = swapNav ? "進む" : "戻る";
+            navRightLabel.text = swapNav ? "戻る" : "進む";
+            SetNav(navLeftGroup, live && SlotEnabled(false));
+            SetNav(navRightGroup, live && SlotEnabled(true));
+            SetNav(navReloadGroup, true);
+            bool hasWorld = onCard && !string.IsNullOrEmpty(feed.WorldId[cursor]);
+            SetNav(navPortalGroup, hasWorld && portalEnabled && portal != null);
+            SetNav(navStarGroup, onCard);
+            bool lk = onCard && cursor < liked.Length && liked[cursor];
+            if (starOutline != null) starOutline.SetActive(!lk);
+            if (starFilled != null) starFilled.SetActive(lk);
+            if (navPortalLabel != null) navPortalLabel.text = onCard && portalPost == cursor && portalState == "placing" ? "×" : "◎";
         }
 
         // もう一度見る: 確認モーダル → はい で気になる選択を消して先頭へ
@@ -1018,6 +1109,7 @@ namespace NudeNyang
             if (swapNav == swap) return;
             swapNav = swap;
             RefreshSettings();
+            RefreshNav();
             Debug.Log("[EtpTrace] eterpix-app swapNav=" + swapNav);
         }
 

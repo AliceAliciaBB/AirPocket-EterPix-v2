@@ -188,13 +188,26 @@ namespace EterPixNudeNyang
             var row = new GameObject("Buttons", typeof(RectTransform)); var rowRt = (RectTransform)row.transform;
             rowRt.SetParent(screen, false);
             Anchor(rowRt, 0.17f, 0, 0.83f, 0, new Vector2(0, 8), new Vector2(0, 84));
-            var pass = TextButton(rowRt, "Pass Button", "気にならない", font, tk, app, "OnPass", false);
-            Anchor(pass, 0, 0, 0.48f, 1, Vector2.zero, Vector2.zero);
-            var like = TextButton(rowRt, "Like Button", "気になる", font, tk, app, "OnLike", false);
-            Anchor(like, 0.52f, 0, 1, 1, Vector2.zero, Vector2.zero);
+            // [戻る][リロード][ポータル][☆/★][進む](入れ替え時は左右の文字と動作だけ替わる. 実行時に文字を付ける)
+            var left = NavButton(rowRt, "Back Button", "戻る", font, tk, app, "OnNavLeft", 0);
+            var reload = NavButton(rowRt, "Reload Button", "更新", font, tk, app, "OnReload", 1);
+            var portalBtn = NavButton(rowRt, "Portal Button", "◎", font, tk, app, "OnSwipePortal", 2);
+            var star = NavButton(rowRt, "Star Button", "", font, tk, app, "OnStarToggle", 3);
+            var right = NavButton(rowRt, "Next Button", "進む", font, tk, app, "OnNavRight", 4);
+            app.navLeftLabel = left.GetComponentInChildren<TMP_Text>();
+            app.navRightLabel = right.GetComponentInChildren<TMP_Text>();
+            app.navPortalLabel = portalBtn.GetComponentInChildren<TMP_Text>();
+            app.navLeftGroup = left.GetComponent<CanvasGroup>();
+            app.navRightGroup = right.GetComponent<CanvasGroup>();
+            app.navReloadGroup = reload.GetComponent<CanvasGroup>();
+            app.navPortalGroup = portalBtn.GetComponent<CanvasGroup>();
+            app.navStarGroup = star.GetComponent<CanvasGroup>();
+            // ☆(輪郭)と ★(塗り). 気になる状態で切り替える
+            app.starOutline = StarIcon(star, StarIconPath, "Star Outline", tk, true);
+            app.starFilled = StarIcon(star, StarFilledIconPath, "Star Filled", tk, false);
             // ドラッグ中に方向のボタンを明るくする重ね(透明から始まり、ドラッグ量で濃くなる)
-            app.passHot = BuildHot(pass);
-            app.likeHot = BuildHot(like);
+            app.leftHot = BuildHot(left);
+            app.rightHot = BuildHot(right);
             app.swipeScroll = swipe;
             app.swipeBody = bodyRt;
 
@@ -420,6 +433,28 @@ namespace EterPixNudeNyang
             Anchor(no, 0.52f, 0.08f, 0.94f, 0.36f, Vector2.zero, Vector2.zero);
             dim.SetActive(false);
             app.confirmModal = dim;
+        }
+
+        // ボタン列の1つ(5等分の i 番目. 薄くして押せなくするための CanvasGroup 付き)
+        static RectTransform NavButton(Transform parent, string name, string text, TMP_FontAsset font, Tokens tk, NudeNyangEterPix app, string eventName, int i)
+        {
+            var b = TextButton(parent, name, text, font, tk, app, eventName, false);
+            Anchor(b, i * 0.2f, 0, (i + 1) * 0.2f, 1, new Vector2(4, 0), new Vector2(-4, 0));
+            b.gameObject.AddComponent<CanvasGroup>();
+            return b;
+        }
+
+        // ☆/★ の画像(文字色。塗りは accent). 片方だけ表示する
+        static GameObject StarIcon(RectTransform button, string path, string name, Tokens tk, bool active)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform; rt.SetParent(button, false);
+            Anchor(rt, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-20, -20), new Vector2(20, 20));
+            var img = go.GetComponent<Image>();
+            img.sprite = EnsureSprite(path); img.preserveAspect = true; img.raycastTarget = false;
+            if (active) { img.color = Color.white; tk.text.Add(img); } else img.color = Accent;
+            go.SetActive(active);
+            return go;
         }
 
         static Image BuildHot(RectTransform button)

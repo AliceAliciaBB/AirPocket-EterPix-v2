@@ -20,6 +20,8 @@ namespace EterPixNudeNyang
         const string LightModeIconPath = "Assets/EterPixNudeNyang/Art/EterPixLightModeIcon.png"; // Material Symbols "light_mode"
         const string LikedListIconPath = "Assets/EterPixNudeNyang/Art/EterPixLikedListIcon.png"; // Material Symbols "hotel_class"(気になる一覧)
         const string SettingsIconPath = "Assets/EterPixNudeNyang/Art/EterPixSettingsIcon.png"; // Google Fonts の Material Symbols "settings"(Apache-2.0)
+        const string StarIconPath = "Assets/EterPixNudeNyang/Art/EterPixStarIcon.png"; // Material Symbols "star"(輪郭)
+        const string StarFilledIconPath = "Assets/EterPixNudeNyang/Art/EterPixStarFilledIcon.png"; // 同(塗り)
         const string FeedUrl = "https://eterpix.com/api/vrc/v1/public";
         const string IconPath = "Assets/EterPixNudeNyang/Art/EterPixAppIcon.png";
         static readonly Color Dark = new Color32(0x14, 0x14, 0x14, 0xFF);
