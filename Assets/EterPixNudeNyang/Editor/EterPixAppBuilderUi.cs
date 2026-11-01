@@ -72,7 +72,8 @@ namespace EterPixNudeNyang
             var groupIconImg = groupIconGo.GetComponent<Image>();
             groupIconImg.sprite = groupSprite; groupIconImg.color = Dark; groupIconImg.preserveAspect = true; groupIconImg.raycastTarget = false;
             app.groupIcon = groupIconGo;
-            HeaderButton(header, "Theme Button", "T", font, 2, tk, app, "OnTheme");
+            HeaderButton(header, "Theme Button", "", font, 2, tk, app, "OnTheme");
+            BuildThemeIcon((RectTransform)header.Find("Theme Button"));
             // ☆(気になる一覧。♡はフォントに無いため仮). ロード完了後に出る
             app.heartLabel = HeaderButton(header, "Heart Button", "☆", font, 3, tk, app, "OnHeart");
             app.heartButton = header.Find("Heart Button").gameObject;
@@ -425,6 +426,34 @@ namespace EterPixNudeNyang
             var rt = (RectTransform)go.transform; rt.SetParent(parent, false);
             Anchor(rt, 0, 0, 1, 1, new Vector2(0, FooterHeight), new Vector2(0, -HeaderHeight));
             return rt;
+        }
+
+        // テーマ切り替えのアイコン: モニターの btn_ThemeButton と同じ構成(20×20 の四角. 左半分が塗り、右半分が枠). 長方形4枚.
+        // モニターの寸法(中心からの位置)を、ヘッダーのボタンに合わせて 1.6 倍する
+        static void BuildThemeIcon(RectTransform button)
+        {
+            const float k = 1.6f;
+            // (x, y, 幅, 高さ): 中心からの左下の位置と大きさ. Fill / Top / Bottom / Right
+            float[][] parts =
+            {
+                new[] { -10f, -10f, 10f, 20f },
+                new[] { 0f, 8f, 10f, 2f },
+                new[] { 0f, -10f, 10f, 2f },
+                new[] { 8f, -10f, 2f, 20f },
+            };
+            var root = new GameObject("Theme Icon", typeof(RectTransform));
+            var rootRt = (RectTransform)root.transform; rootRt.SetParent(button, false);
+            Anchor(rootRt, 0.5f, 0.5f, 0.5f, 0.5f, Vector2.zero, Vector2.zero);
+            string[] names = { "Fill", "Top", "Bottom", "Right" };
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var go = new GameObject(names[i], typeof(RectTransform), typeof(Image));
+                var rt = (RectTransform)go.transform; rt.SetParent(rootRt, false);
+                Anchor(rt, 0.5f, 0.5f, 0.5f, 0.5f,
+                    new Vector2(parts[i][0] * k, parts[i][1] * k),
+                    new Vector2((parts[i][0] + parts[i][2]) * k, (parts[i][1] + parts[i][3]) * k));
+                var img = go.GetComponent<Image>(); img.color = Dark; img.raycastTarget = false;
+            }
         }
 
         static TMP_Text HeaderButton(RectTransform header, string name, string text, TMP_FontAsset font, int slot, Tokens tk, NudeNyangEterPix app, string eventName)

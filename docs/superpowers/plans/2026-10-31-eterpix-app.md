@@ -294,6 +294,7 @@
 - アプリアイコン = サイトの favicon(`eterpix-v10/public/android-chrome-192x192.png` を `Art/EterPixAppIcon.png` にコピー。色は #9D6FFF でアクセントと同じ)。ホームのタイルの glyph に元の色のまま使う。
 - ロゴ = モニターと同じロゴ用フォント `StackSansNotch-Bold SDF`(Packages/com.aliciliabb.eterpix/Fonts)。起動画面の「EterPix」(従来の2×3の格子の画像は廃止)とヘッダー左の「EterPix-app」に使う。ASCII のみ。
 - グループアイコン = 画像 `icon_group.png`(パッケージの UI からコピーして `Art/EterPixGroupIcon.png`)。ヘッダーの G の文字を置き換え、開いている間は × の文字に替わる。
+- テーマ切り替えのアイコン = モニターの `btn_ThemeButton` と同じ構成(長方形4枚: 左半分が塗り・右半分が枠の20×20。ヘッダーのボタンに合わせて1.6倍)。T の文字は廃止。
 - 確認: Play で撮影(`screens/icons-start.png`, `icons-home.png`)。ホームのタイルは、NudeNyang のタイルの陰影のせいで favicon の角丸の四角が内側に少し見える。
 
 **実施メモ(Task 9)**
