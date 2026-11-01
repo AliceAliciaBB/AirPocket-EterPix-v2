@@ -665,6 +665,7 @@ namespace NudeNyang
         {
             int item = listFirst + k;
             if (screen != ScreenList || item < 0 || item >= likedIndices.Length) return;
+            if (!IsDoubleTap(k)) return;
             OpenZoom(likedIndices[item]);
         }
 
@@ -746,14 +747,24 @@ namespace NudeNyang
 
         public void OnPhoto() { RegisterPhotoTap(); }
 
-        // 写真のタップ. 0.35 秒以内の 2 回目(ダブルタップ)は、直前のスワイプ抑止を無視して問答無用で拡大する
+        // 拡大はダブルタップ(0.35 秒以内の同じ写真への 2 回)のときだけ. 1 回押しでは開かない.
+        // 同じフレームに来る「離し」と「クリック」は 1 回として数える. ダブルタップは直前のスワイプ抑止を無視して拡大する
+        private int lastTapKey = -1, lastTapFrame = -1;
+        private bool IsDoubleTap(int key)
+        {
+            if (Time.frameCount == lastTapFrame) return false;
+            lastTapFrame = Time.frameCount;
+            float now = Time.unscaledTime;
+            bool d = key == lastTapKey && now - lastPhotoTap <= 0.35f;
+            lastPhotoTap = now;
+            lastTapKey = d ? -1 : key;
+            return d;
+        }
+
         private void RegisterPhotoTap()
         {
             if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
-            float now = Time.unscaledTime;
-            bool doubleTap = now - lastPhotoTap <= 0.35f;
-            lastPhotoTap = now;
-            if (!doubleTap && now < suppressTapUntil) return;
+            if (!IsDoubleTap(-2)) return;
             if (zoomMode != 0) return;
             OpenZoom(cursor);
         }
