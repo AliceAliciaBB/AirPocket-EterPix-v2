@@ -93,7 +93,11 @@ namespace NudeNyang
         public GameObject starFilled;
         public float swipeHotStart = 0.04f;   // カード幅に対する割合: ここからボタンが明るくなる
         public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定(NudeNyang の感度をかけた量で比べる)
-        private NudeNyangTouchSlop swipeGate;  // 本体の触り判定ゲート(カードの ScrollRect に自動で付く). 縦横の変位を読む
+        public float swipeAxisLock = 0.02f;   // この割合を越えて動いた時点で、横(1)か縦(2)に軸を固定する
+        public Image starHot;
+        public GameObject noWorldNotice;      // 下スワイプでワールド情報が無いときの一瞬の表示
+        private float noWorldUntil;
+        private int swipeAxis;                // 0=未確定 1=横 2=縦
         private bool swipeDragging, swipeLeftUse, swipeRightUse;
         private float suppressTapUntil;
         private float lastPhotoTap = -10f;
@@ -234,6 +238,7 @@ namespace NudeNyang
                 if (Input.GetKeyDown(KeyCode.LeftArrow)) OnNavLeft();
                 else if (Input.GetKeyDown(KeyCode.RightArrow)) OnNavRight();
                 else if (Input.GetKeyDown(KeyCode.UpArrow)) OnStarToggle();
+                else if (Input.GetKeyDown(KeyCode.DownArrow)) OnWorldDetail();
             }
             UpdateSwipeDrag(modal);
             if (cardNotice != null && cardNotice.gameObject.activeSelf)
@@ -404,18 +409,28 @@ namespace NudeNyang
             if (swipeScroll == null || swipeBody == null) return;
             if (modal || cursor >= feed.Count)
             {
-                SetHot(0f, 0f);
+                SetHot(0f, 0f, 0f);
                 return;
             }
-            float w = CardFrame().x;
-            float dx = swipeBody.anchoredPosition.x;
-            // 感度は NudeNyang のタブレット共通設定(swipeSensitivity)に従う. 縦に引いているときは色づけない(軸ロック)
-            float a = Mathf.Abs(dx) * SwipeSensitivity() / w;
-            float hot = Mathf.Clamp01((a - swipeHotStart) / Mathf.Max(0.001f, swipeCommit - swipeHotStart));
-            if (!SwipeIsHorizontal()) hot = 0f;
-            // 押せない向き(先頭で戻る など)は光らせない
-            SetHot(dx < 0f && SlotEnabled(false) ? hot : 0f, dx > 0f && SlotEnabled(true) ? hot : 0f);
-            if (dx != 0f) swipeDragging = true;
+            Vector2 cf = CardFrame();
+            Vector2 p = swipeBody.anchoredPosition;
+            // 感度は NudeNyang のタブレット共通設定(swipeSensitivity)に従う
+            float sens = SwipeSensitivity();
+            // 軸ロック: 最初に大きく動いた軸に固定し、もう一方の軸の動きは捨てる(引き終わるまで)
+            if (swipeAxis == 0)
+            {
+                float mx = Mathf.Abs(p.x) * sens / cf.x;
+                float my = Mathf.Abs(p.y) * sens / cf.y;
+                if (Mathf.Max(mx, my) >= swipeAxisLock) swipeAxis = mx >= my ? 1 : 2;
+            }
+            if (swipeAxis == 1 && p.y != 0f) { p.y = 0f; swipeBody.anchoredPosition = p; }
+            else if (swipeAxis == 2 && p.x != 0f) { p.x = 0f; swipeBody.anchoredPosition = p; }
+            float span = Mathf.Max(0.001f, swipeCommit - swipeHotStart);
+            float hotH = swipeAxis == 1 ? Mathf.Clamp01((Mathf.Abs(p.x) * sens / cf.x - swipeHotStart) / span) : 0f;
+            float hotV = swipeAxis == 2 ? Mathf.Clamp01((Mathf.Abs(p.y) * sens / cf.y - swipeHotStart) / span) : 0f;
+            // 押せない向き(先頭で戻る など)は光らせない. 上=☆/★(下=ワールド詳細は対応するボタンが無い)
+            SetHot(p.x < 0f && SlotEnabled(false) ? hotH : 0f, p.x > 0f && SlotEnabled(true) ? hotH : 0f, p.y > 0f ? hotV : 0f);
+            if (p.sqrMagnitude > 0f) swipeDragging = true;
         }
 
         // ---- NudeNyang 本体のジェスチャと同じ作法 ----
@@ -424,17 +439,6 @@ namespace NudeNyang
         {
             if (pad != null && pad.shell != null) return pad.shell.GestureSensitivity();
             return 1.2f;
-        }
-
-        // 軸ロック: 触り判定ゲートの変位(縦横の生の動き)で、横が縦の1.3倍より大きいときだけスワイプとみなす(本体の DragGesture と同じ比)
-        private bool SwipeIsHorizontal()
-        {
-            if (swipeScroll == null) return true;
-            if (swipeGate == null) swipeGate = swipeScroll.GetComponent<NudeNyangTouchSlop>();
-            if (swipeGate == null || swipeGate.sample == null) return true;
-            Vector2 d = swipeGate.sample.anchoredPosition;
-            if (d.sqrMagnitude < 1f) return true;
-            return Mathf.Abs(d.x) > Mathf.Abs(d.y) * 1.3f;
         }
 
         // VR: レーザーが外れて EndDrag が来なくても、トリガーを両手とも離したら確定する(本体の InputUse → ReleaseGesture と同じ)
@@ -453,9 +457,10 @@ namespace NudeNyang
         private void CancelSwipe()
         {
             swipeDragging = false;
+            swipeAxis = 0;
             if (swipeScroll != null) swipeScroll.StopMovement();
             if (swipeBody != null) swipeBody.anchoredPosition = Vector2.zero;
-            SetHot(0f, 0f);
+            SetHot(0f, 0f, 0f);
         }
 
         private void OnDisable() { CancelSwipe(); }
@@ -464,26 +469,54 @@ namespace NudeNyang
         public void OnSwipeRelease()
         {
             if (swipeBody == null || swipeScroll == null) return;
-            float dx = swipeBody.anchoredPosition.x;
-            bool horizontal = SwipeIsHorizontal();
-            bool commit = Mathf.Abs(dx) * SwipeSensitivity() / CardFrame().x >= swipeCommit && horizontal && screen == ScreenSwipe && started && cursor < feed.Count
-                && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
-            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + dx.ToString("F1") + " sens=" + SwipeSensitivity().ToString("F2")
-                + " horizontal=" + horizontal + " commit=" + commit + " cursor=" + cursor);
-            bool onCard = screen == ScreenSwipe && started && cursor < feed.Count && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
-            // 拡大を優先: 引き量が小さい(カード幅の 4% 未満)なら、ドラッグではなくタップとして拡大する
-            bool tapLike = onCard && !commit && Mathf.Abs(dx) * SwipeSensitivity() / CardFrame().x < swipeHotStart;
+            Vector2 p = swipeBody.anchoredPosition;
+            Vector2 cf = CardFrame();
+            float sens = SwipeSensitivity();
+            float fh = Mathf.Abs(p.x) * sens / cf.x;   // 横: カード幅に対する割合
+            float fv = Mathf.Abs(p.y) * sens / cf.y;   // 縦: カード高さに対する割合
+            bool horizontal = swipeAxis == 1 || (swipeAxis == 0 && fh >= fv);
+            bool onCard = screen == ScreenSwipe && started && cursor < feed.Count && !ModalOpen();
+            bool commitH = onCard && horizontal && fh >= swipeCommit;
+            bool commitV = onCard && !horizontal && fv >= swipeCommit;
+            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + p.x.ToString("F1") + " dy=" + p.y.ToString("F1") + " sens=" + sens.ToString("F2")
+                + " axis=" + swipeAxis + " commitH=" + commitH + " commitV=" + commitV + " cursor=" + cursor);
+            // 拡大を優先: どちらの引き量も 4% 未満なら、ドラッグではなくタップとして拡大する
+            bool tapLike = onCard && !commitH && !commitV && fh < swipeHotStart && fv < swipeHotStart;
             CancelSwipe();
             // スワイプが確定したときだけ、離した拍の写真タップ(拡大)を少し抑える
-            if (commit) suppressTapUntil = Time.unscaledTime + 0.25f;
-            if (commit) { if (dx > 0f) OnNavRight(); else OnNavLeft(); }
+            if (commitH || commitV) suppressTapUntil = Time.unscaledTime + 0.25f;
+            if (commitH) { if (p.x > 0f) OnNavRight(); else OnNavLeft(); }
+            else if (commitV) { if (p.y > 0f) OnStarToggle(); else OnWorldDetail(); }
             else if (tapLike) RegisterPhotoTap();
         }
 
-        private void SetHot(float pass, float like)
+        private void SetHot(float left, float right, float star)
         {
-            if (leftHot != null) { Color c = leftHot.color; c.a = 0.3f * pass; leftHot.color = c; }
-            if (rightHot != null) { Color c = rightHot.color; c.a = 0.3f * like; rightHot.color = c; }
+            if (leftHot != null) { Color c = leftHot.color; c.a = 0.3f * left; leftHot.color = c; }
+            if (rightHot != null) { Color c = rightHot.color; c.a = 0.3f * right; rightHot.color = c; }
+            if (starHot != null) { Color c = starHot.color; c.a = 0.3f * star; starHot.color = c; }
+        }
+
+        // 下スワイプ・↓キー: ワールドの詳細(モーダルはステップ5). ワールド情報が無い投稿は開かず、一瞬だけ知らせる
+        public void OnWorldDetail()
+        {
+            if (!CardLive() || cursor >= feed.Count) return;
+            if (string.IsNullOrEmpty(feed.WorldId[cursor]))
+            {
+                if (noWorldNotice != null)
+                {
+                    noWorldNotice.SetActive(true);
+                    noWorldUntil = Time.unscaledTime + 1.2f;
+                    SendCustomEventDelayedSeconds(nameof(HideNoWorldNotice), 1.3f);
+                }
+                return;
+            }
+            Debug.Log("[EtpTrace] eterpix-app world detail requested cursor=" + cursor);
+        }
+
+        public void HideNoWorldNotice()
+        {
+            if (noWorldNotice != null && Time.unscaledTime >= noWorldUntil) noWorldNotice.SetActive(false);
         }
 
         // EterPixAppFeed から呼ばれる(取得完了・失敗)

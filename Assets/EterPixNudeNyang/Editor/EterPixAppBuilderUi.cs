@@ -154,7 +154,7 @@ namespace EterPixNudeNyang
             Anchor(bodyRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             var swipe = card.gameObject.AddComponent<ScrollRect>();
             swipe.viewport = card; swipe.content = bodyRt;
-            swipe.horizontal = true; swipe.vertical = false; swipe.movementType = ScrollRect.MovementType.Elastic;
+            swipe.horizontal = true; swipe.vertical = true; // 上下も引ける(軸は実行時にロックする) swipe.movementType = ScrollRect.MovementType.Elastic;
             swipe.elasticity = 0.1f; swipe.inertia = false; swipe.scrollSensitivity = 0f;
             // 指(レーザー)を離したときに確定する. ScrollRect と同じ Card 上の EventTrigger の EndDrag で U# を呼ぶ
             var trig = card.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
@@ -222,6 +222,17 @@ namespace EterPixNudeNyang
             // ドラッグ中に方向のボタンを明るくする重ね(透明から始まり、ドラッグ量で濃くなる)
             app.leftHot = BuildHot(left);
             app.rightHot = BuildHot(right);
+            app.starHot = BuildHot(star);
+            // 下スワイプでワールド情報が無いときの一瞬の表示(カードの下端に重ねる. 動かない)
+            var nw = new GameObject("No World Notice", typeof(RectTransform), typeof(Image));
+            var nwRt = (RectTransform)nw.transform; nwRt.SetParent(screen, false);
+            Anchor(nwRt, 0.5f, 0, 0.5f, 0, new Vector2(-130, 110), new Vector2(130, 154));
+            nw.GetComponent<Image>().color = new Color(0, 0, 0, 0.7f); nw.GetComponent<Image>().raycastTarget = false;
+            var nwLabel = Label(nwRt, "Label", "ワールド情報なし", font, 24, TextAlignmentOptions.Center, null);
+            nwLabel.color = Color.white;
+            Anchor(nwLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            nw.SetActive(false);
+            app.noWorldNotice = nw;
             app.swipeScroll = swipe;
             app.swipeBody = bodyRt;
 
