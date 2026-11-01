@@ -168,6 +168,7 @@ namespace NudeNyang
         private void Update()
         {
             if (!visible || group == null) return;
+            UpdateOrientation();
             // 一覧のスクロールに合わせた行の付け替えも、シェルの Present に頼らず毎フレーム見る
             if (screen == ScreenList) UpdateListRows(false);
             if (screen == ScreenSwipe && started) UpdateSwipeInput();
@@ -193,6 +194,40 @@ namespace NudeNyang
             }
         }
 
+        // 実際の枠の大きさ. タブレットを縦向きにすると変わる(スリープ中は rect が0になるので、ビルド時の大きさで代用)
+        private Vector2 PanelFrame()
+        {
+            if (panel != null) { Vector2 s = panel.rect.size; if (s.x > 1f && s.y > 1f) return s; }
+            return panelSize;
+        }
+
+        private Vector2 CardFrame()
+        {
+            if (cardFrame != null) { Vector2 s = cardFrame.rect.size; if (s.x > 1f && s.y > 1f) return s; }
+            return cardSize;
+        }
+
+        // 縦向きのときは、カードとボタンを横いっぱいに広げる(横向きは左右に17%の余白)
+        private Vector2 lastPanelFrame;
+        private void UpdateOrientation()
+        {
+            if (panel == null || cardFrame == null) return;
+            Vector2 p = panel.rect.size;
+            if (p.x <= 1f || p.y <= 1f || (p - lastPanelFrame).sqrMagnitude < 0.25f) return;
+            lastPanelFrame = p;
+            bool portrait = p.y > p.x;
+            float lo = portrait ? 0.03f : 0.17f, hi = 1f - lo;
+            cardFrame.anchorMin = new Vector2(lo, cardFrame.anchorMin.y); cardFrame.anchorMax = new Vector2(hi, cardFrame.anchorMax.y);
+            if (buttonRow != null)
+            {
+                RectTransform br = (RectTransform)buttonRow.transform;
+                br.anchorMin = new Vector2(lo, br.anchorMin.y); br.anchorMax = new Vector2(hi, br.anchorMax.y);
+            }
+            Debug.Log("[EtpTrace] eterpix-app layout panel=" + p + " card=" + CardFrame() + " portrait=" + portrait);
+            if (screen == ScreenSwipe && started) ShowCard();
+            RefreshZoom();
+        }
+
         // カードのドラッグ量を見る. 方向のボタンを明るくし、閾値を越えたら次へ送る.
         // 離したことは直接わからないので、確定後は ScrollRect を1フレーム無効にしてドラッグを打ち切る
         // (そうしないと、指を離すまで次のカードも続けて送られてしまう)
@@ -204,7 +239,7 @@ namespace NudeNyang
                 SetHot(0f, 0f);
                 return;
             }
-            float w = cardSize.x;
+            float w = CardFrame().x;
             float dx = swipeBody.anchoredPosition.x;
             float a = Mathf.Abs(dx) / w;
             float hot = Mathf.Clamp01((a - swipeHotStart) / Mathf.Max(0.001f, swipeCommit - swipeHotStart));
@@ -216,7 +251,7 @@ namespace NudeNyang
         {
             if (swipeBody == null || swipeScroll == null) return;
             float dx = swipeBody.anchoredPosition.x;
-            bool commit = Mathf.Abs(dx) / cardSize.x >= swipeCommit && screen == ScreenSwipe && started && cursor < feed.Count
+            bool commit = Mathf.Abs(dx) / CardFrame().x >= swipeCommit && screen == ScreenSwipe && started && cursor < feed.Count
                 && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
             Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + dx.ToString("F1") + " commit=" + commit + " cursor=" + cursor);
             swipeScroll.StopMovement();
@@ -279,9 +314,10 @@ namespace NudeNyang
             {
                 // スワイプ画面: 縦写真は縦のまま(正立)枠に収める(左右に余白). 倒さない. 拡大画面は従来どおり長辺合わせ
                 int turns = ((feed.Coro[cursor] % 4) + 4) % 4;
+                Vector2 frame = CardFrame();
                 photo.texture = tex;
                 photo.uvRect = geometry.CellUv(feed.Copo[cursor]);
-                photoRect.sizeDelta = geometry.FitSize(cardSize.x, cardSize.y, turns);
+                photoRect.sizeDelta = geometry.FitSize(frame.x, frame.y, turns);
                 photoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
                 photo.gameObject.SetActive(true);
                 cardNotice.gameObject.SetActive(false);
@@ -516,10 +552,11 @@ namespace NudeNyang
             if (zoomMode == 0 || zoomIndex < 0) return;
             Texture2D tex = images.GetTexture(feed.Coid[zoomIndex]);
             if (tex == null) { zoomMode = 0; zoomRoot.SetActive(false); return; }
-            int turns = geometry.DisplayTurns(feed.Coro[zoomIndex], panelSize.x, panelSize.y);
+            Vector2 pf = PanelFrame();
+            int turns = geometry.DisplayTurns(feed.Coro[zoomIndex], pf.x, pf.y);
             zoomPhoto.texture = tex;
             zoomPhoto.uvRect = geometry.CellUv(feed.Copo[zoomIndex]);
-            zoomPhotoRect.sizeDelta = geometry.FitSize(panelSize.x, panelSize.y, turns);
+            zoomPhotoRect.sizeDelta = geometry.FitSize(pf.x, pf.y, turns);
             zoomPhotoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
             zoomUser.text = feed.UserLabel[zoomIndex];
             zoomWorld.text = feed.WorldLabel[zoomIndex];
