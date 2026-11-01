@@ -64,6 +64,7 @@ namespace NudeNyang
         private NudeNyangTouchSlop swipeGate;  // 本体の触り判定ゲート(カードの ScrollRect に自動で付く). 縦横の変位を読む
         private bool swipeDragging, swipeLeftUse, swipeRightUse;
         private float suppressTapUntil;
+        private float lastPhotoTap = -10f;
         public GameObject endScreen;
         public TMP_Text endSummary;
         public GameObject confirmModal;
@@ -322,11 +323,14 @@ namespace NudeNyang
                 && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
             Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + dx.ToString("F1") + " sens=" + SwipeSensitivity().ToString("F2")
                 + " horizontal=" + horizontal + " commit=" + commit + " cursor=" + cursor);
-            bool moved = swipeDragging || Mathf.Abs(dx) > 8f;
+            bool onCard = screen == ScreenSwipe && started && cursor < feed.Count && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
+            // 拡大を優先: 引き量が小さい(カード幅の 4% 未満)なら、ドラッグではなくタップとして拡大する
+            bool tapLike = onCard && !commit && Mathf.Abs(dx) * SwipeSensitivity() / CardFrame().x < swipeHotStart;
             CancelSwipe();
-            // 引いたあとに指を離した拍で、写真のタップ(拡大)が走らないよう少しのあいだ抑える(本体の suppressTapUntil と同じ 0.25 秒)
-            if (moved) suppressTapUntil = Time.unscaledTime + 0.25f;
+            // スワイプが確定したときだけ、離した拍の写真タップ(拡大)を少し抑える
+            if (commit) suppressTapUntil = Time.unscaledTime + 0.25f;
             if (commit) Advance(dx > 0f);
+            else if (tapLike) RegisterPhotoTap();
         }
 
         private void SetHot(float pass, float like)
@@ -618,10 +622,17 @@ namespace NudeNyang
 
         // ---- 拡大 ----
 
-        public void OnPhoto()
+        public void OnPhoto() { RegisterPhotoTap(); }
+
+        // 写真のタップ. 0.35 秒以内の 2 回目(ダブルタップ)は、直前のスワイプ抑止を無視して問答無用で拡大する
+        private void RegisterPhotoTap()
         {
             if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
-            if (Time.unscaledTime < suppressTapUntil) return;
+            float now = Time.unscaledTime;
+            bool doubleTap = now - lastPhotoTap <= 0.35f;
+            lastPhotoTap = now;
+            if (!doubleTap && now < suppressTapUntil) return;
+            if (zoomMode != 0) return;
             OpenZoom(cursor);
         }
 
