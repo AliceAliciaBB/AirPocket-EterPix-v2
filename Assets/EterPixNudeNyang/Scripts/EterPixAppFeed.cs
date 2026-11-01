@@ -36,6 +36,8 @@ namespace EterPixNudeNyang
         [HideInInspector] public string[] UserLabel = new string[0];
         [HideInInspector] public string[] WorldLabel = new string[0];
         [HideInInspector] public string[] WorldId = new string[0];
+        [HideInInspector] public string[] WorldAuthor = new string[0];       // woau(無ければ空)
+        [HideInInspector] public string[] WorldDescription = new string[0];  // wode(無ければ空)
         [HideInInspector] public int[] Coid = new int[0];
         [HideInInspector] public int[] Copo = new int[0];
         [HideInInspector] public int[] Coro = new int[0];
@@ -114,6 +116,8 @@ namespace EterPixNudeNyang
             UserLabel = new string[usable];
             WorldLabel = new string[usable];
             WorldId = new string[usable];
+            WorldAuthor = new string[usable];
+            WorldDescription = new string[usable];
             Coid = new int[usable];
             Copo = new int[usable];
             Coro = new int[usable];
@@ -143,10 +147,14 @@ namespace EterPixNudeNyang
                 string worldId = ReadString(post, "woid", "");
                 WorldId[n] = worldId;
                 string worldName = "";
+                WorldAuthor[n] = "";
+                WorldDescription[n] = "";
                 if (!string.IsNullOrEmpty(worldId) && worldData != null
                     && worldData.TryGetValue(worldId, out DataToken entryToken) && entryToken.TokenType == TokenType.DataDictionary)
                 {
                     worldName = ReadString(entryToken.DataDictionary, "wona", "");
+                    WorldAuthor[n] = ReadString(entryToken.DataDictionary, "woau", "");
+                    WorldDescription[n] = ReadString(entryToken.DataDictionary, "wode", "");
                 }
                 // 名前が引けないときは印も付けない(既存モニターと同じ)
                 WorldLabel[n] = string.IsNullOrEmpty(worldName) ? "" : BuildMarkText(post, "wopf", prefixTable) + worldName;

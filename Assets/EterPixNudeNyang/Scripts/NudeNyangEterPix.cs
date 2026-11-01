@@ -511,7 +511,60 @@ namespace NudeNyang
                 }
                 return;
             }
-            Debug.Log("[EtpTrace] eterpix-app world detail requested cursor=" + cursor);
+            OpenWorldModal(cursor);
+        }
+
+        // ---- ワールドの詳細モーダル ----
+        public GameObject worldModal;            // 全面の暗幕(押すと閉じる. 縦に引ける)
+        public RectTransform worldModalBody;     // 暗幕の ScrollRect の content(中のカード)
+        public TMP_Text worldNameLabel;
+        public TMP_Text worldAuthorLabel;
+        public TMP_Text worldDescLabel;
+        public RectTransform worldDescContent;   // 説明のスクロールの content
+        public CanvasGroup worldPortalGroup;
+
+        private bool WorldModalOpen() { return worldModal != null && worldModal.activeSelf; }
+
+        private void OpenWorldModal(int post)
+        {
+            if (worldModal == null) return;
+            worldNameLabel.text = feed.WorldLabel[post];
+            string author = feed.WorldAuthor[post];
+            worldAuthorLabel.text = string.IsNullOrEmpty(author) ? "" : "作者: " + author;
+            worldAuthorLabel.gameObject.SetActive(!string.IsNullOrEmpty(author));
+            worldDescLabel.text = feed.WorldDescription[post];
+            worldDescContent.anchoredPosition = Vector2.zero;
+            worldModalBody.anchoredPosition = Vector2.zero;
+            SetNav(worldPortalGroup, portalEnabled && portal != null);
+            worldModal.SetActive(true);
+            Debug.Log("[EtpTrace] eterpix-app world modal open cursor=" + post);
+            MarkDirty();
+        }
+
+        public void OnWorldClose()
+        {
+            if (!WorldModalOpen()) return;
+            worldModal.SetActive(false);
+            worldModalBody.anchoredPosition = Vector2.zero;
+            Debug.Log("[EtpTrace] eterpix-app world modal close");
+            MarkDirty();
+        }
+
+        // 「ポータルを開く」: モーダルを閉じて、いまのカードのワールドへのポータルを置く流れへ
+        public void OnWorldPortal()
+        {
+            if (!WorldModalOpen()) return;
+            OnWorldClose();
+            OnSwipePortal();
+        }
+
+        // 暗幕を引いて離した: 上へ十分引いていたら閉じる(そうでなければ戻るだけ)
+        public void OnWorldModalRelease()
+        {
+            if (!WorldModalOpen()) return;
+            float h = Mathf.Max(1f, worldModalBody.rect.height);
+            bool up = worldModalBody.anchoredPosition.y * SwipeSensitivity() / h >= swipeCommit;
+            if (up) OnWorldClose(); else worldModalBody.anchoredPosition = Vector2.zero;
         }
 
         public void HideNoWorldNotice()
@@ -894,7 +947,7 @@ namespace NudeNyang
 
         // ---- ボタン列 [戻る][リロード][ポータル][☆/★][進む] ----
 
-        private bool ModalOpen() { return zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf); }
+        private bool ModalOpen() { return zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf) || WorldModalOpen(); }
 
         private bool CardLive() { return started && screen == ScreenSwipe && feed != null && !ModalOpen(); }
 
@@ -1082,6 +1135,7 @@ namespace NudeNyang
             if (heartButton != null) heartButton.SetActive(started);
             if (heartLabel != null) heartLabel.text = next == ScreenList ? "×" : "";
             if (heartIcon != null) heartIcon.SetActive(next != ScreenList);
+            if (next != ScreenSwipe && WorldModalOpen()) OnWorldClose();
             if (next != ScreenList) CancelPortal();
             if (next == ScreenList) OpenList();
             if (next == ScreenInfo && infoUrlField != null) SetCopyText(infoUrlField, InfoUrl);

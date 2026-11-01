@@ -128,6 +128,7 @@ namespace EterPixNudeNyang
 
             BuildZoom(app, root, font);
             BuildConfirm(app, root, font, tk);
+            BuildWorldModal(app, root, font, tk);
 
             // 実行時の rect はスリープ中に0になることがあるため、ここでの大きさを焼く
             Canvas.ForceUpdateCanvases();
@@ -458,6 +459,67 @@ namespace EterPixNudeNyang
             Anchor(no, 0.52f, 0.08f, 0.94f, 0.36f, Vector2.zero, Vector2.zero);
             dim.SetActive(false);
             app.confirmModal = dim;
+        }
+
+        // ワールドの詳細(全面の暗幕+中央のカード). 暗幕を押す/閉じる/上へ引く で閉じる
+        static void BuildWorldModal(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            var dim = new GameObject("World Modal", typeof(RectTransform), typeof(Image));
+            var dimRt = (RectTransform)dim.transform; dimRt.SetParent(root, false);
+            Anchor(dimRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var dimImg = dim.GetComponent<Image>(); dimImg.color = new Color(0, 0, 0, 0.6f);
+            var tap = dim.AddComponent<Button>(); tap.targetGraphic = dimImg; tap.navigation = new Navigation { mode = Navigation.Mode.None };
+            Wire(tap, app, "OnWorldClose");
+
+            // 中のカード(暗幕の ScrollRect の content. 上へ引いて離すと閉じる)
+            var box = Box(dimRt, "Box", tk.bg);
+            Anchor(box, 0.15f, 0.08f, 0.85f, 0.92f, Vector2.zero, Vector2.zero);
+            var scroll = dim.AddComponent<ScrollRect>();
+            scroll.viewport = dimRt; scroll.content = box;
+            scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.elasticity = 0.1f; scroll.inertia = false; scroll.scrollSensitivity = 0f;
+            var trig = dim.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var endEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.EndDrag };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(endEntry.callback,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnWorldModalRelease");
+            trig.triggers.Add(endEntry);
+
+            var name = Label(box, "Name", "", font, 32, TextAlignmentOptions.TopLeft, tk.text);
+            name.overflowMode = TextOverflowModes.Ellipsis; name.maxVisibleLines = 2;
+            Anchor(name.rectTransform, 0, 1, 1, 1, new Vector2(24, -92), new Vector2(-24, -24));
+            var author = Label(box, "Author", "", font, 22, TextAlignmentOptions.TopLeft, tk.sub);
+            author.overflowMode = TextOverflowModes.Ellipsis; author.maxVisibleLines = 1;
+            Anchor(author.rectTransform, 0, 1, 1, 1, new Vector2(24, -128), new Vector2(-24, -94));
+
+            // 説明(長ければスクロール). RectMask2D は縦向きで消えるため、本体と同じ Mask(マスク自体は見せない)で切る
+            var vp = new GameObject("Description Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            var vpRt = (RectTransform)vp.transform; vpRt.SetParent(box, false);
+            Anchor(vpRt, 0, 0, 1, 1, new Vector2(24, 84), new Vector2(-24, -136));
+            vp.GetComponent<Image>().color = Color.white; vp.GetComponent<Mask>().showMaskGraphic = false;
+            // 説明の文字そのものを content にし、文字量に合わせて高さを伸ばす
+            var desc = Label(vpRt, "Description", "", font, 24, TextAlignmentOptions.TopLeft, tk.text);
+            var contentRt = desc.rectTransform;
+            contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0.5f, 1);
+            contentRt.offsetMin = Vector2.zero; contentRt.offsetMax = Vector2.zero;
+            var fit = desc.gameObject.AddComponent<ContentSizeFitter>(); fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var descScroll = vp.AddComponent<ScrollRect>();
+            descScroll.viewport = vpRt; descScroll.content = contentRt; descScroll.horizontal = false; descScroll.vertical = true;
+            descScroll.movementType = ScrollRect.MovementType.Clamped; descScroll.scrollSensitivity = 40f; descScroll.inertia = true;
+
+            var open = TextButton(box, "Portal Button", "ポータルを開く", font, tk, app, "OnWorldPortal", true);
+            Anchor(open, 0, 0, 0.58f, 0, new Vector2(24, 20), new Vector2(-6, 72));
+            open.gameObject.AddComponent<CanvasGroup>();
+            var close = TextButton(box, "Close Button", "閉じる", font, tk, app, "OnWorldClose", false);
+            Anchor(close, 0.58f, 0, 1, 0, new Vector2(6, 20), new Vector2(-24, 72));
+
+            dim.SetActive(false);
+            app.worldModal = dim;
+            app.worldModalBody = box;
+            app.worldNameLabel = name;
+            app.worldAuthorLabel = author;
+            app.worldDescLabel = desc;
+            app.worldDescContent = contentRt;
+            app.worldPortalGroup = open.GetComponent<CanvasGroup>();
         }
 
         static void SetCounterPart(RectTransform rt, float x, float w)
