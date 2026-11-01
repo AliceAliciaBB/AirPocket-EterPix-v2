@@ -9,7 +9,7 @@ EterPix の写真を、タブレットの中でスワイプして見られます
 ## 必要なもの
 
 - **NudeNyang Tablet の正規製品(別途購入)**。このリポジトリ/配布物には本体のファイルを含みません。
-- 対応バージョン: **NudeNyang 1.0.2**(`Assets/NudeNyang/InstallManager/Editor/Updates/installed-release.json` の `version`)
+- 対応バージョン: **NudeNyang 1.0.4**(1.0.2 から更新して検証. 更新後は「Prepare pads in scene」と Builder をやり直す)(`Assets/NudeNyang/InstallManager/Editor/Updates/installed-release.json` の `version`)
 - 本体は公式の場所 `Assets/NudeNyang/` に入れてください(旧い配置 `Assets/アセット(同期しない)/NudeNyang/` も検出しますが、非推奨)
 - VRChat SDK(Worlds)+ UdonSharp
 

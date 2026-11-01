@@ -159,8 +159,10 @@ namespace NudeNyang
         // 毎フレーム(表示中のスワイプ画面だけ). 矢印キーと明滅はシェルの Present に依存させない
         private void Update()
         {
-            if (!visible || group == null || screen != ScreenSwipe || !started) return;
-            UpdateSwipeInput();
+            if (!visible || group == null) return;
+            // 一覧のスクロールに合わせた行の付け替えも、シェルの Present に頼らず毎フレーム見る
+            if (screen == ScreenList) UpdateListRows(false);
+            if (screen == ScreenSwipe && started) UpdateSwipeInput();
         }
 
         // スワイプ画面の矢印キー(← 気にならない / → 気になる)と、画像待ちの明滅
@@ -267,7 +269,8 @@ namespace NudeNyang
             listEmpty.gameObject.SetActive(total == 0);
             listFirst = -1;
             UpdateListRows(true);
-            Debug.Log("[EtpTrace] eterpix-app list open liked=" + total);
+            Debug.Log("[EtpTrace] eterpix-app list open liked=" + total + " viewport=" + listViewport.rect.size
+                + " content=" + listContent.sizeDelta + " rows=" + RowPool + " portal=" + portalEnabled);
         }
 
         // スクロール位置から、先頭の行を決めて行を付け替える
