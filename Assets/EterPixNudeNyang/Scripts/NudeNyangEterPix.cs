@@ -72,8 +72,8 @@ namespace NudeNyang
 
         // 気になる投稿一覧(スクロールする行を使い回す. 見えている分だけ実体を持つ)
         public const int RowPool = 8;
-        public const float RowHeight = 140f;      // 横向きの行の高さ(Builder が最初に作る高さ)
-        [HideInInspector] public float rowHeight = 140f; // いまの行の高さ(縦向きはボタンが折り返すので高くなる)
+        public const float RowHeight = 211f;      // 行の間隔 = 画像 192 + 間隔 19(モックの 160 + 16 を 1.2 倍)
+        [HideInInspector] public float rowHeight = 211f; // いまの行の間隔(向きによらず同じ)
         public GameObject heartButton;
         public GameObject groupIcon; // グループのアイコン(画像). 開いている間は隠して×の文字を出す
         public TMP_Text heartLabel;
@@ -447,85 +447,11 @@ namespace NudeNyang
             if (band != null) band.offsetMax = new Vector2(band.offsetMax.x, has ? highH : lowH);
         }
 
-        // 行の配置を向きに合わせて組み直す(モックと同じ. 画像は左で全段ぶん、右にテキストとボタン.
-        // 幅に収まらないボタンは次の段へ折り返し、各段は右寄せ). 横向きは Builder が作った配置と同じ値.
+        // 一覧の行はモックの .li と同じ配置(Builder がアンカーで作る). 向きで変わるのは右の列の幅だけで、
+        // ボタンは縦向きでも1行に収まる(モックの縦向きと同じ). ここでは行の高さを決めるだけ
         private void ApplyRowLayout(bool portrait)
         {
-            if (rowRoots == null || listViewport == null) return;
-            const float btnH = 52f, portalW = 220f, copyW = 150f, gap = 10f, edge = 16f, baseY = 10f;
-            float rowW = listViewport.rect.width - 8f;
-            if (rowW < 100f) rowW = portrait ? 628f : 1141f;
-            bool wrapped = portrait;
-            bool twoLine = true;
-            float h = RowHeight;
-            if (portrait)
-            {
-                // 名前 + ワールド + ボタンの2段. 右列に WEB と 高画質 が並ばない幅なら3段
-                float text = 8f + 34f + 26f + 46f + gap; // 名前・ワールド・説明(2行)
-                float avail = rowW - (RowHeight + 40f) - edge;
-                twoLine = 2f * copyW + gap <= avail;
-                int lines = twoLine ? 2 : 3;
-                h = text + baseY + lines * btnH + (lines - 1) * gap + 10f;
-                if (h < RowHeight) h = RowHeight;
-            }
-            rowHeight = h;
-            for (int k = 0; k < rowRoots.Length; k++)
-            {
-                RectTransform row = (RectTransform)rowRoots[k].transform;
-                row.sizeDelta = new Vector2(-8f, h - 8f);
-                RectTransform tb = (RectTransform)rowThumbs[k].transform.parent;
-                tb.sizeDelta = new Vector2(h - 24f, h - 24f);
-                ((RectTransform)rowThumbs[k].transform).sizeDelta = tb.sizeDelta;
-                RectTransform name = (RectTransform)rowNames[k].gameObject.transform, world = (RectTransform)rowWorlds[k].gameObject.transform, no = (RectTransform)rowNoWorld[k].gameObject.transform;
-                RectTransform des = (RectTransform)rowDes[k].gameObject.transform;
-                if (!portrait)
-                {
-                    // 名前・ワールドは上から、説明はその下の左(右はボタン)
-                    name.anchorMin = new Vector2(0f, 1f); name.anchorMax = new Vector2(1f, 1f);
-                    name.offsetMin = new Vector2(h, -40f); name.offsetMax = new Vector2(-12f, -6f);
-                    world.anchorMin = new Vector2(0f, 1f); world.anchorMax = new Vector2(1f, 1f);
-                    world.offsetMin = new Vector2(h, -68f); world.offsetMax = new Vector2(-12f, -40f);
-                    des.anchorMin = new Vector2(0f, 0f); des.anchorMax = new Vector2(1f, 0f);
-                    des.offsetMin = new Vector2(h, baseY); des.offsetMax = new Vector2(-(edge + portalW + gap + 2f * copyW + gap + 12f), h - 8f - 68f);
-                    no.anchorMin = new Vector2(0.5f, 0f); no.anchorMax = new Vector2(1f, 0.32f);
-                    no.offsetMin = Vector2.zero; no.offsetMax = new Vector2(-16f, 0f);
-                    rowNoWorld[k].alignment = TextAlignmentOptions.MidlineRight;
-                }
-                else
-                {
-                    name.anchorMin = new Vector2(0f, 1f); name.anchorMax = new Vector2(1f, 1f);
-                    name.offsetMin = new Vector2(h, -42f); name.offsetMax = new Vector2(-12f, -8f);
-                    world.anchorMin = new Vector2(0f, 1f); world.anchorMax = new Vector2(1f, 1f);
-                    world.offsetMin = new Vector2(h, -68f); world.offsetMax = new Vector2(-12f, -42f);
-                    des.anchorMin = new Vector2(0f, 1f); des.anchorMax = new Vector2(1f, 1f);
-                    des.offsetMin = new Vector2(h, -68f - 46f); des.offsetMax = new Vector2(-12f, -68f);
-                    no.anchorMin = new Vector2(0f, 1f); no.anchorMax = new Vector2(1f, 1f);
-                    no.offsetMin = new Vector2(h, -68f); no.offsetMax = new Vector2(-12f, -42f);
-                    rowNoWorld[k].alignment = TextAlignmentOptions.MidlineLeft;
-                }
-                RectTransform portal = (RectTransform)rowPortalButtons[k].transform;
-                RectTransform hq = (RectTransform)rowHqFields[k].transform, web = (RectTransform)rowWebFields[k].transform;
-                if (!wrapped)
-                {
-                    portal.anchoredPosition = new Vector2(-edge, baseY);
-                    hq.anchoredPosition = new Vector2(-edge - portalW - gap, baseY);
-                    web.anchoredPosition = new Vector2(-edge - portalW - gap - copyW - gap, baseY);
-                }
-                else if (twoLine)
-                {
-                    // 2段: 上に WEB / 高画質(右寄せ)、下にポータルを開く(右寄せ)
-                    float upper = baseY + btnH + gap;
-                    hq.anchoredPosition = new Vector2(-edge, upper);
-                    web.anchoredPosition = new Vector2(-edge - copyW - gap, upper);
-                    portal.anchoredPosition = new Vector2(-edge, baseY);
-                }
-                else
-                {
-                    web.anchoredPosition = new Vector2(-edge, baseY + 2f * (btnH + gap));
-                    hq.anchoredPosition = new Vector2(-edge, baseY + btnH + gap);
-                    portal.anchoredPosition = new Vector2(-edge, baseY);
-                }
-            }
+            rowHeight = RowHeight;
         }
 
         // スクロール位置から、先頭の行を決めて行を付け替える
@@ -551,7 +477,11 @@ namespace NudeNyang
                 bool hasWorld = !string.IsNullOrEmpty(feed.WorldId[post]);
                 rowWorlds[k].text = hasWorld ? feed.WorldLabel[post] : "";
                 if (rowDes != null && rowDes.Length > k) rowDes[k].text = DescText(post);
-                rowNoWorld[k].gameObject.SetActive(!hasWorld);
+                rowNoWorld[k].gameObject.SetActive(false);
+                // モックはワールドが無いとその行を出さないので、説明を1行ぶん上へ詰める
+                RectTransform des = (RectTransform)rowDes[k].gameObject.transform;
+                float dy = hasWorld ? 63f : 34f;
+                des.offsetMin = new Vector2(211f, -(dy + 48f)); des.offsetMax = new Vector2(0f, -dy);
                 rowPortalButtons[k].SetActive(hasWorld && portalEnabled);
                 if (rowPortalLabels != null && rowPortalLabels.Length > k) rowPortalLabels[k].text = PortalLabel(post);
                 SetCopyText(rowWebFields[k], "https://eterpix.com/web/post/" + feed.Poid[post]);

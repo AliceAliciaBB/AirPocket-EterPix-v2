@@ -167,7 +167,7 @@ namespace EterPixNudeNyang
             Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(16, -38), new Vector2(-16, -4));
             var des = Label(bandRt, "Description", "", font, 20, TextAlignmentOptions.TopLeft, null);
             des.color = new Color(1, 1, 1, 0.9f); des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
-            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(16, -90), new Vector2(-16, -38));
+            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(16, -96), new Vector2(-16, -38)); // 2行(20pt×1.45×2=58)が入る高さ
             des.gameObject.SetActive(false);
             var world = Label(bandRt, "World", "", font, 20, TextAlignmentOptions.MidlineLeft, null);
             world.color = new Color(1, 1, 1, 0.75f);
@@ -220,10 +220,11 @@ namespace EterPixNudeNyang
             var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
             var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = true; // 行の無い所でも触れてスクロールできる(面の入力. Builder が付ける)
             viewport.GetComponent<Mask>().showMaskGraphic = false;
-            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, -56));
+            // モックの .lmain: 左右の余白 19(16×1.2)、見出しは上から 10 の位置に高さ 43・文字 29、行は上から 72 から
+            Anchor(viewportRt, 0, 0, 1, 1, new Vector2(19, 0), new Vector2(-19, -72));
             // 見出し「気になる投稿 N 件」(スクロールしない固定の見出し)
-            var heading = Label(screen, "Heading", "気になる投稿 0 件", font, 30, TextAlignmentOptions.MidlineLeft, tk.text);
-            Anchor(heading.rectTransform, 0, 1, 1, 1, new Vector2(24, -56), new Vector2(-24, 0));
+            var heading = Label(screen, "Heading", "気になる投稿 0 件", font, 29, TextAlignmentOptions.MidlineLeft, tk.text);
+            Anchor(heading.rectTransform, 0, 1, 1, 1, new Vector2(19, -53), new Vector2(-19, -10));
             app.listHeading = heading;
             var content = new GameObject("Content", typeof(RectTransform));
             var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
@@ -254,21 +255,29 @@ namespace EterPixNudeNyang
             app.listEmpty = empty;
         }
 
-        // 1行 = 2段「写真 | 名前・ワールド」「写真(続き) | ボタン」
+        // 1行 = モックの .li と同じ(モックの px を 1.2 倍して整数に丸めた値).
+        // 画像(192角)は左、右の列は上から 名前・ワールド・説明(2行まで)、下端にボタンを右寄せで1行(WEB | 高画質 | ポータルを開く).
+        // 行の背景は無し(モックは透明). 向きによる違いは右の列の幅だけで、位置はすべてアンカーで決まる
+        const float RowThumb = 192f;   // モック 160
+        const float RowTx = 211f;      // 画像 192 + 間隔 19(モック 16)
+        const float BtnH = 43f;        // モック 36
+        const float BtnGap = 10f;      // モック 8
+        const float WebW = 81f, HqW = 96f, PortalW = 173f; // モック 67.4 / 80 / 144
+        const float NameFs = 19f, SubFs = 16f, BtnFs = 19f; // モック 16 / 13 / 16
         static void BuildRow(NudeNyangEterPix app, RectTransform content, int k, TMP_FontAsset font, Tokens tk)
         {
-            float h = NudeNyangEterPix.RowHeight;
-            var row = Box(content, "Row " + k, tk.panel);
+            var row = Box(content, "Row " + k, null);
+            row.GetComponent<Image>().color = Color.clear;
             row.anchorMin = new Vector2(0, 1); row.anchorMax = new Vector2(1, 1); row.pivot = new Vector2(0.5f, 1);
-            row.sizeDelta = new Vector2(-8, h - 8); row.anchoredPosition = new Vector2(0, -k * h - 4);
+            row.sizeDelta = new Vector2(0, RowThumb); row.anchoredPosition = new Vector2(0, -k * NudeNyangEterPix.RowHeight);
 
             // 写真(正方形に切り取る). 押すと拡大
             var thumbBox = new GameObject("Thumb Mask", typeof(RectTransform), typeof(Image), typeof(Mask));
             var thumbBoxRt = (RectTransform)thumbBox.transform; thumbBoxRt.SetParent(row, false);
             var tbImg = thumbBox.GetComponent<Image>(); tbImg.color = Color.white; tbImg.raycastTarget = false;
             thumbBox.GetComponent<Mask>().showMaskGraphic = false;
-            thumbBoxRt.anchorMin = thumbBoxRt.anchorMax = new Vector2(0, 0.5f); thumbBoxRt.pivot = new Vector2(0, 0.5f);
-            thumbBoxRt.sizeDelta = new Vector2(h - 24, h - 24); thumbBoxRt.anchoredPosition = new Vector2(12, 0);
+            thumbBoxRt.anchorMin = thumbBoxRt.anchorMax = new Vector2(0, 1); thumbBoxRt.pivot = new Vector2(0, 1);
+            thumbBoxRt.sizeDelta = new Vector2(RowThumb, RowThumb); thumbBoxRt.anchoredPosition = Vector2.zero;
             var thumb = new GameObject("Thumb", typeof(RectTransform), typeof(RawImage));
             var thumbRt = (RectTransform)thumb.transform; thumbRt.SetParent(thumbBoxRt, false);
             thumbRt.anchorMin = thumbRt.anchorMax = new Vector2(0.5f, 0.5f); thumbRt.sizeDelta = thumbBoxRt.sizeDelta;
@@ -280,35 +289,37 @@ namespace EterPixNudeNyang
             var hitBtn = hit.AddComponent<Button>(); hitBtn.targetGraphic = hitImg; hitBtn.navigation = new Navigation { mode = Navigation.Mode.None };
             Wire(hitBtn, app, "OnRowPhoto" + k);
 
-            // 1段目: 名前[称号]・ワールド名
-            var name = Label(row, "Name", "", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
-            Anchor(name.rectTransform, 0, 1, 1, 1, new Vector2(h, -40), new Vector2(-12, -6));
-            var world = Label(row, "World", "", font, 20, TextAlignmentOptions.MidlineLeft, tk.sub);
-            Anchor(world.rectTransform, 0, 1, 1, 1, new Vector2(h, -68), new Vector2(-12, -40));
-            // 説明(2行まで). 位置は実行時に向きに合わせて組み直す(ApplyRowLayout)
-            var des = Label(row, "Description", "", font, 20, TextAlignmentOptions.TopLeft, tk.sub);
+            // 右の列: 名前[称号](y 0, 高さ 29)・ワールド(y 34, 高さ 24)・説明(y 63, 2行 48). 高さはフォントの1行(約 1.45 倍)が収まる値(足りないと Ellipsis で0文字になる)
+            var name = Label(row, "Name", "", font, NameFs, TextAlignmentOptions.MidlineLeft, tk.text);
+            name.overflowMode = TextOverflowModes.Ellipsis; name.enableWordWrapping = false;
+            Anchor(name.rectTransform, 0, 1, 1, 1, new Vector2(RowTx, -29), new Vector2(0, 0));
+            var world = Label(row, "World", "", font, SubFs, TextAlignmentOptions.MidlineLeft, tk.sub);
+            world.overflowMode = TextOverflowModes.Ellipsis; world.enableWordWrapping = false;
+            Anchor(world.rectTransform, 0, 1, 1, 1, new Vector2(RowTx, -58), new Vector2(0, -34));
+            var des = Label(row, "Description", "", font, SubFs, TextAlignmentOptions.TopLeft, tk.sub);
             des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
-            Anchor(des.rectTransform, 0, 0, 1, 0, new Vector2(h, 10), new Vector2(-578, 64));
+            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(RowTx, -111), new Vector2(0, -63));
             app.rowDes[k] = des;
-            var noWorld = Label(row, "No World", "ワールド情報なし", font, 22, TextAlignmentOptions.MidlineRight, tk.sub);
-            Anchor(noWorld.rectTransform, 0.5f, 0, 1, 0.32f, Vector2.zero, new Vector2(-16, 0));
+            // モックの一覧は、ワールドが無いとその行を出さない(「ワールド情報なし」は出さない). 欄だけ残して常に隠す
+            var noWorld = Label(row, "No World", "", font, SubFs, TextAlignmentOptions.MidlineLeft, tk.sub);
+            Anchor(noWorld.rectTransform, 0, 1, 1, 1, new Vector2(RowTx, -57), new Vector2(0, -34));
+            noWorld.gameObject.SetActive(false);
 
-            // 2段目: ボタン(右寄せ。左から WEB | 高画質 | ポータルを開く)
-            const float btnH = 52f, portalW = 220f, copyW = 150f, gap = 10f, edge = 16f;
+            // ボタン: 行の下端に右寄せで1行. 右から ポータルを開く | 高画質 | WEB
             var portal = Box(row, "Portal Button", null);
             portal.GetComponent<Image>().color = Accent;
             portal.anchorMin = portal.anchorMax = new Vector2(1, 0); portal.pivot = new Vector2(1, 0);
-            portal.sizeDelta = new Vector2(portalW, btnH); portal.anchoredPosition = new Vector2(-edge, 10);
+            portal.sizeDelta = new Vector2(PortalW, BtnH); portal.anchoredPosition = Vector2.zero;
             var pBtn = portal.gameObject.AddComponent<Button>(); pBtn.targetGraphic = portal.GetComponent<Image>(); pBtn.navigation = new Navigation { mode = Navigation.Mode.None };
-            var pLabel = Label(portal, "Label", "ポータルを開く", font, 24, TextAlignmentOptions.Center, null);
-            pLabel.color = Dark;
+            var pLabel = Label(portal, "Label", "ポータルを開く", font, BtnFs, TextAlignmentOptions.Center, null);
+            pLabel.color = Dark; pLabel.enableWordWrapping = false;
             Anchor(pLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             Wire(pBtn, app, "OnRowPortal" + k);
             app.rowPortalLabels[k] = pLabel;
             portal.gameObject.SetActive(false);
 
-            var hq = CopyButton(app, row, "HQ Button", "高画質", font, tk, -edge - portalW - gap, copyW, btnH);
-            var web = CopyButton(app, row, "Web Button", "WEB", font, tk, -edge - portalW - gap - copyW - gap, copyW, btnH);
+            var hq = CopyButton(app, row, "HQ Button", "高画質", font, tk, -(PortalW + BtnGap), HqW, BtnH, BtnFs, 0f);
+            var web = CopyButton(app, row, "Web Button", "WEB", font, tk, -(PortalW + BtnGap + HqW + BtnGap), WebW, BtnH, BtnFs, 0f);
 
             app.rowRoots[k] = row.gameObject; app.rowThumbs[k] = raw;
             app.rowNames[k] = name; app.rowWorlds[k] = world; app.rowNoWorld[k] = noWorld;
@@ -317,11 +328,11 @@ namespace EterPixNudeNyang
 
         // コピー用ボタン: 見た目はラベル、中身は文字を隠した InputField(押すとVRChatの入力UIが開き、そこでコピーできる).
         // 編集されても、入力を終えたら元の値へ戻す(NudeNyangの copyField と同じ方式)
-        static InputField CopyButton(NudeNyangEterPix app, RectTransform row, string name, string label, TMP_FontAsset font, Tokens tk, float x, float w, float h)
+        static InputField CopyButton(NudeNyangEterPix app, RectTransform row, string name, string label, TMP_FontAsset font, Tokens tk, float x, float w, float h, float fs, float y)
         {
             var b = Box(row, name, tk.btn);
             b.anchorMin = b.anchorMax = new Vector2(1, 0); b.pivot = new Vector2(1, 0);
-            b.sizeDelta = new Vector2(w, h); b.anchoredPosition = new Vector2(x, 10);
+            b.sizeDelta = new Vector2(w, h); b.anchoredPosition = new Vector2(x, y);
             var img = b.GetComponent<Image>();
             var field = b.gameObject.AddComponent<InputField>();
             var valueGo = new GameObject("Value", typeof(RectTransform), typeof(Text), typeof(CanvasGroup));
@@ -336,7 +347,8 @@ namespace EterPixNudeNyang
             field.transition = Selectable.Transition.None; field.navigation = new Navigation { mode = Navigation.Mode.None };
             UnityEditor.Events.UnityEventTools.AddStringPersistentListener(field.onEndEdit,
                 UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnCopyEnd");
-            var l = Label(b, "Label", label, font, 24, TextAlignmentOptions.Center, tk.text);
+            var l = Label(b, "Label", label, font, fs, TextAlignmentOptions.Center, tk.text);
+            l.enableWordWrapping = false;
             Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             return field;
         }
@@ -361,7 +373,7 @@ namespace EterPixNudeNyang
             Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(28, -40), new Vector2(-28, -4));
             var des = Label(bandRt, "Description", "", font, 22, TextAlignmentOptions.TopLeft, null);
             des.color = new Color(1, 1, 1, 0.9f); des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
-            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(28, -98), new Vector2(-28, -40));
+            Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(28, -104), new Vector2(-28, -40)); // 2行(22pt×1.45×2=64)が入る高さ
             des.gameObject.SetActive(false);
             var world = Label(bandRt, "World", "", font, 22, TextAlignmentOptions.MidlineLeft, null);
             world.color = new Color(1, 1, 1, 0.75f);
@@ -502,7 +514,7 @@ namespace EterPixNudeNyang
 
             var body = Label(contentRt, "Body", InfoText, font, 26, TextAlignmentOptions.TopLeft, tk.text);
             // コピーできるURL欄(一覧の WEB / 高画質 と同じ方式)
-            var field = CopyButton(app, contentRt, "Url Button", NudeNyangEterPix.InfoUrl, font, tk, 0, 520, 52);
+            var field = CopyButton(app, contentRt, "Url Button", NudeNyangEterPix.InfoUrl, font, tk, 0, 520, 52, 24, 10);
             var fieldRt = (RectTransform)field.transform;
             fieldRt.anchorMin = new Vector2(0, 1); fieldRt.anchorMax = new Vector2(0, 1); fieldRt.pivot = new Vector2(0, 1);
             var le = field.gameObject.AddComponent<LayoutElement>(); le.preferredWidth = 520; le.preferredHeight = 52;
