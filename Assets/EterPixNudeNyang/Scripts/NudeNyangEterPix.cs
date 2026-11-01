@@ -277,8 +277,8 @@ namespace NudeNyang
             Texture2D tex = images != null ? images.GetTexture(coid) : null;
             if (tex != null)
             {
-                // 写真の長辺を枠の長辺に合わせる(Pad の K-4. 縦写真は枠に合わせて反時計回りに倒す)
-                int turns = geometry.DisplayTurns(feed.Coro[cursor], cardSize.x, cardSize.y);
+                // スワイプ画面: 縦写真は縦のまま(正立)枠に収める(左右に余白). 倒さない. 拡大画面は従来どおり長辺合わせ
+                int turns = ((feed.Coro[cursor] % 4) + 4) % 4;
                 photo.texture = tex;
                 photo.uvRect = geometry.CellUv(feed.Copo[cursor]);
                 photoRect.sizeDelta = geometry.FitSize(cardSize.x, cardSize.y, turns);
