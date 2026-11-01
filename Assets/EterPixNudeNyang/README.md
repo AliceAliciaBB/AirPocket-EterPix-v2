@@ -76,6 +76,7 @@ NudeNyang を更新したら、3 → 4 をもう一度行います。`アンカ�
 - 「ロード完了」は先頭 `startupPreload`(仮 3)枚で判定し、残りは裏で取得します
 - ヘッダーの `G` / `T` は文字の仮表示。♡ はフォントに無いため仮に ☆
 - ドラッグでのスワイプ: カードを横に引く(ScrollRect の弾性)と、方向のボタンが明るくなり、カード幅の12%を越えた状態で**指を離すと**確定して次へ(引いている間は今のカードのまま。閾値未満で離すと戻るだけ)。離した検出は Card 上の EventTrigger(EndDrag)→`OnSwipeRelease`。エディタでは擬似入力で確認済み。VRChat で EventTrigger が呼ばれない場合は `swipe release` ログが出ない。**実際のレーザー/タッチでの手触りと閾値(`swipeHotStart` 0.04 / `swipeCommit` 0.12)は実機で調整**。離したときに `[EtpTrace] eterpix-app swipe release dx=... commit=...` が出る
+- スワイプは NudeNyang 本体のジェスチャと同じ作法に合わせています(2026-11-01). カード・一覧には本体の触り判定ゲート(`NudeNyangTouchSlop`)が付き(ビルダーが `NudeNyangTouchSlopBuilder.Configure` を呼ぶ)、離し(PointerUp / EndDrag)は `OnSwipeRelease` に届きます。加えて、感度は本体の共通設定 `swipeSensitivity`(1.2)を掛けた量で閾値と比べる / 横が縦の 1.3 倍より大きいときだけスワイプ(軸ロック。縦に引いたら確定しない) / VR はトリガーを両手とも離したら確定(`InputUse`。EndDrag が来ない場合の保険) / 引いたあとの 0.25 秒は写真のタップ(拡大)を抑止 / 無効になったら引いている途中を取り消す。ログ: `swipe release dx=... sens=... horizontal=... commit=...`
 - 未実装(ドラッグ関連): カードが飛ぶアニメ、次カードが下に見える重なり(矢印キーは実機未確認)
 - 縦写真(`coro` が奇数)は、**スワイプ画面では縦のまま(正立)枠に収めます**(2026-11-01 のユーザー指示で、決定 D-112 の「Pad と同じ=倒す」から変更。拡大画面は従来どおり Pad の K-4=枠の長辺に合わせて反時計回りに倒す)
 - タブレットを縦向きにしたときは、実際の枠の大きさ(`panel.rect`)で写真を作り直し、カード・ボタンを横いっぱいに広げます(縦写真が大きくなる)。縦向きになると `[EtpTrace] eterpix-app layout panel=... portrait=True rowHeight=...` が出ます

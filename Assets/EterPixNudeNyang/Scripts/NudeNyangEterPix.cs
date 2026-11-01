@@ -56,7 +56,10 @@ namespace NudeNyang
         public Image passHot;
         public Image likeHot;
         public float swipeHotStart = 0.04f;   // カード幅に対する割合: ここからボタンが明るくなる
-        public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定
+        public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定(NudeNyang の感度をかけた量で比べる)
+        private NudeNyangTouchSlop swipeGate;  // 本体の触り判定ゲート(カードの ScrollRect に自動で付く). 縦横の変位を読む
+        private bool swipeDragging, swipeLeftUse, swipeRightUse;
+        private float suppressTapUntil;
         public GameObject endScreen;
         public TMP_Text endSummary;
         public GameObject confirmModal;
@@ -255,22 +258,70 @@ namespace NudeNyang
             }
             float w = CardFrame().x;
             float dx = swipeBody.anchoredPosition.x;
-            float a = Mathf.Abs(dx) / w;
+            // 感度は NudeNyang のタブレット共通設定(swipeSensitivity)に従う. 縦に引いているときは色づけない(軸ロック)
+            float a = Mathf.Abs(dx) * SwipeSensitivity() / w;
             float hot = Mathf.Clamp01((a - swipeHotStart) / Mathf.Max(0.001f, swipeCommit - swipeHotStart));
+            if (!SwipeIsHorizontal()) hot = 0f;
             SetHot(dx < 0f ? hot : 0f, dx > 0f ? hot : 0f);
+            if (dx != 0f) swipeDragging = true;
         }
+
+        // ---- NudeNyang 本体のジェスチャと同じ作法 ----
+        // 感度: タブレット共通設定(全ナビゲーションのスワイプで共通)
+        private float SwipeSensitivity()
+        {
+            if (pad != null && pad.shell != null) return pad.shell.GestureSensitivity();
+            return 1.2f;
+        }
+
+        // 軸ロック: 触り判定ゲートの変位(縦横の生の動き)で、横が縦の1.3倍より大きいときだけスワイプとみなす(本体の DragGesture と同じ比)
+        private bool SwipeIsHorizontal()
+        {
+            if (swipeScroll == null) return true;
+            if (swipeGate == null) swipeGate = swipeScroll.GetComponent<NudeNyangTouchSlop>();
+            if (swipeGate == null || swipeGate.sample == null) return true;
+            Vector2 d = swipeGate.sample.anchoredPosition;
+            if (d.sqrMagnitude < 1f) return true;
+            return Mathf.Abs(d.x) > Mathf.Abs(d.y) * 1.3f;
+        }
+
+        // VR: レーザーが外れて EndDrag が来なくても、トリガーを両手とも離したら確定する(本体の InputUse → ReleaseGesture と同じ)
+        public override void InputUse(bool value, VRC.Udon.Common.UdonInputEventArgs args)
+        {
+            if (args.handType == VRC.Udon.Common.HandType.LEFT) swipeLeftUse = value; else swipeRightUse = value;
+            if (!swipeLeftUse && !swipeRightUse && swipeDragging) SendCustomEventDelayedFrames(nameof(OnSwipeReleaseFromTrigger), 1);
+        }
+
+        public void OnSwipeReleaseFromTrigger()
+        {
+            if (!swipeLeftUse && !swipeRightUse && swipeDragging) OnSwipeRelease();
+        }
+
+        // 無効になる・向きが変わるなどで、引いている途中を取り消す(本体の CancelGesture と同じ)
+        private void CancelSwipe()
+        {
+            swipeDragging = false;
+            if (swipeScroll != null) swipeScroll.StopMovement();
+            if (swipeBody != null) swipeBody.anchoredPosition = Vector2.zero;
+            SetHot(0f, 0f);
+        }
+
+        private void OnDisable() { CancelSwipe(); }
 
         // 指(レーザー)を離した(EventTrigger の EndDrag から呼ばれる). 閾値を越えていれば確定、そうでなければ戻るだけ
         public void OnSwipeRelease()
         {
             if (swipeBody == null || swipeScroll == null) return;
             float dx = swipeBody.anchoredPosition.x;
-            bool commit = Mathf.Abs(dx) / CardFrame().x >= swipeCommit && screen == ScreenSwipe && started && cursor < feed.Count
+            bool horizontal = SwipeIsHorizontal();
+            bool commit = Mathf.Abs(dx) * SwipeSensitivity() / CardFrame().x >= swipeCommit && horizontal && screen == ScreenSwipe && started && cursor < feed.Count
                 && zoomMode == 0 && (confirmModal == null || !confirmModal.activeSelf);
-            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + dx.ToString("F1") + " commit=" + commit + " cursor=" + cursor);
-            swipeScroll.StopMovement();
-            swipeBody.anchoredPosition = Vector2.zero;
-            SetHot(0f, 0f);
+            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + dx.ToString("F1") + " sens=" + SwipeSensitivity().ToString("F2")
+                + " horizontal=" + horizontal + " commit=" + commit + " cursor=" + cursor);
+            bool moved = swipeDragging || Mathf.Abs(dx) > 8f;
+            CancelSwipe();
+            // 引いたあとに指を離した拍で、写真のタップ(拡大)が走らないよう少しのあいだ抑える(本体の suppressTapUntil と同じ 0.25 秒)
+            if (moved) suppressTapUntil = Time.unscaledTime + 0.25f;
             if (commit) Advance(dx > 0f);
         }
 
@@ -608,6 +659,7 @@ namespace NudeNyang
         public void OnPhoto()
         {
             if (!started || screen != ScreenSwipe || feed == null || cursor >= feed.Count) return;
+            if (Time.unscaledTime < suppressTapUntil) return;
             OpenZoom(cursor);
         }
 

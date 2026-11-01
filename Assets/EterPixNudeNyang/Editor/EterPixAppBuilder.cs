@@ -124,7 +124,24 @@ namespace EterPixNudeNyang
             UdonSharpEditorUtility.CopyProxyToUdon(app);
             UdonSharpEditorUtility.CopyProxyToUdon(shell);
             EditorUtility.SetDirty(app); EditorUtility.SetDirty(shell);
+            ConfigureTouchGates(pad);
             Debug.Log("[EtpTrace] builder: " + pad.name + " 配線 homeIcons=" + shell.homeIcons.Length);
+        }
+
+        // 本体の触り判定ゲート(NudeNyangTouchSlop)を、作り直した画面のカード・一覧に付ける.
+        // ゲートはボタン付きの ScrollRect すべてに付く本体の標準の仕組み(タップの許容値・離し検出). 本体の Editor 側にあるためリフレクションで呼ぶ
+        static void ConfigureTouchGates(NudeNyangTablet pad)
+        {
+            System.Type t = null;
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                t = asm.GetType("NudeNyang.Editor.NudeNyangTouchSlopBuilder");
+                if (t != null) break;
+            }
+            var m = t != null ? t.GetMethod("Configure", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static) : null;
+            if (m == null) { Debug.LogWarning("[EtpTrace] builder: NudeNyangTouchSlopBuilder.Configure が見つかりません(ゲート未設定)"); return; }
+            m.Invoke(null, new object[] { pad });
+            Debug.Log("[EtpTrace] builder: " + pad.name + " 触り判定ゲートを設定");
         }
 
         // U#のスクリプトには UdonSharpProgramAsset が要る(無いと AddUdonSharpComponent が失敗する)
