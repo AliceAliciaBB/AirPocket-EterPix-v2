@@ -50,6 +50,14 @@ namespace NudeNyang
         public TMP_Text worldLabel;
         public TMP_Text cardNotice;
         public GameObject buttonRow;
+        // ドラッグでのスワイプ(Card の ScrollRect を横に引く. 離すと元に戻る. 閾値を越えたら次へ)
+        public ScrollRect swipeScroll;
+        public RectTransform swipeBody;
+        public Image passHot;
+        public Image likeHot;
+        public float swipeHotStart = 0.04f;   // カード幅に対する割合: ここからボタンが明るくなる
+        public float swipeCommit = 0.12f;     // カード幅に対する割合: ここを越えたら確定
+        private bool swipeReenable;
         public GameObject endScreen;
         public TMP_Text endSummary;
         public GameObject confirmModal;
@@ -160,6 +168,7 @@ namespace NudeNyang
         // 毎フレーム(表示中のスワイプ画面だけ). 矢印キーと明滅はシェルの Present に依存させない
         private void Update()
         {
+            if (swipeReenable && swipeScroll != null) { swipeReenable = false; swipeScroll.enabled = true; }
             if (!visible || group == null) return;
             // 一覧のスクロールに合わせた行の付け替えも、シェルの Present に頼らず毎フレーム見る
             if (screen == ScreenList) UpdateListRows(false);
@@ -175,6 +184,7 @@ namespace NudeNyang
                 if (Input.GetKeyDown(KeyCode.LeftArrow)) Advance(false);
                 else if (Input.GetKeyDown(KeyCode.RightArrow)) Advance(true);
             }
+            UpdateSwipeDrag(modal);
             if (cardNotice != null && cardNotice.gameObject.activeSelf)
             {
                 // 読み込み中の文字をゆっくり明滅させる(失敗の表示は止める)
@@ -183,6 +193,40 @@ namespace NudeNyang
                 c.a = failed ? 1f : 0.35f + 0.65f * (0.5f + 0.5f * Mathf.Sin(Time.time * 4f));
                 cardNotice.color = c;
             }
+        }
+
+        // カードのドラッグ量を見る. 方向のボタンを明るくし、閾値を越えたら次へ送る.
+        // 離したことは直接わからないので、確定後は ScrollRect を1フレーム無効にしてドラッグを打ち切る
+        // (そうしないと、指を離すまで次のカードも続けて送られてしまう)
+        private void UpdateSwipeDrag(bool modal)
+        {
+            if (swipeScroll == null || swipeBody == null) return;
+            if (modal || cursor >= feed.Count)
+            {
+                SetHot(0f, 0f);
+                return;
+            }
+            float w = cardSize.x;
+            float dx = swipeBody.anchoredPosition.x;
+            float a = Mathf.Abs(dx) / w;
+            float hot = Mathf.Clamp01((a - swipeHotStart) / Mathf.Max(0.001f, swipeCommit - swipeHotStart));
+            SetHot(dx < 0f ? hot : 0f, dx > 0f ? hot : 0f);
+            if (a >= swipeCommit)
+            {
+                bool like = dx > 0f;
+                Debug.Log("[EtpTrace] eterpix-app swipe commit like=" + like + " dx=" + dx.ToString("F1") + " cursor=" + cursor);
+                swipeScroll.enabled = false;
+                swipeBody.anchoredPosition = Vector2.zero;
+                swipeReenable = true;
+                SetHot(0f, 0f);
+                Advance(like);
+            }
+        }
+
+        private void SetHot(float pass, float like)
+        {
+            if (passHot != null) { Color c = passHot.color; c.a = 0.3f * pass; passHot.color = c; }
+            if (likeHot != null) { Color c = likeHot.color; c.a = 0.3f * like; likeHot.color = c; }
         }
 
         // EterPixAppFeed から呼ばれる(取得完了・失敗)

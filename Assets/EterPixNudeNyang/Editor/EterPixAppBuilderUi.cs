@@ -119,18 +119,26 @@ namespace EterPixNudeNyang
             // カード(写真の枠)。16:9に近い大きさ
             var card = Box(screen, "Card", tk.panel);
             Anchor(card, 0.17f, 0, 0.83f, 1, new Vector2(0, 96), new Vector2(0, -12));
+            // ドラッグで動く本体(Card の ScrollRect の content). 写真・情報帯などはこの下
+            var body = new GameObject("Body", typeof(RectTransform)); var bodyRt = (RectTransform)body.transform;
+            bodyRt.SetParent(card, false);
+            Anchor(bodyRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var swipe = card.gameObject.AddComponent<ScrollRect>();
+            swipe.viewport = card; swipe.content = bodyRt;
+            swipe.horizontal = true; swipe.vertical = false; swipe.movementType = ScrollRect.MovementType.Elastic;
+            swipe.elasticity = 0.1f; swipe.inertia = false; swipe.scrollSensitivity = 0f;
             var photoGo = new GameObject("Photo", typeof(RectTransform), typeof(RawImage));
-            var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(card, false);
+            var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(bodyRt, false);
             photoRt.anchorMin = photoRt.anchorMax = new Vector2(0.5f, 0.5f); photoRt.sizeDelta = new Vector2(160, 90);
             var raw = photoGo.GetComponent<RawImage>(); raw.raycastTarget = false;
             photoGo.SetActive(false);
 
-            var notice = Label(card, "Notice", "読み込み中…", font, 30, TextAlignmentOptions.Center, tk.sub);
+            var notice = Label(bodyRt, "Notice", "読み込み中…", font, 30, TextAlignmentOptions.Center, tk.sub);
             Anchor(notice.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
 
             // 写真を押すと拡大する(透明のボタン)
             var hit = new GameObject("Photo Hit", typeof(RectTransform), typeof(Image));
-            var hitRt = (RectTransform)hit.transform; hitRt.SetParent(card, false);
+            var hitRt = (RectTransform)hit.transform; hitRt.SetParent(bodyRt, false);
             Anchor(hitRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             var hitImg = hit.GetComponent<Image>(); hitImg.color = new Color(0, 0, 0, 0);
             var hitBtn = hit.AddComponent<Button>(); hitBtn.targetGraphic = hitImg; hitBtn.navigation = new Navigation { mode = Navigation.Mode.None };
@@ -138,7 +146,7 @@ namespace EterPixNudeNyang
 
             // 情報帯(半透明の黒。写真の上に重なるので、テーマの色には従わない)
             var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
-            var bandRt = (RectTransform)band.transform; bandRt.SetParent(card, false);
+            var bandRt = (RectTransform)band.transform; bandRt.SetParent(bodyRt, false);
             Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 76));
             var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
             var user = Label(bandRt, "User", "", font, 26, TextAlignmentOptions.MidlineLeft, null);
@@ -155,6 +163,11 @@ namespace EterPixNudeNyang
             Anchor(pass, 0, 0, 0.48f, 1, Vector2.zero, Vector2.zero);
             var like = TextButton(rowRt, "Like Button", "気になる", font, tk, app, "OnLike", true);
             Anchor(like, 0.52f, 0, 1, 1, Vector2.zero, Vector2.zero);
+            // ドラッグ中に方向のボタンを明るくする重ね(透明から始まり、ドラッグ量で濃くなる)
+            app.passHot = BuildHot(pass);
+            app.likeHot = BuildHot(like);
+            app.swipeScroll = swipe;
+            app.swipeBody = bodyRt;
 
             // すべて見終わったあとの画面
             var end = new GameObject("End", typeof(RectTransform)); var endRt = (RectTransform)end.transform;
@@ -344,6 +357,16 @@ namespace EterPixNudeNyang
             Anchor(no, 0.52f, 0.08f, 0.94f, 0.36f, Vector2.zero, Vector2.zero);
             dim.SetActive(false);
             app.confirmModal = dim;
+        }
+
+        static Image BuildHot(RectTransform button)
+        {
+            var go = new GameObject("Hot", typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform; rt.SetParent(button, false);
+            Anchor(rt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            rt.SetAsFirstSibling();
+            var img = go.GetComponent<Image>(); img.color = new Color(1, 1, 1, 0); img.raycastTarget = false;
+            return img;
         }
 
         // 文字だけの長方形ボタン. accent=true なら強調色
