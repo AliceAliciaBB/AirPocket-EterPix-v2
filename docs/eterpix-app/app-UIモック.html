@@ -100,8 +100,8 @@ h2{font-size:14px;margin-bottom:8px}
 /* 拡大・確認・ワールド詳細(パネル全面の重ね) */
 .zoom{position:absolute;inset:0;background:#000}
 .zoom .photo{height:auto;width:100%}
-/* 拡大は全面でフッターが無い。タブレット下部のホームバーの領域を想定して、帯の下にフッターと同じ高さ(56)を空ける */
-.zoom .band{height:84px;bottom:56px}
+/* 拡大は全面でフッターが無い。帯の下には、フッター内でホームバーを避けるために取っている余白(フッター56 − 文字行の約32 ≒ 24)だけ空ける */
+.zoom .band{height:84px;bottom:24px}
 .zoom .band .u{left:28px;right:28px;top:4px;font-size:28px;line-height:36px}
 .zoom .band .f{right:28px;font-size:24px;line-height:36px}
 .zoom .band .w{left:28px;right:28px;bottom:4px;font-size:22px;line-height:34px}
