@@ -140,6 +140,14 @@ h2{font-size:14px;margin-bottom:8px}
 .lb.l .ic,.lb.r .ic{writing-mode:horizontal-tb}
 /* ワールド詳細(モーダル)が出ている間は、方向ラベルと操作ラベルを出さない */
 .modal .lb,.modal .dbg{display:none}
+/* デスクトップ向け: 四辺の透明ボタン(各辺10%・普段は透明・ホバー中だけ見える・単クリックで操作). 角は横(左右)の操作を優先=左右の帯が全高、上下の帯は左右10%の間 */
+.hz{position:absolute;display:grid;place-items:center;font-size:22px;line-height:1.3;color:#fff;text-align:center;z-index:2;cursor:pointer}
+.hz span{opacity:0;padding:4px 10px;background:rgba(0,0,0,.6)}
+.hz:hover,.hz.on{background:rgba(157,111,255,.22)}
+.hz:hover span,.hz.on span{opacity:1}
+.hz.t{left:10%;right:10%;top:0;height:10%}.hz.b{left:10%;right:10%;bottom:0;height:10%}
+.hz.l{left:0;top:0;bottom:0;width:10%}.hz.r{right:0;top:0;bottom:0;width:10%}
+.modal .hz{display:none}
 /* 縦横共通: カードは画面の左右いっぱい・方向ラベルは四辺24px・文字16px・情報帯は写真の下端に重ねる */
 .card:has(.lb),.card:has(.notice){left:12px;right:12px;top:0;bottom:0;background:none}
 /* 状態表示 */
@@ -195,7 +203,7 @@ h2{font-size:14px;margin-bottom:8px}
 <div class="lvctl"><label><input type="checkbox" id="lvswap"> 進む・戻るを入れ替え(上下の意味が逆になる)</label></div>
 <div class="scr land live" id="live" data-theme="black">
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span id="lvc">1</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group"></i></button><button><i class="ic settings"></i></button><button><i class="ic liked"></i></button></div></div>
-<div class="bd"><div class="ab card" id="lvcard"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo"><span id="lvph">写真 1</span><div class="band d"><div class="u" id="lvu">投稿者1</div><div class="f" id="lvf">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w" id="lvw">ワールド名</div></div></div></div></div>
+<div class="bd"><div class="ab card" id="lvcard"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="hz t" data-d="down"><span>前の投稿</span></div><div class="hz b" data-d="up"><span>次の投稿</span></div><div class="hz l" data-d="left"><span>ワールド情報</span></div><div class="hz r" data-d="right"><span>気になる 追加</span></div><div class="pw"><div class="photo"><span id="lvph">写真 1</span><div class="band d"><div class="u" id="lvu">投稿者1</div><div class="f" id="lvf">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w" id="lvw">ワールド名</div></div></div></div></div>
 <div class="lvnote" id="lvnote">ワールド情報なし</div></div>
 <div class="dbg" id="dbg"><div class="dl" id="dl"><i class="ic"></i><span></span></div><div class="ring" id="dr"></div><div class="bar" id="db"></div><div class="dot" id="ds" style="background:#fff"></div><div class="dot" id="dc" style="background:var(--acc)"></div></div>
 <div class="dim" id="lvdim" style="display:none"></div><div class="ab wm" id="lvwm" style="display:none"><div class="nm" id="lvwn">ワールド名</div><div class="au">作者: 作者名</div><div class="ds">ワールドの説明</div><button class="acc" style="left:24px;right:42%;margin-right:6px">ポータルを開く</button><button id="lvclose" style="left:58%;right:24px;margin-left:6px">閉じる</button></div>
@@ -240,6 +248,34 @@ h2{font-size:14px;margin-bottom:8px}
 <div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる 追加</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
 </div>
 <div class="dbg on ign"><div class="ring" style="left:523px;top:267px;width:126px;height:126px"></div><div class="bar" style="left:586px;top:330px;width:26px;transform:rotate(1.0041rad)"></div><div class="dot" style="left:586px;top:330px;display:block;background:#fff"></div><div class="dot" style="left:600px;top:352px;display:block;background:var(--acc)"></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-i1 マウスのホバー(上の帯 10%. 見えるのはホバー中だけ. 単クリックで「前の投稿」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる 追加</div><div class="hz t on" data-d="down"><span>前の投稿</span></div><div class="hz b" data-d="up"><span>次の投稿</span></div><div class="hz l" data-d="left"><span>ワールド情報</span></div><div class="hz r" data-d="right"><span>気になる 追加</span></div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-i2 マウスのホバー(下の帯 10%. 見えるのはホバー中だけ. 単クリックで「次の投稿」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる 追加</div><div class="hz t" data-d="down"><span>前の投稿</span></div><div class="hz b on" data-d="up"><span>次の投稿</span></div><div class="hz l" data-d="left"><span>ワールド情報</span></div><div class="hz r" data-d="right"><span>気になる 追加</span></div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-i3 マウスのホバー(左の帯 10%. 見えるのはホバー中だけ. 単クリックで「ワールド情報」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる 追加</div><div class="hz t" data-d="down"><span>前の投稿</span></div><div class="hz b" data-d="up"><span>次の投稿</span></div><div class="hz l on" data-d="left"><span>ワールド情報</span></div><div class="hz r" data-d="right"><span>気になる 追加</span></div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-i4 マウスのホバー(右の帯 10%. 見えるのはホバー中だけ. 単クリックで「気になる 追加」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる 追加</div><div class="hz t" data-d="down"><span>前の投稿</span></div><div class="hz b" data-d="up"><span>次の投稿</span></div><div class="hz l" data-d="left"><span>ワールド情報</span></div><div class="hz r on" data-d="right"><span>気になる 追加</span></div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
 <div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
 <h2>2-c 拡大(情報帯あり. 次のタップで情報帯も消えて写真だけ. 全面)</h2>
@@ -365,6 +401,8 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
   function render(){
     document.getElementById('lvc').textContent=idx;
     document.getElementById('lvph').childNodes[0].nodeValue='写真 '+idx;
+    var tx=swap.checked?['次の投稿','前の投稿']:['前の投稿','次の投稿'],rt=liked[idx]?'気になる 解除':'気になる 追加';
+    card.querySelector('.hz.t span').textContent=tx[0];card.querySelector('.hz.b span').textContent=tx[1];card.querySelector('.hz.r span').textContent=rt;
     card.querySelector('.lb.t').lastChild.nodeValue=swap.checked?':次の投稿':':前の投稿';card.querySelector('.lb.b').lastChild.nodeValue=swap.checked?':前の投稿':':次の投稿';
     document.getElementById('lvu').textContent='投稿者'+idx;document.getElementById('lvf').textContent='気になる:'+(liked[idx]?'★':'☆');card.querySelector('.lb.r').lastChild.nodeValue=liked[idx]?'気になる 解除':'気になる 追加';
     document.getElementById('lvw').textContent=hasWorld(idx)?'ワールド名 '+idx:'ワールド情報なし';
@@ -402,7 +440,7 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
   function closeWm(){dim.style.display='none';wm.style.display='none';scr.classList.remove('modal')}
   dim.onclick=function(){if(noclick){noclick=false;return}closeWm()};document.getElementById('lvclose').onclick=closeWm;
   function down(e){
-    noclick=false;var p=rel(e);st={a:p,c:p,ign:false,left:false,cancel:false};dbg.classList.add('on');place(p,p,R(),false);e.preventDefault();
+    noclick=false;var p=rel(e);st={a:p,c:p,ign:false,left:false,cancel:false,hz:e.target.closest?e.target.closest('.hz'):null};dbg.classList.add('on');place(p,p,R(),false);e.preventDefault();
     window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
   }
   card.addEventListener('pointerdown',down);dim.addEventListener('pointerdown',down);
@@ -419,6 +457,7 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
     if(!st)return;var a=st.a,c=st.c,r=R(),dx=c.x-a.x,dy=c.y-a.y,d=Math.sqrt(dx*dx+dy*dy),msg;
     if(st.ign)msg='判定: 画面外へ出たドラッグは無視(入力としない)';
     else if(st.cancel){msg='判定: リング外へ出て戻った → キャンセル(入力なし・クリックにもしない)';noclick=true;}
+    else if(d<=r&&st.hz)msg='単クリック(四辺の帯): '+act(st.hz.dataset.d);
     else if(d<=r)msg='判定: リング内(距離 '+Math.round(d)+' <= 半径 '+Math.round(r)+')→ 入力なし';
     else{var dir=Math.abs(dx)>=Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');msg='判定: リング外(距離 '+Math.round(d)+' > 半径 '+Math.round(r)+')→ '+{up:'上',down:'下',right:'右',left:'左'}[dir]+' = '+act(dir);}
     say(msg);st=null;setTimeout(function(){if(!st)dbg.classList.remove('on','out','ign','lab')},600);
