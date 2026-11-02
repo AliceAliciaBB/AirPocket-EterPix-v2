@@ -64,6 +64,8 @@ h2{font-size:14px;margin-bottom:8px}
 .pw{position:absolute;inset:24px;container-type:size}
 .pw .photo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;width:min(100cqw,calc(100cqh*16/9));aspect-ratio:16/9}
 .pw .photo.tall{aspect-ratio:9/16;width:min(100cqw,calc(100cqh*9/16))}
+/* 情報帯の幅は写真ではなく、四辺24pxの内側の領域(.pw)いっぱい。縦位置は写真の下端 */
+.pw .photo .band{left:50%;right:auto;width:100cqw;transform:translateX(-50%)}
 .band{position:absolute;left:0;right:0;bottom:0;height:76px;background:rgba(0,0,0,.5);color:#fff}
 .band.d{height:130px}
 .band .u{position:absolute;left:16px;right:16px;top:4px;font-size:26px;line-height:34px}
