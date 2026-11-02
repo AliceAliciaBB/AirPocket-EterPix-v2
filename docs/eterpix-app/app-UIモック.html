@@ -4,166 +4,209 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&display=swap">
 <style>
-/* 画面の見た目だけ. 仕様・規則・操作は 要件定義.md を参照. 写真は枠(16:9)のみ. */
+/* 実機(Unity)のパネルと同じ実寸 1173.33×660 px(縦向きは 660×1173.33). 値は Builder(EterPixAppBuilderUi.cs)の定数・アンカーのまま.
+   写真は枠のみ. 仕様・操作・文言の根拠は 要件定義.md. 枠(ベゼル)は付けない=画面そのものが実寸. */
 *{box-sizing:border-box;margin:0;padding:0;border-radius:0}
-body{background:#0b0b0c;color:#f1f1ef;font:700 14px/1.6 'Noto Sans JP',system-ui,sans-serif;padding:24px 16px;display:flex;flex-direction:column;gap:32px;align-items:flex-start}
-h2{font-size:14px;color:#b3b3b3;margin-bottom:8px}
-ul{list-style:none}
+body{background:#000;color:#aaa;font:700 14px/1.5 'Noto Sans JP',system-ui,sans-serif;padding:24px 16px;display:flex;flex-direction:column;gap:32px;align-items:flex-start}
+h2{font-size:14px;margin-bottom:8px}
+svg{display:block}
 
-.dev{--bg:#141414;--tx:#fff;--btn:#2a2a2a;--btnp:#3a3a3a;--acc:#9d6fff;--acctx:#141414;--ov:rgba(20,20,20,.5);
-  background:#050506;padding:22px;flex:none}
-.dev[data-theme=white]{--bg:#fafafa;--tx:#141414;--btn:#e6e6e6;--btnp:#d4d4d4;--ov:rgba(250,250,250,.5)}
-.dev.land{width:1004px;height:584px}
-.dev.port{width:584px;height:1004px}
-.scr{position:relative;width:100%;height:100%;padding-top:16px;background:var(--bg);color:var(--tx);display:flex;flex-direction:column;overflow:hidden;font-size:13px;line-height:1.5}
-.scr button{font:inherit;border:0;color:var(--tx);background:var(--btn)}
+.scr{--bg:#141414;--panel:#1f1f1f;--tx:#fff;--sub:#a1a1a1;--btn:#2a2a2a;--acc:#9d6fff;--dk:#141414;
+  position:relative;flex:none;overflow:hidden;background:var(--bg);color:var(--tx);font-weight:700;line-height:1.45}
+.scr[data-theme=white]{--bg:#f2f2f2;--panel:#e0e0e0;--tx:#141414;--sub:#616161;--btn:#e6e6e6}
+.land{width:1173.33px;height:660px}
+.port{width:660px;height:1173.33px}
+.scr button{font:inherit;border:0;color:var(--tx);background:var(--btn);display:grid;place-items:center}
+.ab{position:absolute}
+.ico{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2}
+.ico.fill{fill:currentColor;stroke:none}
+.acc{background:var(--acc)!important;color:var(--dk)!important}
 
-.hd{height:40px;flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 16px}
-.hd h1{font-size:16px}
-.hd .num{font-size:16px}
-.nav{display:flex;gap:8px;justify-content:flex-end}
-.hb{width:40px;height:40px;font-size:16px}
-.ft{height:24px;flex:none;display:grid;place-items:center}
-main{flex:1;min-height:0;position:relative}
-
-.cta{background:var(--acc)!important;color:var(--acctx)!important;font-size:16px;height:48px;padding:0 32px}
-.sb{font-size:16px;height:40px;padding:0 24px}
+/* ヘッダー 76 / フッター 56 / 本体は残り(横=528). 余白16・ボタン44・間隔12 */
+.hd{position:absolute;left:0;right:0;top:0;height:76px;background:var(--panel)}
+.title{position:absolute;left:16px;top:16px;height:44px;display:flex;align-items:center;font-size:34px;white-space:nowrap}
+.cnt{position:absolute;top:16px;height:44px;display:flex;align-items:center;font-size:28px}
+.cnt i{font-style:normal;width:var(--dw,56px);display:block}.cnt i:first-child{text-align:right}
+.cnt b{width:16px;text-align:center}
+.nav{position:absolute;right:16px;top:16px;display:flex;flex-direction:row-reverse;gap:12px}
+.nav button{width:44px;height:44px;font-size:28px}
+.ft{position:absolute;left:0;right:0;bottom:0;height:56px;background:var(--panel);text-align:center;font-size:20px;color:var(--sub);padding-top:4px}
+.bd{position:absolute;left:0;right:0;top:76px;bottom:56px}
 
 /* 起動 */
-.boot{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center}
-.logo{display:flex;align-items:center;gap:16px;font-size:40px;line-height:1}
-.logo i{width:64px;height:64px;background:var(--acc)}
-.boot p{font-size:16px;max-width:44ch}
-.loading{width:420px;height:72px;display:flex;flex-direction:column;justify-content:center;gap:8px}
-.loader{display:flex;justify-content:space-between;font-size:16px}
-.pbar{height:8px;background:var(--btn)}.pbar i{display:block;height:100%;width:40%;background:var(--acc)}
+.logo{left:10%;right:10%;top:60px;height:140px;display:grid;place-items:center;font-size:88px;color:var(--acc);line-height:1}
+.des{left:5%;right:5%;bottom:34%;top:28%;display:grid;place-items:center;text-align:center;font-size:26px}
+.load{left:20%;right:20%;bottom:8%;height:22%}
+.load .l,.load .p{position:absolute;top:0;height:50%;font-size:24px}.load .p{right:0}
+.load .tr{position:absolute;left:0;right:0;bottom:18%;height:24%;background:var(--panel)}
+.load .tr i{display:block;height:100%;width:40%;background:var(--acc)}
+.start{left:35%;right:35%;bottom:10%;height:16%;font-size:30px}
 
-/* スワイプ */
-.sw{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:8px 16px}
-.pile{position:relative;flex:1;min-height:0}
-.land .pile,.land .band{width:676px}.port .pile,.port .band{width:508px}
-.photo{position:absolute;inset:0;background:var(--btn);display:grid;place-items:center;font-size:16px}
-.cap{position:absolute;left:0;right:0;bottom:0;padding:12px 16px;background:var(--ov);display:flex;flex-direction:column;gap:4px}
-.cap .nm,.cap .wd{font-size:16px}
-.band{display:flex;gap:8px}
-.band button{flex:1;height:48px;font-size:16px}
-
-/* 拡大 */
-.lb{position:absolute;inset:0;z-index:2;background:var(--bg)}
-.lb .photo{background:var(--btn)}
+/* スワイプ: カード 17〜83%・上12・下96. ボタン列 下8・高さ76 */
+.card{left:17%;right:17%;top:12px;bottom:96px;background:var(--panel);overflow:hidden}
+.photo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:100%;aspect-ratio:16/9;background:#555;color:#ddd;display:grid;place-items:center;font-size:24px}
+.port .photo{height:auto;width:100%}
+.band{position:absolute;left:0;right:0;bottom:0;height:76px;background:rgba(0,0,0,.5);color:#fff}
+.band.d{height:134px}
+.band .u{position:absolute;left:16px;right:16px;top:4px;font-size:26px;line-height:34px}
+.band .s{position:absolute;left:16px;right:16px;top:38px;font-size:20px;color:rgba(255,255,255,.9);line-height:29px}
+.band .w{position:absolute;left:16px;right:16px;bottom:4px;font-size:20px;color:rgba(255,255,255,.75);line-height:30px}
+.row{left:17%;right:17%;bottom:8px;height:76px;display:grid;grid-template-columns:repeat(5,1fr)}
+.row button{margin:0 4px;font-size:28px}
+.row .off{opacity:.35}
+.notice{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;color:var(--sub)}
 
 /* 一覧 */
-.ls{padding:8px 16px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
-.ls h2{font-size:24px;color:inherit;margin:0}
-.li{display:grid;grid-template-columns:160px 1fr;grid-template-rows:1fr auto;gap:8px 16px}
-.th{grid-row:1/span 2;width:160px;aspect-ratio:1/1;background:var(--btn)}
-.tx{display:flex;flex-direction:column;gap:4px;min-width:0}
-.tx b{font-size:16px}
-.bt{display:flex;gap:8px;justify-content:flex-end;align-self:end}
-.bt button{height:36px;font-size:16px;padding:0 16px}
+.lh{left:16px;top:10px;height:43px;font-size:29px;line-height:43px}
+.li{position:absolute;left:16px;right:16px;height:192px}
+.th{position:absolute;left:0;top:0;width:192px;height:192px;background:#555}
+.li .n{position:absolute;left:211px;right:0;top:0;height:29px;font-size:19px;line-height:29px;white-space:nowrap}
+.li .w{position:absolute;left:211px;right:0;top:34px;height:24px;font-size:16px;line-height:24px;color:var(--sub);white-space:nowrap}
+.li .d{position:absolute;left:211px;right:0;top:63px;height:48px;font-size:16px;color:var(--sub)}
+.li .b{position:absolute;right:0;bottom:0;display:flex;gap:10px}
+.li .b button{height:43px;font-size:19px}
 
-/* 共通ページ・状態・終了 */
-.page{padding:16px 32px}
-.page .in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-.page h2{font-size:24px;color:inherit;margin:0}.page h3{font-size:16px}
-.page ul{padding-left:20px;list-style:disc;display:flex;flex-direction:column;gap:4px}
-.page .url{background:var(--btn);height:40px;padding:0 16px;display:flex;align-items:center;font-size:16px}
-.status{display:flex;align-items:center;justify-content:center;padding:16px}
-.status .box{width:480px;aspect-ratio:16/9;background:var(--btn);display:grid;place-items:center;text-align:center;padding:16px;white-space:pre-line;line-height:1.7}
-.end{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
-.end h2{font-size:24px}.end p{font-size:16px}
-.bts{display:flex;gap:8px}
-.end .cta,.end .sb{height:48px;padding:0 32px}
-.modal{position:absolute;inset:0;z-index:2;background:var(--bg);display:flex;align-items:center;justify-content:center}
-.mbox{background:var(--btn);padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px;font-size:16px}
-.mbox button{background:var(--btnp)}
+/* 情報・グループ・設定 */
+.pg{position:absolute;inset:0;overflow:hidden;padding:16px;font-size:26px;white-space:pre-line}
+.pg .url{width:520px;height:52px;margin:10px 0;background:var(--btn);display:grid;place-items:center;font-size:24px;white-space:normal}
+.sh{left:16px;top:16px;height:43px;font-size:29px;line-height:43px}
+.sr{position:absolute;left:16px;right:16px;height:56px}
+.sr .t{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;font-size:26px}
+.sr button{position:absolute;top:6px;width:120px;height:44px;font-size:24px}
+
+/* 拡大・確認・ワールド詳細(パネル全面の重ね) */
+.zoom{position:absolute;inset:0;background:#000}
+.zoom .photo{height:auto;width:100%}
+.zoom .band{height:84px}
+.zoom .band .u{left:28px;right:28px;top:4px;font-size:28px;line-height:36px}
+.zoom .band .w{left:28px;right:28px;bottom:4px;font-size:22px;line-height:34px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.cf{left:25%;right:25%;top:30%;bottom:30%;background:var(--bg)}
+.cf .m{position:absolute;left:16px;right:16px;top:16px;bottom:40%;display:grid;place-items:center;text-align:center;font-size:30px;white-space:pre-line}
+.cf button{position:absolute;bottom:8%;height:28%;font-size:28px}
+.wm{left:15%;right:15%;top:8%;bottom:8%;background:var(--bg)}
+.wm .nm{position:absolute;left:24px;right:24px;top:24px;height:68px;font-size:32px;line-height:46px}
+.wm .au{position:absolute;left:24px;right:24px;top:94px;height:34px;font-size:22px;color:var(--sub)}
+.wm .ds{position:absolute;left:24px;right:24px;top:136px;bottom:84px;overflow:hidden;font-size:24px}
+.wm button{position:absolute;bottom:20px;height:52px;font-size:28px}
+
+/* 状態表示 */
+.err{left:10%;right:10%;bottom:6%;height:24%;display:grid;place-items:center;text-align:center;font-size:26px}
 </style>
 
-<h2>1-a 起動画面(ロード中)</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="boot"><div class="logo"><i></i><b>EterPix</b></div>
-<p>ようこそ、EterPix-appへ。<br>このアプリは、VRChatの投稿をスワイプで見ることができるアプリです。<br>詳しくは右上の[ i ]ボタンを押してご確認ください。</p>
-<div class="loading"><div class="loader"><span>ロード中...</span><span>40%</span></div><div class="pbar"><i></i></div></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="star" viewBox="0 0 24 24"><polygon points="12,2.5 14.9,9 22,9.6 16.6,14.3 18.3,21.2 12,17.5 5.7,21.2 7.4,14.3 2,9.6 9.1,9"/></symbol>
+<symbol id="reload" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8" stroke-dasharray="3 2.2" stroke-width="3.2"/></symbol>
+<symbol id="group" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" class="f"/><rect x="2" y="12" width="10" height="8"/><rect x="14" y="7" width="5" height="5"/><rect x="13" y="14" width="8" height="6"/></symbol>
+<symbol id="dark" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/></symbol>
+<symbol id="light" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 4.3"/></symbol>
+</defs></svg>
 
-<h2>1-b 起動画面(ロード完了)</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="boot"><div class="logo"><i></i><b>EterPix</b></div>
-<p>ようこそ、EterPix-appへ。<br>このアプリは、VRChatの投稿をスワイプで見ることができるアプリです。<br>詳しくは右上の[ i ]ボタンを押してご確認ください。</p>
-<div class="loading"><button class="cta" style="align-self:center">push to start</button></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>1-a 起動画面(ロード中) 横 1173.33×660</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button></div></div>
+<div class="bd"><div class="ab logo">EterPix</div>
+<div class="ab des">ようこそ、EterPix-appへ。<br>このアプリは、VRChatの投稿をスワイプで見ることができるアプリです。<br>詳しくは右上の[ i ]ボタンを押してご確認ください。</div>
+<div class="ab load"><span class="l">ロード中...</span><span class="p">40%</span><div class="tr"><i></i></div></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-<h2>2-a スワイプ画面(横・黒)</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span class="num">3 / 20</span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="sw"><div class="pile"><div class="photo">写真</div><div class="cap"><div class="nm">投稿者名[称号]</div><div>説明文(最大2行)</div><div class="wd">ワールド名</div></div></div>
-<div class="band"><button>← 左スワイプ: 気にならない</button><button>右スワイプ: 気になる →</button></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>1-b 起動画面(ロード完了 / push to start)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab logo">EterPix</div>
+<div class="ab des">ようこそ、EterPix-appへ。<br>このアプリは、VRChatの投稿をスワイプで見ることができるアプリです。<br>詳しくは右上の[ i ]ボタンを押してご確認ください。</div>
+<button class="ab start acc">push to start</button></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-<h2>2-b スワイプ画面(縦・白)</h2>
-<div class="dev port" data-theme="white"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span class="num">3 / 20</span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="sw"><div class="pile"><div class="photo">写真</div><div class="cap"><div class="nm">投稿者名[称号]</div><div>説明文(最大2行)</div><div class="wd">ワールド名</div></div></div>
-<div class="band"><button>← 左スワイプ: 気にならない</button><button>右スワイプ: 気になる →</button></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>1-c 起動画面(取得失敗 / Allow Untrusted URLs が OFF)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button></div></div>
+<div class="bd"><div class="ab logo">EterPix</div>
+<div class="ab des">ようこそ、EterPix-appへ。<br>このアプリは、VRChatの投稿をスワイプで見ることができるアプリです。<br>詳しくは右上の[ i ]ボタンを押してご確認ください。</div>
+<div class="ab err">「Allow Untrusted URLs」をONにしてください</div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-<h2>2-c 拡大(UIあり) ※次のタップで情報帯も消えて写真だけ</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<div class="lb"><div class="photo">写真(長辺をモニターの長辺に合わせる)</div><div class="cap"><div class="nm">投稿者名[称号]</div><div class="wd">ワールド名</div></div></div></div></div>
+<h2>2-a スワイプ画面(横・黒. カウンタ 12/20. 説明あり)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title" id="t">EterPix-app</div><div class="cnt" style="left:216px"><i>12</i><b>/</b><i>20</i></div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab card"><div class="photo">写真 16:9</div><div class="band d"><div class="u">投稿者名[称号]</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div>
+<div class="ab row"><button>戻る</button><button><svg class="ico" style="width:40px;height:40px"><use href="#reload"/></svg></button><button><svg class="ico" style="width:40px;height:40px"><use href="#globe"/></svg></button><button><svg class="ico" style="width:40px;height:40px"><use href="#star"/></svg></button><button>進む</button></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-<h2>2-d すべて見た後 / 「もう一度見る」確認</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="end"><h2>すべて見ました</h2><p>気になる投稿は 3 件です。</p><div class="bts"><button class="cta">気になる投稿一覧を見る</button><button class="sb">もう一度見る</button></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main><div class="modal"><div class="mbox"><p>気になる選択はなくなります。いいですか?</p><div class="bts"><button class="cta">はい</button><button class="sb">やめる</button></div></div></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>2-b スワイプ画面(縦・白. 説明なし=情報帯が低い. 660×1173.33)</h2>
+<div class="scr port" data-theme="white">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab card" style="left:0;right:0"><div class="photo">写真(縦写真は縦のまま枠に収める)</div><div class="band"><div class="u">投稿者名[称号]</div><div class="w">ワールド名</div></div></div>
+<div class="ab row" style="left:0;right:0"><button>戻る</button><button><svg class="ico" style="width:40px;height:40px"><use href="#reload"/></svg></button><button><svg class="ico" style="width:40px;height:40px"><use href="#globe"/></svg></button><button><svg class="ico" style="width:40px;height:40px"><use href="#star"/></svg></button><button>進む</button></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-<h2>3 気になる投稿一覧</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">✕</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="ls"><h2>気になる投稿 2 件</h2>
-<div class="li"><div class="th"></div><div class="tx"><b>投稿者名[称号]</b><span>ワールド名</span><span>説明文(最大2行)</span><span>2026-10-31 12:00</span></div><div class="bt"><button>WEB</button><button>高画質</button><button class="cta" style="height:36px;padding:0 16px">ポータルを開く</button></div></div>
-<div class="li"><div class="th"></div><div class="tx"><b>投稿者名</b><span>ワールド情報なし</span><span>説明文(最大2行)</span><span>2026-10-30 21:30</span></div><div class="bt"><button>WEB</button><button>高画質</button></div></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>2-c 拡大(情報帯あり. 次のタップで情報帯も消えて写真だけ. 全面)</h2>
+<div class="scr land" data-theme="black"><div class="zoom"><div class="photo">写真 16:9</div><div class="band"><div class="u">投稿者名[称号]</div><div class="w">ワールド名</div></div></div></div>
 
-<h2>共通 インフォメーション(i)</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">✕</button></li></ul></header>
-<main class="page"><div class="in"><h2>インフォメーション</h2><p>ようこそ、EterPix-appへ。このアプリは、VRChatの投稿をスワイプで見ることができるアプリです。</p>
-<h3>操作</h3><ul><li>右スワイプ: 気になる</li><li>左スワイプ: 気にならない</li><li>写真の下の帯を押しても同じ操作ができます</li><li>♡: 気になる投稿一覧(ロード完了後に表示)</li><li>写真を押すと拡大します</li></ul>
-<h3>投稿ページ</h3><div class="url">https://eterpix.com/</div><p>最新情報は X @_alicilia</p></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>2-d すべて見た後 / 「もう一度見る」の確認</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="cnt" style="left:216px"><i>20</i><b>/</b><i>20</i></div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab" style="left:10%;right:10%;top:10%;bottom:50%;display:grid;place-items:center;text-align:center;font-size:34px;white-space:pre-line">すべての投稿を見ました
+気になる: 3 件</div>
+<button class="ab" style="left:32%;right:32%;bottom:18%;height:16%;font-size:28px">もう一度見る</button>
+<div class="ab row" style="left:17%;right:17%"><button>戻る</button><button class="off"><svg class="ico" style="width:40px;height:40px"><use href="#reload"/></svg></button><button class="off"><svg class="ico" style="width:40px;height:40px"><use href="#globe"/></svg></button><button class="off"><svg class="ico" style="width:40px;height:40px"><use href="#star"/></svg></button><button class="off">進む</button></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+<div class="scr land" data-theme="black"><div class="dim"></div>
+<div class="ab cf"><div class="m">気になる選択はなくなります。
+いいですか?</div><button class="acc" style="left:6%;right:52%">はい</button><button style="left:52%;right:6%">やめる</button></div></div>
 
-<h2>共通 グループ</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">✕</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="page"><div class="in"><h2>グループ</h2><p>ここにグループの説明が入ります(文面は仮)。</p><p>EterPix は、VRChatで撮った写真を共有する人たちの集まりです。投稿された写真は、このアプリのほか、ワールドのモニターでも見られます。</p></div></main>
-<footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>2-e ワールド詳細(下スワイプ / 暗幕・「閉じる」・上スワイプで閉じる)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab card"><div class="photo">写真 16:9</div></div></div>
+<div class="dim"></div>
+<div class="ab wm"><div class="nm">ワールド名(2行まで)</div><div class="au">作者: 作者名</div><div class="ds">ワールドの説明(長ければスクロール)</div>
+<button class="acc" style="left:24px;right:42%;margin-right:6px">ポータルを開く</button><button style="left:58%;right:24px;margin-left:6px">閉じる</button></div></div>
 
-<h2>状態(写真枠の位置に表示. ヘッダーは常に表示)</h2>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="status"><div class="box">読み込み中…</div></main><footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="status"><div class="box">「信頼されていないURL」が許可されていません
+<h2>2-f スワイプ画面の通知(読み込み中 / 読み込みに失敗しました / ワールド情報なし)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="cnt" style="left:216px"><i>3</i><b>/</b><i>20</i></div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab card"><div class="notice">読み込み中…</div></div>
+<div class="ab" style="left:50%;margin-left:-170px;width:340px;bottom:110px;height:44px;background:rgba(0,0,0,.7);color:#fff;display:grid;place-items:center;font-size:24px">ワールド情報なし</div>
+<div class="ab row" style="left:17%;right:17%"><button>戻る</button><button><svg class="ico" style="width:40px;height:40px"><use href="#reload"/></svg></button><button><svg class="ico" style="width:40px;height:40px"><use href="#globe"/></svg></button><button><svg class="ico" style="width:40px;height:40px"><use href="#star"/></svg></button><button>進む</button></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-設定 &gt; 快適性とセーフティ &gt;
-「信頼されていないURLを許可」をONにしてください
-ONにすると、しばらくして表示されます
-(表示されない場合はワールドに入り直してください)</div></main><footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="status"><div class="box">サーバーに接続できませんでした
-メンテナンス中の可能性があります
-最新情報は X @_alicilia をご確認ください
+<h2>3 気になる投稿一覧(♡=ヘッダー右端が×に変わる)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button style="font-size:32px">×</button></div></div>
+<div class="bd"><div class="ab lh">気になる投稿 2 件</div>
+<div class="li" style="top:72px"><div class="th"></div><div class="n">投稿者名[称号]</div><div class="w">ワールド名</div><div class="d">説明文(2行まで)</div><div class="b"><button style="width:81px">WEB</button><button style="width:96px">高画質</button><button class="acc" style="width:173px">ポータルを開く</button></div></div>
+<div class="li" style="top:283px"><div class="th"></div><div class="n">投稿者名</div><div class="d" style="top:34px">説明文(ワールドが無い行は説明を上へ詰める)</div><div class="b"><button style="width:81px">WEB</button><button style="width:96px">高画質</button></div></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
-数分後に自動で再接続します</div></main><footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
-<div class="dev land" data-theme="black"><div class="scr">
-<header class="hd"><h1>EterPix-app</h1><span></span><ul class="nav"><li><button class="hb">♡</button></li><li><button class="hb">◐</button></li><li><button class="hb">▦</button></li><li><button class="hb">i</button></li></ul></header>
-<main class="status"><div class="box">表示できる投稿がありません</div></main><footer class="ft">2026 EterPix All Rights Reserved.</footer></div></div>
+<h2>4 設定(歯車. 開いている間は ×)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button><svg class="ico"><use href="#group"/></svg></button><button style="font-size:32px">×</button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="ab sh">設定</div>
+<div class="sr" style="top:75px"><div class="t">テーマ</div><button class="acc" style="right:132px"><svg class="ico" style="width:32px;height:32px"><use href="#dark"/></svg></button><button style="right:0"><svg class="ico" style="width:32px;height:32px"><use href="#light"/></svg></button></div>
+<div class="sr" style="top:147px"><div class="t">進む・戻るを入れ替え</div><button class="acc" style="right:132px">しない</button><button style="right:0">する</button></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>5 情報(i. 縦にスクロール. 本文は先頭のみ表示される)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button style="font-size:32px">×</button><button><svg class="ico"><use href="#group"/></svg></button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="pg">EterPixについて
+
+EterPixは、VRChatで撮影した写真を共有できるSNSです。このアプリでは、EterPixに投稿された公開写真を、スワイプで閲覧できます。R18の投稿は表示されません。
+
+<b>スワイプで操作する</b>
+写真を4方向にドラッグして離します。右へ離すと次の写真へ進み、左へ離すと前の写真へ戻ります。上へ離すと「気になる」の☆/★を切り替え、下へ離すとワールドの詳細を開きます。下のボタン([戻る][更新][ポータル][☆/★][進む])や矢印キーでも同じ操作ができます。
+</div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>6 グループ</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="title">EterPix-app</div><div class="nav"><button>i</button><button style="font-size:32px">×</button><button><svg class="ico"><use href="#gear"/></svg></button><button><svg class="ico"><use href="#star"/></svg></button></div></div>
+<div class="bd"><div class="pg">グループ
+
+ここにグループの説明が入ります(文面は仮)。
+
+EterPix は、VRChatで撮った写真を共有する人たちの集まりです。投稿された写真は、このアプリのほか、ワールドのモニターでも見られます。</div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
