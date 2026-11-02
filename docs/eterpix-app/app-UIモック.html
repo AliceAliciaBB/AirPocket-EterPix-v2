@@ -368,7 +368,7 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
     if(!st)return;var p=rel(e);
     if(p.out)st.ign=true;
     var dx=p.x-st.a.x,dy=p.y-st.a.y,d=Math.sqrt(dx*dx+dy*dy);
-    if(d>R())st.left=true; else if(st.left)st.cancel=true;
+    if(d>R())st.left=true; st.cancel=st.left&&d<=R();
     st.c=p;place(st.a,p,R(),st.ign||st.cancel);
     say('開始 ('+Math.round(st.a.x)+','+Math.round(st.a.y)+')  現在 ('+Math.round(p.x)+','+Math.round(p.y)+')  距離 '+Math.round(d)+'px / 半径 '+Math.round(R())+'px  '+(st.ign?'→ 画面外へ出た: 無視':st.cancel?'→ リング外へ出て戻った: キャンセル(離しても入力なし・クリックにもしない)':(d>R()?'→ 離すと入力':'→ リング内: 離しても入力なし')));
   }
