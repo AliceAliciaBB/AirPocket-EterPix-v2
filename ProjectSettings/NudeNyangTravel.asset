@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &1
+MonoBehaviour:
+  m_ObjectHideFlags: 53
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp-Editor:NudeNyang.Editor:NudeNyangTravelSettings
+  scenes:
+  - sceneGuid: 524c047fc555c1c49bdcbc11ba5ae6df
+    worldId: wrld_1acd28ea-a09c-4d64-b2e1-d1c4bdd961c9
+    title: "Nude\u2024\u2024\u2024test"
+    creator: "\u30A2\u30EA\u30B7\u30EA\u30A2"
+    description: "Nude\u2024\u2024\u2024test"
+    theme: relax
+    platforms: pc
+    productVersion: 
+    consent: 1
+    imageRights: 1
+    autoUpdate: 1
+    automaticConfigured: 1
+    publicWorld: 0
+    installed: 1
+    receiptPending: 1
+    receiptInstalled: 1
+    publicationWaiting: 1
+    nextPublicationCheckAt: 1793627647771
+    publicationTrackingVersion: 1
+    receiptRevision: 1
+    thumbnailUrl: https://api.vrchat.cloud/api/1/image/file_f2294583-21c4-43f4-9b1c-1ce624b647d9/1/256
+    uploadedThumbnailUrl: 
+    verificationMarker: 
+    cleanupPending: 0
+    tags: []
+    state: pending-public
