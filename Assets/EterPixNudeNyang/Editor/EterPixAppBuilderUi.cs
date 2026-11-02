@@ -431,7 +431,7 @@ namespace EterPixNudeNyang
             for (int i = 0; i < s.Length; i++)
             {
                 if (s[i] == ' ') continue;
-                r += (r.Length > 0 ? "\n" : "") + s.Substring(i, 1);
+                r += (r.Length > 0 ? "\n" : "") + (s[i] == 'ー' ? "|" : s.Substring(i, 1)); // 長音は縦棒でごまかす
             }
             return r;
         }
