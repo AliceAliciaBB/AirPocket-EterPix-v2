@@ -23,11 +23,11 @@ namespace EterPixNudeNyang
         const string InfoText =
             "EterPixについて\n\n" +
             "EterPixは、VRChatで撮影した写真を共有できるSNSです。このアプリでは、EterPixに投稿された公開写真を、スワイプで閲覧できます。R18の投稿は表示されません。\n\n" +
-            "<b>スワイプで操作する</b>\n写真を4方向にドラッグして離します。右へ離すと次の写真へ進み、左へ離すと前の写真へ戻ります。上へ離すと「気になる」の☆/★を切り替え、下へ離すとワールドの詳細を開きます。下のボタン([戻る][更新][ポータル][☆/★][進む])や矢印キーでも同じ操作ができます。\n\n" +
+            "<b>スワイプで操作する</b>\n写真をドラッグして離します. 上へ離すと次の投稿、下へ離すと前の投稿、右へ離すと「気になる」の追加・解除(☆/★)、左へ離すとワールド情報を開きます. 離した位置が最初に押した位置から近いときは、何も起きません. 一度遠くへ動かしてから元の近くへ戻して離すと、操作を取り消せます. 矢印キーでも同じ操作ができます. 写真の四辺の帯(マウスを重ねると色が付く)を1回押しても、その辺の操作ができます.\n\n" +
             "<b>写真を拡大する</b>\n写真をすばやく2回押すと拡大します。もう一度押すと情報が消え、さらに押すと閉じます。\n\n" +
             "<b>気になる投稿の一覧</b>\n右上の「気になる一覧」ボタンで、気になる投稿の一覧を開きます。「WEB」「高画質」を押すと、それぞれのURLをコピーできます。気になる印は、このインスタンスを出ると消えます。\n\n" +
-            "<b>ワールドの詳細とポータル</b>\n写真を下へスワイプすると、ワールドの名前・作者・説明が出ます。「ポータルを開く」で、撮影されたワールドへのポータルを開けます。詳細は、閉じるボタン・外側・上へのスワイプで閉じます。\n\n" +
-            "<b>新しい投稿を読み込む</b>\nボタン列の[更新]で、投稿を読み直します。見ている位置と気になる印は引き継がれます。\n\n" +
+            "<b>ワールドの詳細とポータル</b>\n写真を左へスワイプすると、ワールドの名前・作者・説明が出ます。「ポータルを開く」で、撮影されたワールドへのポータルを開けます。詳細は、閉じるボタン・外側・右へのスワイプ(→キー)で閉じます。\n\n" +
+            "<b>新しい投稿を読み込む</b>\n右上の歯車を開いて、「投稿を更新」の[更新する]を押すと、投稿を読み直します。見ている位置と気になる印は引き継がれます。「最初から」の[最初から]は、先頭の投稿に戻り、気になる選択も消します(確認が出ます)。\n\n" +
             "<b>設定</b>\n右上の歯車で、表示色(黒/白)と、進む・戻るの左右入れ替えを変えられます。入れ替えは自分の画面だけで、このインスタンスを出ると元に戻ります。\n\n" +
             "<b>写真を投稿する</b>\n投稿はWebから行えます。下のURLを押すとコピーできます。ブラウザで開いてください。";
         // 本文のあとに、コピーできるURLの欄が入る(URL は NudeNyangEterPix.InfoUrl)
@@ -110,8 +110,8 @@ namespace EterPixNudeNyang
             // ---- フッター(コピーライト) ----
             var footer = Box(root, "Footer", tk.panel);
             Anchor(footer, 0, 0, 1, 0, Vector2.zero, new Vector2(0, FooterHeight));
-            var copy = Label(footer, "Copyright", "2026 EterPix All Rights Reserved.", font, 20, TextAlignmentOptions.Top, tk.sub);
-            Anchor(copy.rectTransform, 0, 0, 1, 1, new Vector2(0, 0), new Vector2(0, -4));
+            var copy = Label(footer, "Copyright", "2026 EterPix All Rights Reserved.", font, 20, TextAlignmentOptions.TopRight, tk.sub);
+            Anchor(copy.rectTransform, 0, 0, 1, 1, new Vector2(0, 0), new Vector2(-Margin, -4)); // 右寄せ(右余白はヘッダーのボタンと同じ16)
 
             // ---- 画面(ヘッダーとフッターの間) ----
             app.startScreen = Screen(root, "Start Screen").gameObject;
@@ -145,50 +145,71 @@ namespace EterPixNudeNyang
             app.subGraphics = tk.sub.ToArray();
         }
 
+        const string SwipeUpPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeUpIcon.png";
+        const string SwipeDownPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeDownIcon.png";
+        const string SwipeLeftPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeLeftIcon.png";
+        const string SwipeRightPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeRightIcon.png";
+        const string RingPath = "Assets/EterPixNudeNyang/Art/EterPixRing.png";
+        const string DotPath = "Assets/EterPixNudeNyang/Art/EterPixDot.png";
+        const float DirBand = 24f; // 方向ラベルの帯の幅 = 写真の四辺の空き
+
+        // 追加計画V: カードは左右12・上下0・面は無色. 写真は四辺24pxの内側. 判定は Drag Probe のずれ(相対方式)
         static void BuildSwipe(NudeNyangEterPix app, RectTransform screen, TMP_FontAsset font, Tokens tk)
         {
-            // カード(写真の枠)。16:9に近い大きさ
-            var card = Box(screen, "Card", tk.panel);
-            Anchor(card, 0.17f, 0, 0.83f, 1, new Vector2(0, 96), new Vector2(0, -12));
-            // ドラッグで動く本体(Card の ScrollRect の content). 写真・情報帯などはこの下
-            var body = new GameObject("Body", typeof(RectTransform)); var bodyRt = (RectTransform)body.transform;
-            bodyRt.SetParent(card, false);
-            Anchor(bodyRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var clear = new Color(0, 0, 0, 0);
+            var card = Box(screen, "Card", null);
+            card.GetComponent<Image>().color = clear; // 面は無色(raycast は維持してドラッグを受ける)
+            Anchor(card, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, 0));
+            // ドラッグのずれだけを取る空の部品(Card の ScrollRect の content. 見た目は動かさない)
+            var probe = new GameObject("Drag Probe", typeof(RectTransform)); var probeRt = (RectTransform)probe.transform;
+            probeRt.SetParent(card, false);
+            Anchor(probeRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
             var swipe = card.gameObject.AddComponent<ScrollRect>();
-            swipe.viewport = card; swipe.content = bodyRt;
-            swipe.horizontal = true; swipe.vertical = true; // 上下も引ける(軸は実行時にロックする) swipe.movementType = ScrollRect.MovementType.Elastic;
-            swipe.elasticity = 0.1f; swipe.inertia = false; swipe.scrollSensitivity = 0f;
+            swipe.viewport = card; swipe.content = probeRt;
+            swipe.horizontal = true; swipe.vertical = true;
+            swipe.movementType = ScrollRect.MovementType.Unrestricted; // 生のずれ(離したら実行時に0へ戻す)
+            swipe.inertia = false; swipe.scrollSensitivity = 0f;
             // 指(レーザー)を離したときに確定する. ScrollRect と同じ Card 上の EventTrigger の EndDrag で U# を呼ぶ
             var trig = card.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
             var endEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.EndDrag };
             UnityEditor.Events.UnityEventTools.AddStringPersistentListener(endEntry.callback,
                 UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnSwipeRelease");
             trig.triggers.Add(endEntry);
+            // 画面(Swipe Screen)の外へ出たドラッグを無視するため、PointerExit を U# へ渡す
+            var exitTrig = screen.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var exitEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(exitEntry.callback,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnPanelExit");
+            exitTrig.triggers.Add(exitEntry);
+
+            // カードの中身(終了画面では隠す)
+            var content = new GameObject("Card Content", typeof(RectTransform)); var contentRt = (RectTransform)content.transform;
+            contentRt.SetParent(card, false);
+            Anchor(contentRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+
+            var notice = Label(contentRt, "Notice", "読み込み中…", font, 30, TextAlignmentOptions.Center, tk.sub);
+            Anchor(notice.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+
+            // 写真の領域: 四辺24pxの内側
+            var area = new GameObject("Photo Area", typeof(RectTransform)); var areaRt = (RectTransform)area.transform;
+            areaRt.SetParent(contentRt, false);
+            Anchor(areaRt, 0, 0, 1, 1, new Vector2(DirBand, DirBand), new Vector2(-DirBand, -DirBand));
             var photoGo = new GameObject("Photo", typeof(RectTransform), typeof(RawImage));
-            var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(bodyRt, false);
+            var photoRt = (RectTransform)photoGo.transform; photoRt.SetParent(areaRt, false);
             photoRt.anchorMin = photoRt.anchorMax = new Vector2(0.5f, 0.5f); photoRt.sizeDelta = new Vector2(160, 90);
             var raw = photoGo.GetComponent<RawImage>(); raw.raycastTarget = false;
             photoGo.SetActive(false);
 
-            var notice = Label(bodyRt, "Notice", "読み込み中…", font, 30, TextAlignmentOptions.Center, tk.sub);
-            Anchor(notice.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
-
-            // 写真を押すと拡大する(透明のボタン)
-            var hit = new GameObject("Photo Hit", typeof(RectTransform), typeof(Image));
-            var hitRt = (RectTransform)hit.transform; hitRt.SetParent(bodyRt, false);
-            Anchor(hitRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
-            var hitImg = hit.GetComponent<Image>(); hitImg.color = new Color(0, 0, 0, 0);
-            var hitBtn = hit.AddComponent<Button>(); hitBtn.targetGraphic = hitImg; hitBtn.navigation = new Navigation { mode = Navigation.Mode.None };
-            Wire(hitBtn, app, "OnPhoto");
-
-            // 情報帯(半透明の黒。写真の上に重なるので、テーマの色には従わない)
+            // 情報帯(半透明の黒. 写真の下端に重なり、横幅は写真領域いっぱい. 下端の位置は実行時に写真に合わせる)
             var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
-            var bandRt = (RectTransform)band.transform; bandRt.SetParent(bodyRt, false);
+            var bandRt = (RectTransform)band.transform; bandRt.SetParent(areaRt, false);
             Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 76)); // 説明があるときは実行時に高くする
             var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
-            // 上から 投稿者[称号]・説明(2行まで)・ワールド. 説明が無い投稿は帯を低くして詰める
+            // 1行目 左=投稿者[称号] 右=気になる:☆/★. 続いて 説明(2行まで)・ワールド
             var user = Label(bandRt, "User", "", font, 26, TextAlignmentOptions.MidlineLeft, null);
-            Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(16, -38), new Vector2(-16, -4));
+            Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(16, -38), new Vector2(-250, -4));
+            GameObject starO, starF;
+            StarRow(bandRt, font, 22, 16, 4, out starO, out starF);
             var des = Label(bandRt, "Description", "", font, 20, TextAlignmentOptions.TopLeft, null);
             des.color = new Color(1, 1, 1, 0.9f); des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
             Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(16, -96), new Vector2(-16, -38)); // 2行(20pt×1.45×2=58)が入る高さ
@@ -197,18 +218,80 @@ namespace EterPixNudeNyang
             world.color = new Color(1, 1, 1, 0.75f);
             Anchor(world.rectTransform, 0, 0, 1, 0, new Vector2(16, 4), new Vector2(-16, 34));
             app.swipeBandRect = bandRt; app.swipeDes = des;
+            app.starOutline = starO; app.starFilled = starF;
 
-            // 左(気にならない)・右(気になる)のボタン
+            // 写真を押すと拡大する(透明のボタン. カード全面)
+            var hit = new GameObject("Photo Hit", typeof(RectTransform), typeof(Image));
+            var hitRt = (RectTransform)hit.transform; hitRt.SetParent(contentRt, false);
+            Anchor(hitRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var hitImg = hit.GetComponent<Image>(); hitImg.color = clear;
+            var hitBtn = hit.AddComponent<Button>(); hitBtn.targetGraphic = hitImg; hitBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+            Wire(hitBtn, app, "OnPhoto");
+
+            // 四辺24pxの方向ラベル(アイコン24+文字16. 左右は縦書き)
+            var dirs = new GameObject("Direction Labels", typeof(RectTransform)); var dirsRt = (RectTransform)dirs.transform;
+            dirsRt.SetParent(contentRt, false);
+            Anchor(dirsRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            app.labelTop = DirLabel(dirsRt, "Label Top", SwipeDownPath, ":前の投稿", 0, font, tk);
+            app.labelBottom = DirLabel(dirsRt, "Label Bottom", SwipeUpPath, ":次の投稿", 1, font, tk);
+            app.labelLeft = DirLabel(dirsRt, "Label Left", SwipeLeftPath, "ワールド情報", 2, font, tk);
+            app.labelRight = DirLabel(dirsRt, "Label Right", SwipeRightPath, "気になる 追加", 3, font, tk);
+            app.dirLabels = dirs;
+
+            // 四辺の透明ボタン(デスクトップ向け). 各辺10%. 普段は透明、ホバー中だけアクセント色22%
+            EdgeButton(app, contentRt, "Edge Top", 0.1f, 0.9f, 0.9f, 1f, "OnEdgeTop");
+            EdgeButton(app, contentRt, "Edge Bottom", 0.1f, 0f, 0.9f, 0.1f, "OnEdgeBottom");
+            EdgeButton(app, contentRt, "Edge Left", 0f, 0f, 0.1f, 1f, "OnEdgeLeft");
+            EdgeButton(app, contentRt, "Edge Right", 0.9f, 0f, 1f, 1f, "OnEdgeRight");
+
+            // デバッグ表示: 開始点(白16)・現在点(アクセント16)・帯(太さ6・白50%)・リング(太さ4)。操作ラベルはリング外の間だけ
+            var dbg = new GameObject("Debug", typeof(RectTransform), typeof(CanvasGroup)); var dbgRt = (RectTransform)dbg.transform;
+            dbgRt.SetParent(card, false);
+            Anchor(dbgRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var dbgCg = dbg.GetComponent<CanvasGroup>(); dbgCg.blocksRaycasts = false; dbgCg.interactable = false;
+            var ring = DbgImage(dbgRt, "Ring", EnsureSprite(RingPath), Color.white, new Vector2(0.5f, 0.5f), new Vector2(126, 126));
+            var bar = DbgImage(dbgRt, "Bar", null, new Color(1, 1, 1, 0.5f), new Vector2(0f, 0.5f), new Vector2(0, 6));
+            var dotS = DbgImage(dbgRt, "Start Dot", EnsureSprite(DotPath), Color.white, new Vector2(0.5f, 0.5f), new Vector2(16, 16));
+            var dotC = DbgImage(dbgRt, "Current Dot", EnsureSprite(DotPath), Accent, new Vector2(0.5f, 0.5f), new Vector2(16, 16));
+            var op = new GameObject("Operation Label", typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
+            var opRt = (RectTransform)op.transform; opRt.SetParent(dbgRt, false);
+            opRt.anchorMin = opRt.anchorMax = new Vector2(0.5f, 0.5f);
+            var opBg = op.GetComponent<Image>(); opBg.color = new Color(0, 0, 0, 0.6f); opBg.raycastTarget = false;
+            var hlg = op.GetComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(10, 14, 6, 6); hlg.spacing = 8; hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlWidth = true; hlg.childControlHeight = true; hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+            var csf = op.GetComponent<ContentSizeFitter>(); csf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize; csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var opIcon = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            opIcon.transform.SetParent(opRt, false);
+            var opIconImg = opIcon.GetComponent<Image>(); opIconImg.raycastTarget = false; opIconImg.preserveAspect = true; opIconImg.color = Color.white;
+            var opIconLe = opIcon.GetComponent<LayoutElement>(); opIconLe.preferredWidth = 32; opIconLe.preferredHeight = 32;
+            var opText = Label(opRt, "Text", "", font, 24, TextAlignmentOptions.MidlineLeft, null);
+            opText.enableWordWrapping = false; opText.color = Color.white;
+            op.SetActive(false);
+            dbg.SetActive(false);
+
+            // 下端付近の一瞬の表示(「ワールド情報なし」「読み込みに失敗しました」. カード下端付近 下36px)
+            var nw = new GameObject("No World Notice", typeof(RectTransform), typeof(Image));
+            var nwRt = (RectTransform)nw.transform; nwRt.SetParent(screen, false);
+            Anchor(nwRt, 0.5f, 0, 0.5f, 0, new Vector2(-170, 36), new Vector2(170, 80));
+            nw.GetComponent<Image>().color = new Color(0, 0, 0, 0.7f); nw.GetComponent<Image>().raycastTarget = false;
+            var nwLabel = Label(nwRt, "Label", "ワールド情報なし", font, 24, TextAlignmentOptions.Center, null);
+            nwLabel.color = Color.white;
+            Anchor(nwLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            nw.SetActive(false);
+            app.noWorldNotice = nw;
+            app.noticeLabel = nwLabel;
+
+            // ボタン列は一旦なし(部品と参照は残し、非表示にする)
             var row = new GameObject("Buttons", typeof(RectTransform)); var rowRt = (RectTransform)row.transform;
             rowRt.SetParent(screen, false);
             Anchor(rowRt, 0.17f, 0, 0.83f, 0, new Vector2(0, 8), new Vector2(0, 84));
-            // [戻る][リロード][ポータル][☆/★][進む](入れ替え時は左右の文字と動作だけ替わる. 実行時に文字を付ける)
             var left = NavButton(rowRt, "Back Button", "戻る", font, tk, app, "OnNavLeft", 0);
             var reload = NavButton(rowRt, "Reload Button", "", font, tk, app, "OnReload", 1);
-            var reloadIcon = (RectTransform)HeaderIcon(reload, ReloadIconPath, tk).transform; // モニターと同じ再読み込みアイコン(文字色に従う)
+            var reloadIcon = (RectTransform)HeaderIcon(reload, ReloadIconPath, tk).transform;
             reloadIcon.offsetMin = new Vector2(-20, -20); reloadIcon.offsetMax = new Vector2(20, 20);
             var portalBtn = NavButton(rowRt, "Portal Button", "", font, tk, app, "OnSwipePortal", 2);
-            var portalIcon = (RectTransform)HeaderIcon(portalBtn, PortalIconPath, tk).transform; // Material Symbols "public"(Apache-2.0)
+            var portalIcon = (RectTransform)HeaderIcon(portalBtn, PortalIconPath, tk).transform;
             portalIcon.offsetMin = new Vector2(-20, -20); portalIcon.offsetMax = new Vector2(20, 20);
             app.navPortalIcon = portalIcon.gameObject;
             var star = NavButton(rowRt, "Star Button", "", font, tk, app, "OnStarToggle", 3);
@@ -221,28 +304,21 @@ namespace EterPixNudeNyang
             app.navReloadGroup = reload.GetComponent<CanvasGroup>();
             app.navPortalGroup = portalBtn.GetComponent<CanvasGroup>();
             app.navStarGroup = star.GetComponent<CanvasGroup>();
-            // ☆(輪郭)と ★(塗り). 気になる状態で切り替える
-            app.starOutline = StarIcon(star, StarIconPath, "Star Outline", tk, true);
-            app.starFilled = StarIcon(star, StarFilledIconPath, "Star Filled", tk, false);
-            // ドラッグ中に方向のボタンを明るくする重ね(透明から始まり、ドラッグ量で濃くなる)
             app.leftHot = BuildHot(left);
             app.rightHot = BuildHot(right);
             app.starHot = BuildHot(star);
-            // 下スワイプでワールド情報が無いときの一瞬の表示(カードの下端に重ねる. 動かない)
-            var nw = new GameObject("No World Notice", typeof(RectTransform), typeof(Image));
-            var nwRt = (RectTransform)nw.transform; nwRt.SetParent(screen, false);
-            Anchor(nwRt, 0.5f, 0, 0.5f, 0, new Vector2(-170, 110), new Vector2(170, 154));
-            nw.GetComponent<Image>().color = new Color(0, 0, 0, 0.7f); nw.GetComponent<Image>().raycastTarget = false;
-            var nwLabel = Label(nwRt, "Label", "ワールド情報なし", font, 24, TextAlignmentOptions.Center, null);
-            nwLabel.color = Color.white;
-            Anchor(nwLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
-            nw.SetActive(false);
-            app.noWorldNotice = nw;
-            app.noticeLabel = nwLabel;
-            app.swipeScroll = swipe;
-            app.swipeBody = bodyRt;
+            row.SetActive(false);
 
-            // すべて見終わったあとの画面
+            app.swipeScroll = swipe;
+            app.swipeBody = probeRt;
+            app.cardContent = content;
+            app.dbgRoot = dbg; app.dbgGroup = dbgCg;
+            app.dbgRing = ring; app.dbgBar = bar; app.dbgStart = dotS; app.dbgCur = dotC;
+            app.dbgRingImg = ring.GetComponent<Image>();
+            app.opLabel = op; app.opLabelRt = opRt; app.opIcon = opIconImg; app.opText = opText;
+            app.swipeIcons = new Sprite[] { EnsureSprite(SwipeUpPath), EnsureSprite(SwipeDownPath), EnsureSprite(SwipeLeftPath), EnsureSprite(SwipeRightPath) };
+
+            // すべて見終わったあとの画面(下スワイプ・↓キーで最後のカードへ戻れる)
             var end = new GameObject("End", typeof(RectTransform)); var endRt = (RectTransform)end.transform;
             endRt.SetParent(screen, false);
             Anchor(endRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
@@ -261,6 +337,88 @@ namespace EterPixNudeNyang
             app.buttonRow = row;
             app.endScreen = end;
             app.endSummary = summary;
+        }
+
+        // デバッグ表示の部品(画像. 押せない)
+        static RectTransform DbgImage(RectTransform parent, string name, Sprite sprite, Color color, Vector2 pivot, Vector2 size)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform; rt.SetParent(parent, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = pivot; rt.sizeDelta = size; rt.anchoredPosition = Vector2.zero;
+            var img = go.GetComponent<Image>(); img.sprite = sprite; img.color = color; img.raycastTarget = false;
+            return rt;
+        }
+
+        // 情報帯の1行目の右: 「気になる:」+ ☆(輪郭)/★(塗り・アクセント)
+        static void StarRow(RectTransform band, TMP_FontAsset font, float fs, float right, float top, out GameObject outline, out GameObject filled)
+        {
+            var row = new GameObject("Star Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
+            var rt = (RectTransform)row.transform; rt.SetParent(band, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(1, 1); rt.anchoredPosition = new Vector2(-right, -top);
+            var hlg = row.GetComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 4; hlg.childAlignment = TextAnchor.MiddleRight;
+            hlg.childControlWidth = true; hlg.childControlHeight = true; hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+            var csf = row.GetComponent<ContentSizeFitter>(); csf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize; csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var lab = Label(rt, "Text", "気になる:", font, fs, TextAlignmentOptions.MidlineRight, null);
+            lab.enableWordWrapping = false; lab.color = Color.white;
+            var le = lab.gameObject.AddComponent<LayoutElement>(); le.preferredHeight = 34;
+            outline = StarImage(rt, "Star Outline", StarIconPath, Color.white, true);
+            filled = StarImage(rt, "Star Filled", StarFilledIconPath, Accent, false);
+        }
+
+        static GameObject StarImage(RectTransform parent, string name, string path, Color color, bool active)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>(); img.sprite = EnsureSprite(path); img.color = color; img.preserveAspect = true; img.raycastTarget = false;
+            var le = go.GetComponent<LayoutElement>(); le.preferredWidth = 28; le.preferredHeight = 28;
+            go.SetActive(active);
+            return go;
+        }
+
+        // 四辺24pxの帯の方向ラベル. side: 0=上 1=下 2=左 3=右(左右は縦書き = 時計回りに90度)
+        static TMP_Text DirLabel(RectTransform parent, string name, string iconPath, string text, int side, TMP_FontAsset font, Tokens tk)
+        {
+            var band = new GameObject(name, typeof(RectTransform)); var bandRt = (RectTransform)band.transform;
+            bandRt.SetParent(parent, false);
+            if (side == 0) Anchor(bandRt, 0, 1, 1, 1, new Vector2(DirBand, -DirBand), new Vector2(-DirBand, 0));
+            else if (side == 1) Anchor(bandRt, 0, 0, 1, 0, new Vector2(DirBand, 0), new Vector2(-DirBand, DirBand));
+            else if (side == 2) Anchor(bandRt, 0, 0, 0, 1, new Vector2(0, DirBand), new Vector2(DirBand, -DirBand));
+            else Anchor(bandRt, 1, 0, 1, 1, new Vector2(-DirBand, DirBand), new Vector2(0, -DirBand));
+            var holder = new GameObject("Holder", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
+            var hRt = (RectTransform)holder.transform; hRt.SetParent(bandRt, false);
+            hRt.anchorMin = hRt.anchorMax = new Vector2(0.5f, 0.5f); hRt.pivot = new Vector2(0.5f, 0.5f); hRt.anchoredPosition = Vector2.zero;
+            if (side >= 2) hRt.localRotation = Quaternion.Euler(0, 0, -90f);
+            var hlg = holder.GetComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 2; hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlWidth = true; hlg.childControlHeight = true; hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+            var csf = holder.GetComponent<ContentSizeFitter>(); csf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize; csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            icon.transform.SetParent(hRt, false);
+            var img = icon.GetComponent<Image>(); img.sprite = EnsureSprite(iconPath); img.preserveAspect = true; img.raycastTarget = false; img.color = Color.white;
+            tk.text.Add(img);
+            var le = icon.GetComponent<LayoutElement>(); le.preferredWidth = 24; le.preferredHeight = 24;
+            var l = Label(hRt, "Text", text, font, 16, TextAlignmentOptions.MidlineLeft, tk.text);
+            l.enableWordWrapping = false;
+            var tle = l.gameObject.AddComponent<LayoutElement>(); tle.preferredHeight = 24;
+            return l;
+        }
+
+        // 四辺の透明ボタン: 普段は透明、ホバー中だけアクセント色22%
+        static void EdgeButton(NudeNyangEterPix app, RectTransform parent, string name, float minX, float minY, float maxX, float maxY, string eventName)
+        {
+            var b = Box(parent, name, null);
+            Anchor(b, minX, minY, maxX, maxY, Vector2.zero, Vector2.zero);
+            var img = b.GetComponent<Image>(); img.color = Color.white;
+            var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
+            btn.transition = Selectable.Transition.ColorTint;
+            var cb = btn.colors;
+            var hover = new Color(Accent.r, Accent.g, Accent.b, 0.22f);
+            cb.normalColor = new Color(1, 1, 1, 0); cb.highlightedColor = hover; cb.pressedColor = hover;
+            cb.selectedColor = new Color(1, 1, 1, 0); cb.disabledColor = new Color(1, 1, 1, 0);
+            cb.colorMultiplier = 1f; cb.fadeDuration = 0f;
+            btn.colors = cb;
+            Wire(btn, app, eventName);
         }
 
         // 気になる投稿一覧: ScrollRect + 使い回す行(RowPool 行)
@@ -421,17 +579,20 @@ namespace EterPixNudeNyang
 
             var band = new GameObject("Info Band", typeof(RectTransform), typeof(Image));
             var bandRt = (RectTransform)band.transform; bandRt.SetParent(zoomRt, false);
-            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 84)); // 説明があるときは実行時に高くする
+            Anchor(bandRt, 0, 0, 1, 0, Vector2.zero, new Vector2(0, 108)); // 黒帯は最下端まで(84+ホームバーを避ける24). 説明があるときは実行時に高くする
             var bandImg = band.GetComponent<Image>(); bandImg.color = new Color(0, 0, 0, 0.5f); bandImg.raycastTarget = false;
             var user = Label(bandRt, "User", "", font, 28, TextAlignmentOptions.MidlineLeft, null);
-            Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(28, -40), new Vector2(-28, -4));
+            Anchor(user.rectTransform, 0, 1, 1, 1, new Vector2(28, -40), new Vector2(-270, -4));
+            GameObject zO, zF;
+            StarRow(bandRt, font, 24, 28, 4, out zO, out zF);
+            app.zoomStarOutline = zO; app.zoomStarFilled = zF;
             var des = Label(bandRt, "Description", "", font, 22, TextAlignmentOptions.TopLeft, null);
             des.color = new Color(1, 1, 1, 0.9f); des.overflowMode = TextOverflowModes.Ellipsis; des.maxVisibleLines = 2;
             Anchor(des.rectTransform, 0, 1, 1, 1, new Vector2(28, -104), new Vector2(-28, -40)); // 2行(22pt×1.45×2=64)が入る高さ
             des.gameObject.SetActive(false);
             var world = Label(bandRt, "World", "", font, 22, TextAlignmentOptions.MidlineLeft, null);
             world.color = new Color(1, 1, 1, 0.75f);
-            Anchor(world.rectTransform, 0, 0, 1, 0, new Vector2(28, 4), new Vector2(-28, 38));
+            Anchor(world.rectTransform, 0, 0, 1, 0, new Vector2(28, 28), new Vector2(-28, 62)); // 文字だけ24上げる
             app.zoomDes = des;
 
             // 全面のタップで 情報帯あり → UIなし → 閉じる
@@ -456,7 +617,7 @@ namespace EterPixNudeNyang
             dim.GetComponent<Image>().color = new Color(0, 0, 0, 0.6f);
             var box = Box(dimRt, "Box", tk.bg); // ボタン(panel色)が沈まないよう背景色にする
             Anchor(box, 0.25f, 0.3f, 0.75f, 0.7f, Vector2.zero, Vector2.zero);
-            var msg = Label(box, "Message", "気になる選択はなくなります。\nいいですか?", font, 30, TextAlignmentOptions.Center, tk.text);
+            var msg = Label(box, "Message", "気になる選択はなくなり、先頭の投稿に戻ります。\nいいですか?", font, 30, TextAlignmentOptions.Center, tk.text);
             Anchor(msg.rectTransform, 0, 0.4f, 1, 1, new Vector2(16, 0), new Vector2(-16, -16));
             var yes = TextButton(box, "Yes Button", "はい", font, tk, app, "OnRestartYes", true);
             Anchor(yes, 0.06f, 0.08f, 0.48f, 0.36f, Vector2.zero, Vector2.zero);
@@ -466,7 +627,7 @@ namespace EterPixNudeNyang
             app.confirmModal = dim;
         }
 
-        // ワールドの詳細(全面の暗幕+中央のカード). 暗幕を押す/閉じる/上へ引く で閉じる
+        // ワールドの詳細(全面の暗幕+中央のカード). 暗幕を押す/閉じる/右へ引く(→キー) で閉じる
         static void BuildWorldModal(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
         {
             var dim = new GameObject("World Modal", typeof(RectTransform), typeof(Image));
@@ -476,12 +637,12 @@ namespace EterPixNudeNyang
             var tap = dim.AddComponent<Button>(); tap.targetGraphic = dimImg; tap.navigation = new Navigation { mode = Navigation.Mode.None };
             Wire(tap, app, "OnWorldClose");
 
-            // 中のカード(暗幕の ScrollRect の content. 上へ引いて離すと閉じる)
+            // 中のカード(暗幕の ScrollRect の content. 右へ引いて離すと閉じる)
             var box = Box(dimRt, "Box", tk.bg);
             Anchor(box, 0.15f, 0.08f, 0.85f, 0.92f, Vector2.zero, Vector2.zero);
             var scroll = dim.AddComponent<ScrollRect>();
             scroll.viewport = dimRt; scroll.content = box;
-            scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.horizontal = true; scroll.vertical = false; scroll.movementType = ScrollRect.MovementType.Elastic; // 右へ引いて閉じる
             scroll.elasticity = 0.1f; scroll.inertia = false; scroll.scrollSensitivity = 0f;
             var trig = dim.AddComponent<UnityEngine.EventSystems.EventTrigger>();
             var endEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.EndDrag };
@@ -598,7 +759,7 @@ namespace EterPixNudeNyang
             Anchor(rowRt, 0.2f, 0.08f, 0.8f, 0.30f, Vector2.zero, Vector2.zero);
             var lab = Label(rowRt, "Label", "ロード中...", font, 24, TextAlignmentOptions.TopLeft, tk.text);
             Anchor(lab.rectTransform, 0, 0.5f, 0.5f, 1, Vector2.zero, Vector2.zero);
-            var pct = Label(rowRt, "Percent", "0%", font, 24, TextAlignmentOptions.TopRight, tk.text);
+            var pct = Label(rowRt, "Percent", "0%(残り約15秒)", font, 24, TextAlignmentOptions.TopRight, tk.text);
             Anchor(pct.rectTransform, 0.5f, 0.5f, 1, 1, Vector2.zero, Vector2.zero);
             var track = Box(rowRt, "Bar Track", tk.panel);
             Anchor(track, 0, 0.18f, 1, 0.42f, Vector2.zero, Vector2.zero);
@@ -620,8 +781,19 @@ namespace EterPixNudeNyang
 
             // 取得に失敗したときの表示(ロード行の代わりに出る)
             var status = Label(screen, "Status", "", font, 26, TextAlignmentOptions.Center, tk.text);
-            Anchor(status.rectTransform, 0.1f, 0.06f, 0.9f, 0.30f, Vector2.zero, Vector2.zero);
+            Anchor(status.rectTransform, 0.1f, 0.20f, 0.9f, 0.40f, Vector2.zero, Vector2.zero); // 失敗理由は下20〜40%(再読み込みボタンを下に置くため)
             status.gameObject.SetActive(false);
+
+            // 取得失敗3種のときだけ出る「再読み込み」(横35〜65%・下6〜18%)
+            var retry = TextButton(screen, "Retry Button", "再読み込み", font, tk, app, "OnRetry", false);
+            Anchor(retry, 0.35f, 0.06f, 0.65f, 0.18f, Vector2.zero, Vector2.zero);
+            var retryLabel = retry.GetComponentInChildren<TMP_Text>();
+            retryLabel.rectTransform.offsetMin = new Vector2(48, 0);
+            var retryIcon = (RectTransform)HeaderIcon(retry, ReloadIconPath, tk).transform;
+            retryIcon.anchorMin = retryIcon.anchorMax = new Vector2(0, 0.5f);
+            retryIcon.offsetMin = new Vector2(16, -16); retryIcon.offsetMax = new Vector2(48, 16);
+            retry.gameObject.SetActive(false);
+            app.retryButton = retry.gameObject;
 
             app.loadingRow = row;
             app.loadingLabel = lab;
@@ -682,6 +854,8 @@ namespace EterPixNudeNyang
             BuildSettingRow(app, screen, 0, "テーマ", "", "OnThemeDark", "", "OnThemeLight", font, tk, images, labels, icons, 0, DarkModeIconPath, LightModeIconPath);
             BuildSettingRow(app, screen, 1, "進む・戻るを入れ替え", "しない", "OnSwapOff", "する", "OnSwapOn", font, tk, images, labels, icons, 2, null, null);
             app.settingImages = images; app.settingLabels = labels; app.settingIcons = icons;
+            BuildSettingAction(app, screen, 2, "投稿を更新", "更新する", "OnSettingsReload", font, tk);
+            BuildSettingAction(app, screen, 3, "最初から(気になる選択も消える)", "最初から", "OnSettingsRestart", font, tk);
             screen.gameObject.SetActive(false);
             return screen.gameObject;
         }
@@ -698,6 +872,27 @@ namespace EterPixNudeNyang
             Anchor(lab.rectTransform, 0, 0, 1, 1, Vector2.zero, new Vector2(-(SetBtnW * 2 + HeaderGap), 0));
             SetSegment(app, rowRt, "Right Button", rightText, rightEvent, font, 0, images, labels, icons, slot + 1, rightIcon);
             SetSegment(app, rowRt, "Left Button", leftText, leftEvent, font, SetBtnW + HeaderGap, images, labels, icons, slot, leftIcon);
+        }
+
+        // 設定の行3・4: 題 + 押すと実行するボタン1つ(幅172)
+        const float SetActionW = 172f;
+        static void BuildSettingAction(NudeNyangEterPix app, RectTransform screen, int index, string title, string buttonText, string eventName, TMP_FontAsset font, Tokens tk)
+        {
+            float top = Margin + 43f + Margin + index * (SetRowH + Margin);
+            var row = new GameObject("Row " + index, typeof(RectTransform)); var rowRt = (RectTransform)row.transform;
+            rowRt.SetParent(screen, false);
+            Anchor(rowRt, 0, 1, 1, 1, new Vector2(Margin, -(top + SetRowH)), new Vector2(-Margin, -top));
+            var lab = Label(rowRt, "Title", title, font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
+            lab.enableWordWrapping = false;
+            Anchor(lab.rectTransform, 0, 0, 1, 1, Vector2.zero, new Vector2(-(SetActionW + HeaderGap), 0));
+            var b = Box(rowRt, "Button", tk.btn);
+            b.anchorMin = b.anchorMax = new Vector2(1, 0.5f); b.pivot = new Vector2(1, 0.5f);
+            b.sizeDelta = new Vector2(SetActionW, SetBtnH); b.anchoredPosition = Vector2.zero;
+            var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = b.GetComponent<Image>(); btn.navigation = new Navigation { mode = Navigation.Mode.None };
+            var l = Label(b, "Label", buttonText, font, 24, TextAlignmentOptions.Center, tk.text);
+            l.enableWordWrapping = false;
+            Anchor(l.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            Wire(btn, app, eventName);
         }
 
         static void SetSegment(NudeNyangEterPix app, RectTransform row, string name, string text, string eventName, TMP_FontAsset font, float fromRight,

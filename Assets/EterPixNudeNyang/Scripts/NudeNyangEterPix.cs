@@ -99,8 +99,26 @@ namespace NudeNyang
         public TMP_Text noticeLabel;
         public GameObject noWorldNotice;     // 下スワイプでワールド情報が無いときの一瞬の表示
         private float noWorldUntil;
-        private int swipeAxis;                // 0=未確定 1=横 2=縦
         private bool swipeDragging, swipeLeftUse, swipeRightUse;
+        // 追加計画V: 判定リング方式(相対方式. ずれ=Drag Probe の anchoredPosition だけで判定する)
+        public const float RingRatio = 0.12f;       // 判定リング半径 = カード短辺 × 12%
+        public GameObject cardContent;              // カードの中身(写真・方向ラベル・四辺ボタン). 終了画面では隠す
+        public GameObject dirLabels;                // 四辺24pxの方向ラベル(ワールド詳細の間は隠す)
+        public TMP_Text labelTop, labelBottom, labelLeft, labelRight;
+        public GameObject dbgRoot;
+        public CanvasGroup dbgGroup;
+        public RectTransform dbgRing, dbgBar, dbgStart, dbgCur;
+        public Image dbgRingImg;
+        public GameObject opLabel;
+        public RectTransform opLabelRt;
+        public Image opIcon;
+        public TMP_Text opText;
+        public Sprite[] swipeIcons;                 // 0=上 1=下 2=左 3=右
+        public GameObject retryButton;              // 起動画面の再読み込み(取得失敗のときだけ)
+        public GameObject zoomStarOutline, zoomStarFilled;
+        private bool swipeOut, swipeIgnore;
+        private float dbgHideAt = -1f;
+        private Vector2 dbgP;
         private float suppressTapUntil;
         private float lastPhotoTap = -10f;
         public GameObject endScreen;
@@ -236,12 +254,13 @@ namespace NudeNyang
             bool modal = ModalOpen();
             if (group.interactable && !modal)
             {
-                // ←/→ は画面上のスワイプ方向と同じ(入れ替え設定に従う). ↑ は ☆/★
-                if (Input.GetKeyDown(KeyCode.LeftArrow)) OnNavLeft();
-                else if (Input.GetKeyDown(KeyCode.RightArrow)) OnNavRight();
-                else if (Input.GetKeyDown(KeyCode.UpArrow)) OnStarToggle();
-                else if (Input.GetKeyDown(KeyCode.DownArrow)) OnWorldDetail();
+                // 矢印キーは画面上のスワイプ方向と同じ(上=次の投稿 下=前の投稿 右=気になる 左=ワールド情報. 入れ替えで上下が替わる)
+                if (Input.GetKeyDown(KeyCode.UpArrow)) DoDirection(0);
+                else if (Input.GetKeyDown(KeyCode.DownArrow)) DoDirection(1);
+                else if (Input.GetKeyDown(KeyCode.LeftArrow)) DoDirection(2);
+                else if (Input.GetKeyDown(KeyCode.RightArrow)) DoDirection(3);
             }
+            else if (group.interactable && WorldModalOpen() && !reloading && zoomMode == 0 && Input.GetKeyDown(KeyCode.RightArrow)) OnWorldClose();
             UpdateSwipeDrag(modal);
             if (cardNotice != null && cardNotice.gameObject.activeSelf)
             {
@@ -385,7 +404,7 @@ namespace NudeNyang
             return cardSize;
         }
 
-        // 縦向きのときは、カードとボタンを横いっぱいに広げる(横向きは左右に17%の余白)
+        // 向きが変わったら、カードの寸法に合わせて描き直す
         private Vector2 lastPanelFrame;
         private void UpdateOrientation()
         {
@@ -393,14 +412,7 @@ namespace NudeNyang
             Vector2 p = panel.rect.size;
             if (p.x <= 1f || p.y <= 1f || (p - lastPanelFrame).sqrMagnitude < 0.25f) return;
             lastPanelFrame = p;
-            bool portrait = p.y > p.x;
-            float lo = portrait ? 0.03f : 0.17f, hi = 1f - lo;
-            cardFrame.anchorMin = new Vector2(lo, cardFrame.anchorMin.y); cardFrame.anchorMax = new Vector2(hi, cardFrame.anchorMax.y);
-            if (buttonRow != null)
-            {
-                RectTransform br = (RectTransform)buttonRow.transform;
-                br.anchorMin = new Vector2(lo, br.anchorMin.y); br.anchorMax = new Vector2(hi, br.anchorMax.y);
-            }
+            bool portrait = p.y > p.x; // カードは縦横とも左右12・上下0(アンカー固定). 向きで変わるのは寸法だけ
             ApplyRowLayout(portrait);
             Debug.Log("[EtpTrace] eterpix-app layout panel=" + p + " card=" + CardFrame() + " portrait=" + portrait + " rowHeight=" + rowHeight);
             if (screen == ScreenSwipe && started) ShowCard();
@@ -412,36 +424,98 @@ namespace NudeNyang
             }
         }
 
-        // カードのドラッグ量を見る. 方向のボタンを明るくし、閾値を越えたら次へ送る.
-        // 離したことは直接わからないので、確定後は ScrollRect を1フレーム無効にしてドラッグを打ち切る
-        // (そうしないと、指を離すまで次のカードも続けて送られてしまう)
+        // ---- スワイプ判定(判定リング方式) ----
+        // 判定リング半径 = カード短辺 × 12%
+        private float RingRadius()
+        {
+            Vector2 cf = CardFrame();
+            return Mathf.Min(cf.x, cf.y) * RingRatio;
+        }
+
+        // 引いている間: ずれ(Drag Probe)を見て、デバッグ表示・操作ラベルを描く. 判定は離したとき(OnSwipeRelease)
         private void UpdateSwipeDrag(bool modal)
         {
             if (swipeScroll == null || swipeBody == null) return;
-            if (modal || cursor >= feed.Count)
+            if (dbgHideAt > 0f && !swipeDragging && Time.unscaledTime >= dbgHideAt) HideDebug();
+            if (modal)
             {
-                SetHot(0f, 0f, 0f);
+                if (swipeDragging) CancelSwipe();
                 return;
             }
-            Vector2 cf = CardFrame();
             Vector2 p = swipeBody.anchoredPosition;
-            // 感度は NudeNyang のタブレット共通設定(swipeSensitivity)に従う
-            float sens = SwipeSensitivity();
-            // 軸ロック: 最初に大きく動いた軸に固定し、もう一方の軸の動きは捨てる(引き終わるまで)
-            if (swipeAxis == 0)
+            if (p.sqrMagnitude <= 0f) return;
+            if (!swipeDragging)
             {
-                float mx = Mathf.Abs(p.x) * sens / cf.x;
-                float my = Mathf.Abs(p.y) * sens / cf.y;
-                if (Mathf.Max(mx, my) >= swipeAxisLock) swipeAxis = mx >= my ? 1 : 2;
+                swipeDragging = true; swipeOut = false; swipeIgnore = false;
+                dbgHideAt = -1f;
             }
-            if (swipeAxis == 1 && p.y != 0f) { p.y = 0f; swipeBody.anchoredPosition = p; }
-            else if (swipeAxis == 2 && p.x != 0f) { p.x = 0f; swipeBody.anchoredPosition = p; }
-            float span = Mathf.Max(0.001f, swipeCommit - swipeHotStart);
-            float hotH = swipeAxis == 1 ? Mathf.Clamp01((Mathf.Abs(p.x) * sens / cf.x - swipeHotStart) / span) : 0f;
-            float hotV = swipeAxis == 2 ? Mathf.Clamp01((Mathf.Abs(p.y) * sens / cf.y - swipeHotStart) / span) : 0f;
-            // 押せない向き(先頭で戻る など)は光らせない. 上=☆/★(下=ワールド詳細は対応するボタンが無い)
-            SetHot(p.x < 0f && SlotEnabled(false) ? hotH : 0f, p.x > 0f && SlotEnabled(true) ? hotH : 0f, p.y > 0f ? hotV : 0f);
-            if (p.sqrMagnitude > 0f) swipeDragging = true;
+            float r = RingRadius();
+            bool outNow = p.magnitude > r;
+            if (outNow) swipeOut = true;
+            dbgP = p;
+            DrawDebug(p, r, outNow, true);
+        }
+
+        // 方向: 0=上 1=下 2=左 3=右(ずれの大きい軸)
+        private int DirOf(Vector2 p)
+        {
+            if (Mathf.Abs(p.x) >= Mathf.Abs(p.y)) return p.x > 0f ? 3 : 2;
+            return p.y > 0f ? 0 : 1;
+        }
+
+        // その方向のスワイプで実行される操作の名前
+        private string OpName(int dir)
+        {
+            if (dir == 0) return swapNav ? "前の投稿" : "次の投稿";
+            if (dir == 1) return swapNav ? "次の投稿" : "前の投稿";
+            if (dir == 2) return "ワールド情報";
+            return (cursor >= 0 && cursor < liked.Length && liked[cursor]) ? "気になる 解除" : "気になる 追加";
+        }
+
+        // デバッグ表示: 開始点(カード中央に仮置き)・現在点・帯・リング. 操作ラベルは、リング外の間だけ、操作方向の逆側に出す
+        private void DrawDebug(Vector2 p, float r, bool outNow, bool live)
+        {
+            if (dbgRoot == null) return;
+            dbgRoot.SetActive(true);
+            bool dim = swipeIgnore || (!live && swipeOut && p.magnitude <= r);
+            if (dbgGroup != null) dbgGroup.alpha = dim ? 0.35f : 1f;
+            dbgRing.sizeDelta = new Vector2(r * 2f, r * 2f);
+            dbgRing.anchoredPosition = Vector2.zero;
+            dbgStart.anchoredPosition = Vector2.zero;
+            dbgCur.anchoredPosition = p;
+            float len = p.magnitude;
+            dbgBar.sizeDelta = new Vector2(len, 6f);
+            dbgBar.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(p.y, p.x) * Mathf.Rad2Deg);
+            dbgRingImg.color = outNow && !swipeIgnore ? new Color(0.616f, 0.435f, 1f, 1f) : Color.white;
+            bool showOp = live && outNow && !swipeIgnore && opLabel != null;
+            if (opLabel != null) opLabel.SetActive(showOp);
+            if (!showOp) return;
+            int dir = DirOf(p);
+            opText.text = OpName(dir);
+            opIcon.sprite = swipeIcons[dir];
+            float gap = r + 8f;
+            // 操作方向の逆側(開始点の反対側)に、リング縁から8px離して置く
+            if (dir == 0) { opLabelRt.pivot = new Vector2(0.5f, 1f); opLabelRt.anchoredPosition = new Vector2(0f, -gap); }
+            else if (dir == 1) { opLabelRt.pivot = new Vector2(0.5f, 0f); opLabelRt.anchoredPosition = new Vector2(0f, gap); }
+            else if (dir == 2) { opLabelRt.pivot = new Vector2(0f, 0.5f); opLabelRt.anchoredPosition = new Vector2(gap, 0f); }
+            else { opLabelRt.pivot = new Vector2(1f, 0.5f); opLabelRt.anchoredPosition = new Vector2(-gap, 0f); }
+        }
+
+        private void HideDebug()
+        {
+            dbgHideAt = -1f;
+            if (dbgRoot != null) dbgRoot.SetActive(false);
+            if (opLabel != null) opLabel.SetActive(false);
+        }
+
+        // パネルの外へ出た(Panel の EventTrigger PointerExit): 引いている途中なら、そのドラッグは無視する
+        public void OnPanelExit()
+        {
+            if (swipeDragging && !swipeIgnore)
+            {
+                swipeIgnore = true;
+                Debug.Log("[EtpTrace] eterpix-app swipe ignored (left panel)");
+            }
         }
 
         // ---- NudeNyang 本体のジェスチャと同じ作法 ----
@@ -468,47 +542,76 @@ namespace NudeNyang
         private void CancelSwipe()
         {
             swipeDragging = false;
-            swipeAxis = 0;
+            swipeOut = false;
+            swipeIgnore = false;
             if (swipeScroll != null) swipeScroll.StopMovement();
             if (swipeBody != null) swipeBody.anchoredPosition = Vector2.zero;
-            SetHot(0f, 0f, 0f);
         }
 
-        private void OnDisable() { CancelSwipe(); }
+        private void OnDisable() { CancelSwipe(); HideDebug(); }
 
-        // 指(レーザー)を離した(EventTrigger の EndDrag から呼ばれる). 閾値を越えていれば確定、そうでなければ戻るだけ
+        // 指(レーザー)を離した(EventTrigger の EndDrag から呼ばれる).
+        // リング外で離した → スワイプ / リング内で離した → 一度も外へ出ていなければタップ・出ていたら操作キャンセル(何もしない) / 画面外へ出た → 無視
         public void OnSwipeRelease()
         {
             if (swipeBody == null || swipeScroll == null) return;
             Vector2 p = swipeBody.anchoredPosition;
-            Vector2 cf = CardFrame();
-            float sens = SwipeSensitivity();
-            float fh = Mathf.Abs(p.x) * sens / cf.x;   // 横: カード幅に対する割合
-            float fv = Mathf.Abs(p.y) * sens / cf.y;   // 縦: カード高さに対する割合
-            bool horizontal = swipeAxis == 1 || (swipeAxis == 0 && fh >= fv);
-            bool onCard = screen == ScreenSwipe && started && cursor < feed.Count && !ModalOpen();
-            bool commitH = onCard && horizontal && fh >= swipeCommit;
-            bool commitV = onCard && !horizontal && fv >= swipeCommit;
-            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + p.x.ToString("F1") + " dy=" + p.y.ToString("F1") + " sens=" + sens.ToString("F2")
-                + " axis=" + swipeAxis + " commitH=" + commitH + " commitV=" + commitV + " cursor=" + cursor);
-            // 拡大を優先: どちらの引き量も 4% 未満なら、ドラッグではなくタップとして拡大する
-            bool tapLike = onCard && !commitH && !commitV && fh < swipeHotStart && fv < swipeHotStart;
+            float r = RingRadius();
+            bool outNow = p.magnitude > r;
+            bool onCard = screen == ScreenSwipe && started && !ModalOpen();
+            bool ignored = swipeIgnore;
+            bool act = onCard && !ignored && outNow;
+            bool cancelled = onCard && !ignored && !outNow && swipeOut;
+            bool tapLike = onCard && !ignored && !swipeOut && !outNow;
+            int dir = act ? DirOf(p) : -1;
+            Debug.Log("[EtpTrace] eterpix-app swipe release dx=" + p.x.ToString("F1") + " dy=" + p.y.ToString("F1") + " ring=" + r.ToString("F1")
+                + " out=" + swipeOut + " ignored=" + ignored + " act=" + act + " cancelled=" + cancelled + " dir=" + dir + " cursor=" + cursor);
+            if (swipeDragging && dbgRoot != null && p.sqrMagnitude > 0f)
+            {
+                dbgP = p;
+                DrawDebug(p, r, outNow, false);
+                dbgHideAt = Time.unscaledTime + 0.6f;
+            }
             CancelSwipe();
             // スワイプが確定したときだけ、離した拍の写真タップ(拡大)を少し抑える
-            if (commitH || commitV) suppressTapUntil = Time.unscaledTime + 0.25f;
-            if (commitH) { if (p.x > 0f) OnNavRight(); else OnNavLeft(); }
-            else if (commitV) { if (p.y > 0f) OnStarToggle(); else OnWorldDetail(); }
+            if (act) suppressTapUntil = Time.unscaledTime + 0.25f;
+            if (act) DoDirection(dir);
             else if (tapLike) RegisterPhotoTap();
         }
 
-        private void SetHot(float left, float right, float star)
+        // 方向の操作: 0=上(次の投稿) 1=下(前の投稿) 2=左(ワールド情報) 3=右(気になる 追加/解除). 入れ替え設定で上下が替わる.
+        // 終了画面では「前の投稿」(最後のカードへ)だけ有効
+        private void DoDirection(int dir)
         {
-            if (leftHot != null) { Color c = leftHot.color; c.a = 0.3f * left; leftHot.color = c; }
-            if (rightHot != null) { Color c = rightHot.color; c.a = 0.3f * right; rightHot.color = c; }
-            if (starHot != null) { Color c = starHot.color; c.a = 0.3f * star; starHot.color = c; }
+            if (!CardLive()) return;
+            if (dir == 0 || dir == 1)
+            {
+                bool forward = (dir == 0) != swapNav;
+                if (forward) GoForward(); else GoBack();
+                return;
+            }
+            if (cursor >= feed.Count) return;
+            if (dir == 3) OnStarToggle(); else OnWorldDetail();
         }
 
-        // 下スワイプ・↓キー: ワールドの詳細(モーダルはステップ5). ワールド情報が無い投稿は開かず、一瞬だけ知らせる
+        // 四辺の透明ボタン(デスクトップ向け). ラベルの置かれた辺の操作を1回実行する
+        public void OnEdgeTop() { DoDirection(1); }
+        public void OnEdgeBottom() { DoDirection(0); }
+        public void OnEdgeLeft() { DoDirection(2); }
+        public void OnEdgeRight() { DoDirection(3); }
+
+        // 四辺の方向ラベルの文字(入れ替え・気になる状態に合わせる)
+        private void RefreshLabels()
+        {
+            if (labelTop == null) return;
+            labelTop.text = ":" + OpName(1);
+            labelBottom.text = ":" + OpName(0);
+            labelLeft.text = OpName(2);
+            labelRight.text = OpName(3);
+            if (dirLabels != null) dirLabels.SetActive(!WorldModalOpen());
+        }
+
+        // 左スワイプ・←キー: ワールドの詳細. ワールド情報が無い投稿は開かず、一瞬だけ知らせる
         public void OnWorldDetail()
         {
             if (!CardLive() || cursor >= feed.Count) return;
@@ -546,6 +649,8 @@ namespace NudeNyang
             SetNav(worldPortalGroup, portalEnabled && portal != null);
             worldModal.SetActive(true);
             Debug.Log("[EtpTrace] eterpix-app world modal open cursor=" + post);
+            HideDebug();
+            RefreshLabels();
             MarkDirty();
         }
 
@@ -555,6 +660,7 @@ namespace NudeNyang
             worldModal.SetActive(false);
             worldModalBody.anchoredPosition = Vector2.zero;
             Debug.Log("[EtpTrace] eterpix-app world modal close");
+            RefreshLabels();
             MarkDirty();
         }
 
@@ -566,13 +672,12 @@ namespace NudeNyang
             OnSwipePortal();
         }
 
-        // 暗幕を引いて離した: 上へ十分引いていたら閉じる(そうでなければ戻るだけ)
+        // 暗幕を引いて離した: 右へ判定リング半径より引いていたら閉じる(そうでなければ戻るだけ)
         public void OnWorldModalRelease()
         {
             if (!WorldModalOpen()) return;
-            float h = Mathf.Max(1f, worldModalBody.rect.height);
-            bool up = worldModalBody.anchoredPosition.y * SwipeSensitivity() / h >= swipeCommit;
-            if (up) OnWorldClose(); else worldModalBody.anchoredPosition = Vector2.zero;
+            bool right = worldModalBody.anchoredPosition.x > RingRadius();
+            if (right) OnWorldClose(); else worldModalBody.anchoredPosition = Vector2.zero;
         }
 
         public void HideNoWorldNotice()
@@ -611,21 +716,22 @@ namespace NudeNyang
             if (feed == null || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk || photo == null) return;
             int count = feed.Count;
             bool finished = cursor >= count;
-            cardFrame.gameObject.SetActive(!finished);
-            buttonRow.SetActive(true); // 終了画面でも「戻る」「リロード」を使う
+            cardContent.SetActive(!finished); // Card 自体(ドラッグ面)は終了画面でも残す(下スワイプで最後のカードへ戻れる)
+            buttonRow.SetActive(false);       // ボタン列は一旦なし(関数と参照は残す)
             endScreen.SetActive(finished);
             if (finished)
             {
                 counterCurrent.text = count.ToString(); counterTotal.text = count.ToString();
                 endSummary.text = "すべての投稿を見ました\n気になる: " + likedCount + " 件";
                 RefreshNav();
+                RefreshLabels();
                 return;
             }
             RefreshNav();
             counterCurrent.text = (cursor + 1).ToString(); counterTotal.text = count.ToString();
             userLabel.text = feed.UserLabel[cursor];
             worldLabel.text = feed.WorldLabel[cursor];
-            SetDescription(swipeDes, swipeBandRect, DescText(cursor), 76f, 130f);
+            float bandGap = 0f; // 情報帯の下端 = 写真の下端(写真領域の下端からの距離)
             int coid = feed.Coid[cursor];
             Texture2D tex = images != null ? images.GetTexture(coid) : null;
             if (tex != null)
@@ -633,9 +739,13 @@ namespace NudeNyang
                 // スワイプ画面: 縦写真は縦のまま(正立)枠に収める(左右に余白). 倒さない. 拡大画面は従来どおり長辺合わせ
                 int turns = ((feed.Coro[cursor] % 4) + 4) % 4;
                 Vector2 frame = CardFrame();
+                Vector2 area = new Vector2(frame.x - 48f, frame.y - 48f); // 写真は四辺24pxの内側に収める
                 photo.texture = tex;
                 photo.uvRect = geometry.CellUv(feed.Copo[cursor]);
-                photoRect.sizeDelta = geometry.FitSize(frame.x, frame.y, turns);
+                Vector2 fit = geometry.FitSize(area.x, area.y, turns);
+                photoRect.sizeDelta = fit;
+                float dispH = (turns % 2 == 1) ? fit.x : fit.y; // 縦横が入れ替わる向きの表示高
+                bandGap = Mathf.Max(0f, (area.y - dispH) * 0.5f);
                 photoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
                 photo.gameObject.SetActive(true);
                 cardNotice.gameObject.SetActive(false);
@@ -646,6 +756,8 @@ namespace NudeNyang
                 cardNotice.gameObject.SetActive(true);
                 cardNotice.text = images != null && images.IsFailed(coid) ? "読み込みに失敗しました" : "読み込み中…";
             }
+            SetDescription(swipeDes, swipeBandRect, DescText(cursor), 76f, 130f, bandGap);
+            RefreshLabels();
             WantWindow();
             Debug.Log("[EtpTrace] eterpix-app card cursor=" + cursor + "/" + count + " coid=" + coid + " copo=" + feed.Copo[cursor]
                 + " coro=" + feed.Coro[cursor] + " loaded=" + (tex != null) + " liked=" + likedCount);
@@ -686,13 +798,17 @@ namespace NudeNyang
         }
 
         // 説明の欄を出し入れし、情報帯の高さを合わせる(説明が無い投稿は低いまま)
-        private void SetDescription(TMP_Text label, RectTransform band, string text, float lowH, float highH)
+        private void SetDescription(TMP_Text label, RectTransform band, string text, float lowH, float highH, float bottom)
         {
             if (label == null) return;
             bool has = text.Length > 0;
             label.text = text;
             label.gameObject.SetActive(has);
-            if (band != null) band.offsetMax = new Vector2(band.offsetMax.x, has ? highH : lowH);
+            if (band != null)
+            {
+                band.offsetMin = new Vector2(band.offsetMin.x, bottom);
+                band.offsetMax = new Vector2(band.offsetMax.x, bottom + (has ? highH : lowH));
+            }
         }
 
         // 一覧の行はモックの .li と同じ配置(Builder がアンカーで作る). 向きで変わるのは右の列の幅だけで、
@@ -939,9 +1055,19 @@ namespace NudeNyang
             zoomPhotoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
             zoomUser.text = feed.UserLabel[zoomIndex];
             zoomWorld.text = feed.WorldLabel[zoomIndex];
-            SetDescription(zoomDes, (RectTransform)zoomBand.transform, DescText(zoomIndex), 84f, 142f);
+            // 拡大の黒帯は最下端まで. 中の文字だけホームバーを避けて24上げる(高さ84/142に下の24を足す)
+            SetDescription(zoomDes, (RectTransform)zoomBand.transform, DescText(zoomIndex), 108f, 166f, 0f);
+            RefreshZoomStar();
             zoomBand.SetActive(zoomMode == 1);
             Debug.Log("[EtpTrace] eterpix-app zoom index=" + zoomIndex + " mode=" + zoomMode + " turns=" + turns);
+        }
+
+        private void RefreshZoomStar()
+        {
+            if (zoomStarOutline == null || zoomStarFilled == null || zoomIndex < 0 || liked == null || zoomIndex >= liked.Length) return;
+            bool lk = liked[zoomIndex];
+            zoomStarOutline.SetActive(!lk);
+            zoomStarFilled.SetActive(lk);
         }
 
         // 現在のカードから lookAhead 件ぶんのコラージュを、近い順に取る
@@ -1112,6 +1238,8 @@ namespace NudeNyang
             bool placingNow = onCard && portalPost == cursor && portalState == "placing";
             if (navPortalLabel != null) navPortalLabel.text = placingNow ? "×" : "";
             if (navPortalIcon != null) navPortalIcon.SetActive(!placingNow); // 置いている最中は×(取り消し)、それ以外は地球アイコン
+            RefreshLabels();
+            RefreshZoomStar();
         }
 
         // もう一度見る: 確認モーダル → はい で気になる選択を消して先頭へ
@@ -1131,8 +1259,32 @@ namespace NudeNyang
             for (int i = 0; i < liked.Length; i++) liked[i] = false;
             likedCount = 0;
             cursor = 0;
+            if (started && screen != ScreenSwipe) ShowScreen(ScreenSwipe); // 設定画面から来たとき
             ShowCard();
             MarkDirty();
+        }
+
+        // 設定画面「投稿を更新」[更新する]: スワイプ画面へ戻って、位置と気になる印を引き継いで読み直す
+        public void OnSettingsReload()
+        {
+            if (!started || reloading) return;
+            ShowScreen(ScreenSwipe);
+            OnReload();
+        }
+
+        // 設定画面「最初から」[最初から](危険な操作): 確認モーダルを出す
+        public void OnSettingsRestart()
+        {
+            if (!started) return;
+            OnRestartAsk();
+        }
+
+        // 起動画面の再読み込み(取得に失敗したときだけ出る): 投稿の取得をやり直す
+        public void OnRetry()
+        {
+            if (feed == null) return;
+            feed.Fetch();
+            RefreshStart();
         }
 
         // 先頭から startupPreload 枚ぶんの(重複しない)コラージュを先に取る
@@ -1178,11 +1330,14 @@ namespace NudeNyang
             int total = 1 + needed;
             int current = (status == EterPixNudeNyang.EterPixAppFeed.StatusOk ? 1 : 0) + settled;
             float p = failed ? 0f : (done ? 1f : (float)current / (float)total);
-            if (percentLabel != null) percentLabel.text = Mathf.RoundToInt(p * 100f) + "%";
+            // 概算の残り時間: 画像1枚約5秒の見込みで、(1−進行率) × 先読み枚数 × 5秒(切り上げ)
+            int remain = Mathf.CeilToInt((1f - p) * startupPreload * 5f);
+            if (percentLabel != null) percentLabel.text = Mathf.RoundToInt(p * 100f) + "%(残り約" + remain + "秒)";
             if (barFill != null) barFill.anchorMax = new Vector2(p, 1f);
 
             loadingRow.SetActive(!failed && !done);
             if (startButton != null) startButton.SetActive(done);
+            if (retryButton != null) retryButton.SetActive(failed);
             if (statusLabel != null)
             {
                 statusLabel.gameObject.SetActive(failed);
