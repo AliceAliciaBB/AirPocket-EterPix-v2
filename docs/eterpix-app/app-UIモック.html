@@ -3,11 +3,11 @@
 <title>EterPix-app UIモック</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-@font-face{font-family:'NotoSansJP-Bold';src:url('../../Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold.ttf')}
-@font-face{font-family:'StackSansNotch-Bold';src:url('../../Packages/com.aliciliabb.eterpix/Fonts/StackSansNotch-Bold.ttf')}
+@font-face{font-family:'NotoSansJP-Bold';src:url('../../Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold.ttf');font-weight:700;font-style:normal}
+@font-face{font-family:'StackSansNotch-Bold';src:url('../../Packages/com.aliciliabb.eterpix/Fonts/StackSansNotch-Bold.ttf');font-weight:700;font-style:normal}
 /* 実機(Unity)のパネルと同じ実寸 1173.33×660 px(縦向きは 660×1173.33). 値は Builder(EterPixAppBuilderUi.cs)の定数・アンカーのまま.
    写真は枠のみ. 仕様・操作・文言の根拠は 要件定義.md. 枠(ベゼル)は付けない=画面そのものが実寸. */
-*{box-sizing:border-box;margin:0;padding:0;border-radius:0}
+*{box-sizing:border-box;margin:0;padding:0;border-radius:0;font-synthesis:none}
 body{background:#000;color:#aaa;font:700 14px/1.5 'NotoSansJP-Bold',sans-serif;padding:24px 16px;display:flex;flex-direction:column;gap:32px;align-items:flex-start}
 h2{font-size:14px;margin-bottom:8px}
 
@@ -38,7 +38,7 @@ h2{font-size:14px;margin-bottom:8px}
 /* ヘッダー 76 / フッター 56 / 本体は残り(横=528). 余白16・ボタン44・間隔12 */
 .hd{position:absolute;left:0;right:0;top:0;height:76px;background:var(--panel)}
 .hl{position:absolute;left:16px;top:16px;height:44px;display:flex;align-items:center;gap:16px}
-.title{height:44px;display:flex;align-items:center;font:34px 'StackSansNotch-Bold';white-space:nowrap;padding-right:4px}
+.title{height:44px;display:flex;align-items:center;font:700 34px 'StackSansNotch-Bold';white-space:nowrap;padding-right:4px}
 .cnt{height:44px;display:flex;align-items:center;font-size:28px}
 .cnt .dg{position:relative;padding-right:2px}.cnt .dg::before{content:'000';visibility:hidden}
 .cnt .dg span{position:absolute;top:0;bottom:0;display:flex;align-items:center}
@@ -50,7 +50,7 @@ h2{font-size:14px;margin-bottom:8px}
 .bd{position:absolute;left:0;right:0;top:76px;bottom:56px}
 
 /* 起動 */
-.logo{left:10%;right:10%;top:60px;height:140px;display:grid;place-items:center;font:88px 'StackSansNotch-Bold';color:var(--acc);line-height:1}
+.logo{left:10%;right:10%;top:60px;height:140px;display:grid;place-items:center;font:700 88px 'StackSansNotch-Bold';color:var(--acc);line-height:1}
 .des{left:5%;right:5%;bottom:34%;top:28%;display:grid;place-items:center;text-align:center;font-size:26px}
 .load{left:20%;right:20%;bottom:8%;height:22%}
 .load .l,.load .p{position:absolute;top:0;height:50%;font-size:24px}.load .p{right:0}
