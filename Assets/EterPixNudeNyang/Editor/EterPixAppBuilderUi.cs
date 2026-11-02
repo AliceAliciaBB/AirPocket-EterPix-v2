@@ -18,7 +18,7 @@ namespace EterPixNudeNyang
         const float FooterHeight = 56f; // 下端にNudeNyangのホームバーが重なるため高めに取る
 
         const string AppDescription =
-            "ようこそ、EterPix-appへ。\nこのアプリは、VRChatの投稿をスワイプで見ることができるアプリです。\n詳しくは右上の[ i ]ボタンを押してご確認ください。";
+            "ようこそ、EterPix-appへ。\nこのアプリでは、EterPixに投稿された写真を、スワイプで見ることができます。\n詳しくは右上の[ i ]ボタンを押してご確認ください。";
 
         const string InfoText =
             "EterPixについて\n\n" +
