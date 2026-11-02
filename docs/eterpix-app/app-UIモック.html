@@ -119,6 +119,10 @@ h2{font-size:14px;margin-bottom:8px}
 .dbg.on .ring,.dbg.on .dot,.dbg.on .bar{display:block}
 .dbg.out .ring{border-color:var(--acc)}
 .dbg.ign{opacity:.35}
+/* 操作ラベル: リング外にいる間だけ。操作方向の逆側(開始点の反対側)に90度刻みで固定。ドラッグの角度には追従しない */
+.dbg .dl{position:absolute;display:none;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:rgba(0,0,0,.6);color:#fff;font-size:24px;line-height:32px;white-space:nowrap}
+.dbg .dl .ic{width:32px;height:32px;background:#fff}
+.dbg.lab .dl{display:flex}
 .live .card{cursor:grab;touch-action:none;user-select:none}
 .lvlog{font:700 14px/1.6 'NotoSansJP-Bold',monospace;color:#ddd;white-space:pre-wrap;min-height:3.2em;max-width:1173px}
 .lvctl{display:flex;gap:16px;align-items:center;color:#ddd;font-size:14px}
@@ -191,7 +195,7 @@ h2{font-size:14px;margin-bottom:8px}
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span id="lvc">1</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group"></i></button><button><i class="ic settings"></i></button><button><i class="ic liked"></i></button></div></div>
 <div class="bd"><div class="ab card" id="lvcard"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo"><span id="lvph">写真 1</span><div class="band d"><div class="u" id="lvu">投稿者1</div><div class="f" id="lvf">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w" id="lvw">ワールド名</div></div></div></div></div>
 <div class="lvnote" id="lvnote">ワールド情報なし</div></div>
-<div class="dbg" id="dbg"><div class="ring" id="dr"></div><div class="bar" id="db"></div><div class="dot" id="ds" style="background:#fff"></div><div class="dot" id="dc" style="background:var(--acc)"></div></div>
+<div class="dbg" id="dbg"><div class="dl" id="dl"><i class="ic"></i><span></span></div><div class="ring" id="dr"></div><div class="bar" id="db"></div><div class="dot" id="ds" style="background:#fff"></div><div class="dot" id="dc" style="background:var(--acc)"></div></div>
 <div class="dim" id="lvdim" style="display:none"></div><div class="ab wm" id="lvwm" style="display:none"><div class="nm" id="lvwn">ワールド名</div><div class="au">作者: 作者名</div><div class="ds">ワールドの説明</div><button class="acc" style="left:24px;right:42%;margin-right:6px">ポータルを開く</button><button id="lvclose" style="left:58%;right:24px;margin-left:6px">閉じる</button></div>
 <div class="ft">2026 EterPix All Rights Reserved.</div></div>
 <div class="lvlog" id="lvlog">写真をドラッグして離してください(開始点から判定リングの外で離すと入力。上スワイプ=次の投稿 下スワイプ=前の投稿 右=気になる 左=ワールド情報。パネルの外へ出たら無視)</div>
@@ -310,7 +314,7 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
 (function(){
   var scr=document.getElementById('live'),card=document.getElementById('lvcard'),dbg=document.getElementById('dbg');
   var ring=document.getElementById('dr'),bar=document.getElementById('db'),ds=document.getElementById('ds'),dc=document.getElementById('dc');
-  var log=document.getElementById('lvlog'),swap=document.getElementById('lvswap'),note=document.getElementById('lvnote');
+  var dl=document.getElementById('dl'),log=document.getElementById('lvlog'),swap=document.getElementById('lvswap'),note=document.getElementById('lvnote');
   var wm=document.getElementById('lvwm'),dim=document.getElementById('lvdim');
   var N=20,idx=1,liked={},st=null,noclick=false;
   function R(){var r=card.getBoundingClientRect();return Math.min(r.width,r.height)*0.12}
@@ -330,6 +334,14 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
     ds.style.left=a.x+'px';ds.style.top=a.y+'px';dc.style.left=b.x+'px';dc.style.top=b.y+'px';
     bar.style.left=a.x+'px';bar.style.top=a.y+'px';bar.style.width=len+'px';bar.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
     dbg.classList.toggle('out',!ignored&&len>r);dbg.classList.toggle('ign',!!ignored);
+    var show=!ignored&&len>r;dbg.classList.toggle('lab',show);
+    if(show){
+      var dir=Math.abs(dx)>=Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
+      var nm={up:swap.checked?'前の投稿':'次の投稿',down:swap.checked?'次の投稿':'前の投稿',right:'気になる',left:'ワールド情報'}[dir];
+      dl.lastChild.textContent=nm;dl.firstChild.className='ic sw'+dir;
+      var g=r+8,pos={up:[a.x,a.y+g,'-50%','0'],down:[a.x,a.y-g,'-50%','-100%'],right:[a.x-g,a.y,'-100%','-50%'],left:[a.x+g,a.y,'0','-50%']}[dir];
+      dl.style.left=pos[0]+'px';dl.style.top=pos[1]+'px';dl.style.transform='translate('+pos[2]+','+pos[3]+')';
+    }
   }
   function act(dir){
     if(wm.style.display==='block'){if(dir==='right'){closeWm();return '右スワイプ: ワールド詳細を閉じる'}return '詳細表示中: 他の操作は無効(閉じるボタン・暗幕・右スワイプで閉じる)'}
