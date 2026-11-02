@@ -234,8 +234,7 @@ namespace NudeNyang
             if (!show) return;
             // 他のプレイヤーの操作に追従している間・ジェスチャ中は入力を受けない
             if (screen == ScreenList) UpdateListRows(false);
-            bool follow = pad.FollowingUI();
-            group.interactable = group.blocksRaycasts = pad.shell.view == 2 && !pad.shell.GestureActive() && !follow;
+            group.interactable = group.blocksRaycasts = pad.shell.view == 2 && !pad.shell.GestureActive(); // 他の人が操作中でも押せる(押した人が操作権を引き継ぐ. Take)
         }
 
         // 毎フレーム(表示中のスワイプ画面だけ). 矢印キーと明滅はシェルの Present に依存させない
@@ -635,7 +634,7 @@ namespace NudeNyang
         // 左スワイプ・←キー: ワールドの詳細. ワールド情報が無い投稿は開かず、一瞬だけ知らせる
         public void OnWorldDetail()
         {
-            if (!CardLive() || cursor >= feed.Count) return;
+            if (!CardLive() || cursor >= feed.Count || !Take()) return;
             if (string.IsNullOrEmpty(feed.WorldId[cursor]))
             {
                 ShowNotice("ワールド情報なし");
@@ -677,7 +676,7 @@ namespace NudeNyang
 
         public void OnWorldClose()
         {
-            if (!WorldModalOpen()) return;
+            if (!WorldModalOpen() || !Take()) return;
             worldModal.SetActive(false);
             worldModalBody.anchoredPosition = Vector2.zero;
             Debug.Log("[EtpTrace] eterpix-app world modal close");
@@ -1037,7 +1036,7 @@ namespace NudeNyang
         // 画像が届いていない投稿は開かない
         public void OpenZoom(int index)
         {
-            if (images == null || index < 0 || index >= feed.Count) return;
+            if (images == null || index < 0 || index >= feed.Count || !Take()) return;
             if (images.GetTexture(feed.Coid[index]) == null) return;
             zoomIndex = index;
             zoomMode = 1;
@@ -1048,6 +1047,7 @@ namespace NudeNyang
 
         public void OnZoomTap()
         {
+            if (!Take()) return;
             if (zoomMode == 1)
             {
                 zoomMode = 2;
@@ -1105,6 +1105,9 @@ namespace NudeNyang
 
         private bool ModalOpen() { return zoomMode != 0 || (confirmModal != null && confirmModal.activeSelf) || WorldModalOpen() || reloading; }
 
+        // 操作の共有がオンのとき、押した人が操作権を引き継ぐ(XFeed と同じ TryUI). 他の人の状態を適用している最中は不要
+        private bool Take() { return applyingRemote || pad == null || pad.TryUI(); }
+
         private bool CardLive() { return started && screen == ScreenSwipe && feed != null && !ModalOpen(); }
 
         // 左・右のボタン(入れ替え設定で 戻る/進む が替わる). 画面のスワイプ方向・矢印キーも同じ
@@ -1121,7 +1124,7 @@ namespace NudeNyang
 
         private void GoForward()
         {
-            if (!CardLive() || cursor >= feed.Count) return;
+            if (!CardLive() || cursor >= feed.Count || !Take()) return;
             cursor++;
             ShowCard();
             MarkDirty();
@@ -1129,7 +1132,7 @@ namespace NudeNyang
 
         private void GoBack()
         {
-            if (!CardLive() || cursor <= 0) return;
+            if (!CardLive() || cursor <= 0 || !Take()) return;
             cursor--;
             ShowCard();
             MarkDirty();
@@ -1138,7 +1141,7 @@ namespace NudeNyang
         // ☆/★: いまのカードの気になる状態を切り替える(カードは進まない)
         public void OnStarToggle()
         {
-            if (!CardLive() || cursor >= feed.Count || cursor >= liked.Length) return;
+            if (!CardLive() || cursor >= feed.Count || cursor >= liked.Length || !Take()) return;
             if (liked[cursor]) { liked[cursor] = false; likedCount--; }
             else { liked[cursor] = true; likedCount++; }
             RefreshNav();
@@ -1156,7 +1159,7 @@ namespace NudeNyang
         public void OnReload()
         {
             if (reloading || !started || screen != ScreenSwipe || feed == null || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk) return;
-            if (ModalOpen()) return;
+            if (ModalOpen() || !Take()) return;
             reloading = true;
             reloadAtEnd = cursor >= feed.Count;
             reloadCurPoid = reloadAtEnd ? "" : feed.Poid[cursor];
@@ -1276,6 +1279,7 @@ namespace NudeNyang
 
         public void OnRestartYes()
         {
+            if (!Take()) return;
             if (confirmModal != null) confirmModal.SetActive(false);
             for (int i = 0; i < liked.Length; i++) liked[i] = false;
             likedCount = 0;
@@ -1410,6 +1414,7 @@ namespace NudeNyang
         // i・グループは同じボタンで開閉する(開く前の画面へ戻る)
         public void ToggleOverlay(int target)
         {
+            if (!Take()) return;
             // returnScreen = 基準の画面(起動/スワイプ). 一覧は i・グループと重なる画面なので基準にしない
             // (一覧→i→一覧のあと×を押しても、一覧自身へ戻ってスワイプへ戻れなくなる不具合の修正)
             // overlayBack = i・グループを閉じたときの戻り先(基準の画面か一覧)
@@ -1433,7 +1438,7 @@ namespace NudeNyang
 
         public void OnStart()
         {
-            if (!ready) return;
+            if (!ready || !Take()) return;
             started = true;
             cursor = 0;
             ShowScreen(ScreenSwipe);
@@ -1449,7 +1454,7 @@ namespace NudeNyang
 
         private void SetTheme(bool dark)
         {
-            if (isDark == dark) return;
+            if (isDark == dark || !Take()) return;
             isDark = dark;
             ApplyTheme();
             Debug.Log("[EtpTrace] eterpix-app theme dark=" + isDark);
