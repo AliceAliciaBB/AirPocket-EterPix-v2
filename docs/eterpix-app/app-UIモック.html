@@ -57,7 +57,7 @@ h2{font-size:14px;margin-bottom:8px}
 .load .tr{position:absolute;left:0;right:0;bottom:18%;height:24%;background:var(--panel)}
 .load .tr i{display:block;height:100%;width:40%;background:var(--acc)}
 .scr .start{left:35%;right:35%;bottom:10%;height:16%;font-size:30px}
-/* 再読み込みボタン: 正常完了以外の起動画面で、ロード行/失敗理由の下に置く(push to start と同じ横幅). ロード行・失敗理由はその分だけ上(下20%・高さ20%)へ */
+/* 再読み込みボタン: 取得失敗の起動画面だけ、失敗理由の下に置く(push to start と同じ横幅). 失敗理由はその分だけ上(下20%・高さ20%)へ。ロード中は出さない */
 .scr .rl{left:35%;right:35%;bottom:6%;height:12%;font-size:28px;display:flex;gap:10px;align-items:center;justify-content:center}
 .scr .rl .ic{background:var(--ff)}
 .load.up,.err.up{bottom:20%;height:20%}
@@ -159,12 +159,12 @@ h2{font-size:14px;margin-bottom:8px}
 .err{left:10%;right:10%;bottom:6%;height:24%;display:grid;place-items:center;text-align:center;font-size:26px}
 </style>
 
-<h2>1-a 起動画面(ロード中) 横 1173.33×660. 再読み込みボタンは理由・ロード行の下</h2>
+<h2>1-a 起動画面(ロード中) 横 1173.33×660</h2>
 <div class="scr land" data-theme="black">
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button></div></div>
 <div class="bd"><div class="ab logo">EterPix</div>
 <div class="ab des">ようこそ、EterPix-appへ。<br>このアプリでは、EterPixに投稿された写真を、スワイプで見ることができます。<br>詳しくは右上の[ i ]ボタンを押してご確認ください。</div>
-<div class="ab load up"><span class="l">ロード中...</span><span class="p">40%(残り約9秒)</span><div class="tr"><i></i></div></div><button class="ab rl"><i class="ic reload s28"></i>再読み込み</button></div>
+<div class="ab load"><span class="l">ロード中...</span><span class="p">40%(残り約9秒)</span><div class="tr"><i></i></div></div></div>
 <div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
 <h2>1-b 起動画面(ロード完了 / push to start)</h2>
