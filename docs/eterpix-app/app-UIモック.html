@@ -312,7 +312,7 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
   var ring=document.getElementById('dr'),bar=document.getElementById('db'),ds=document.getElementById('ds'),dc=document.getElementById('dc');
   var log=document.getElementById('lvlog'),swap=document.getElementById('lvswap'),note=document.getElementById('lvnote');
   var wm=document.getElementById('lvwm'),dim=document.getElementById('lvdim');
-  var N=20,idx=1,liked={},st=null;
+  var N=20,idx=1,liked={},st=null,noclick=false;
   function R(){var r=card.getBoundingClientRect();return Math.min(r.width,r.height)*0.12}
   function rel(e){var r=scr.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top,out:e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom}}
   function hasWorld(i){return i%2===1}
@@ -346,23 +346,25 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
     render();return m;
   }
   function closeWm(){dim.style.display='none';wm.style.display='none'}
-  dim.onclick=closeWm;document.getElementById('lvclose').onclick=closeWm;
+  dim.onclick=function(){if(noclick){noclick=false;return}closeWm()};document.getElementById('lvclose').onclick=closeWm;
   function down(e){
-    var p=rel(e);st={a:p,c:p,ign:false};dbg.classList.add('on');place(p,p,R(),false);e.preventDefault();
+    noclick=false;var p=rel(e);st={a:p,c:p,ign:false,left:false,cancel:false};dbg.classList.add('on');place(p,p,R(),false);e.preventDefault();
     window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
   }
   card.addEventListener('pointerdown',down);dim.addEventListener('pointerdown',down);
   function mv(e){
     if(!st)return;var p=rel(e);
     if(p.out)st.ign=true;
-    st.c=p;place(st.a,p,R(),st.ign);
     var dx=p.x-st.a.x,dy=p.y-st.a.y,d=Math.sqrt(dx*dx+dy*dy);
-    say('開始 ('+Math.round(st.a.x)+','+Math.round(st.a.y)+')  現在 ('+Math.round(p.x)+','+Math.round(p.y)+')  距離 '+Math.round(d)+'px / 半径 '+Math.round(R())+'px  '+(st.ign?'→ 画面外へ出た: 無視':(d>R()?'→ 離すと入力':'→ リング内: 離しても入力なし')));
+    if(d>R())st.left=true; else if(st.left)st.cancel=true;
+    st.c=p;place(st.a,p,R(),st.ign||st.cancel);
+    say('開始 ('+Math.round(st.a.x)+','+Math.round(st.a.y)+')  現在 ('+Math.round(p.x)+','+Math.round(p.y)+')  距離 '+Math.round(d)+'px / 半径 '+Math.round(R())+'px  '+(st.ign?'→ 画面外へ出た: 無視':st.cancel?'→ リング外へ出て戻った: キャンセル(離しても入力なし・クリックにもしない)':(d>R()?'→ 離すと入力':'→ リング内: 離しても入力なし')));
   }
   function up(){
     window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
     if(!st)return;var a=st.a,c=st.c,r=R(),dx=c.x-a.x,dy=c.y-a.y,d=Math.sqrt(dx*dx+dy*dy),msg;
     if(st.ign)msg='判定: 画面外へ出たドラッグは無視(入力としない)';
+    else if(st.cancel){msg='判定: リング外へ出て戻った → キャンセル(入力なし・クリックにもしない)';noclick=true;}
     else if(d<=r)msg='判定: リング内(距離 '+Math.round(d)+' <= 半径 '+Math.round(r)+')→ 入力なし';
     else{var dir=Math.abs(dx)>=Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');msg='判定: リング外(距離 '+Math.round(d)+' > 半径 '+Math.round(r)+')→ '+{up:'上',down:'下',right:'右',left:'左'}[dir]+' = '+act(dir);}
     say(msg);st=null;setTimeout(function(){if(!st)dbg.classList.remove('on','out','ign')},600);
