@@ -138,6 +138,8 @@ h2{font-size:14px;margin-bottom:8px}
 .lb.l,.lb.r{top:24px;bottom:24px;width:24px;writing-mode:vertical-rl}
 .lb.l{left:0}.lb.r{right:0}
 .lb.l .ic,.lb.r .ic{writing-mode:horizontal-tb}
+/* ワールド詳細(モーダル)が出ている間は、方向ラベルと操作ラベルを出さない */
+.modal .lb,.modal .dbg{display:none}
 /* 縦横共通: カードは画面の左右いっぱい・方向ラベルは四辺24px・文字16px・情報帯は写真の下端に重ねる */
 .card:has(.lb),.card:has(.notice){left:12px;right:12px;top:0;bottom:0;background:none}
 /* 状態表示 */
@@ -200,6 +202,46 @@ h2{font-size:14px;margin-bottom:8px}
 <div class="ft">2026 EterPix All Rights Reserved.</div></div>
 <div class="lvlog" id="lvlog">写真をドラッグして離してください(開始点から判定リングの外で離すと入力。上スワイプ=次の投稿 下スワイプ=前の投稿 右=気になる 左=ワールド情報。パネルの外へ出たら無視)</div>
 
+<h2>2-h1 スワイプ中の表示(上へ操作中. リング外. 離すと「次の投稿」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="dbg on out lab"><div class="ring" style="left:523px;top:267px;width:126px;height:126px"></div><div class="bar" style="left:586px;top:330px;width:182px;transform:rotate(-1.4382rad)"></div><div class="dot" style="left:586px;top:330px;display:block;background:#fff"></div><div class="dot" style="left:610px;top:150px;display:block;background:var(--acc)"></div><div class="dl" style="left:586px;top:401px;transform:translate(-50%,0)"><i class="ic swup"></i><span>次の投稿</span></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-h2 スワイプ中の表示(下へ操作中. リング外. 離すと「前の投稿」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="dbg on out lab"><div class="ring" style="left:523px;top:267px;width:126px;height:126px"></div><div class="bar" style="left:586px;top:330px;width:191px;transform:rotate(1.6809rad)"></div><div class="dot" style="left:586px;top:330px;display:block;background:#fff"></div><div class="dot" style="left:565px;top:520px;display:block;background:var(--acc)"></div><div class="dl" style="left:586px;top:259px;transform:translate(-50%,-100%)"><i class="ic swdown"></i><span>前の投稿</span></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-h3 スワイプ中の表示(右へ操作中. リング外. 離すと「気になる」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="dbg on out lab"><div class="ring" style="left:523px;top:267px;width:126px;height:126px"></div><div class="bar" style="left:586px;top:330px;width:215px;transform:rotate(-0.0839rad)"></div><div class="dot" style="left:586px;top:330px;display:block;background:#fff"></div><div class="dot" style="left:800px;top:312px;display:block;background:var(--acc)"></div><div class="dl" style="left:515px;top:330px;transform:translate(-100%,-50%)"><i class="ic swright"></i><span>気になる</span></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-h4 スワイプ中の表示(左へ操作中. リング外. 離すと「ワールド情報」)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="dbg on out lab"><div class="ring" style="left:523px;top:267px;width:126px;height:126px"></div><div class="bar" style="left:586px;top:330px;width:217px;transform:rotate(3.0401rad)"></div><div class="dot" style="left:586px;top:330px;display:block;background:#fff"></div><div class="dot" style="left:370px;top:352px;display:block;background:var(--acc)"></div><div class="dl" style="left:657px;top:330px;transform:translate(0,-50%)"><i class="ic swleft"></i><span>ワールド情報</span></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
+<h2>2-h5 スワイプ中の表示(キャンセル(出て戻った。リング内). 薄く表示・操作ラベルなし. 離しても入力なし)</h2>
+<div class="scr land" data-theme="black">
+<div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+</div>
+<div class="dbg on ign"><div class="ring" style="left:523px;top:267px;width:126px;height:126px"></div><div class="bar" style="left:586px;top:330px;width:26px;transform:rotate(1.0041rad)"></div><div class="dot" style="left:586px;top:330px;display:block;background:#fff"></div><div class="dot" style="left:600px;top:352px;display:block;background:var(--acc)"></div></div>
+<div class="ft">2026 EterPix All Rights Reserved.</div></div>
+
 <h2>2-c 拡大(情報帯あり. 次のタップで情報帯も消えて写真だけ. 全面)</h2>
 <div class="scr land" data-theme="black"><div class="zoom"><div class="photo">写真 16:9</div><div class="band"><div class="u">投稿者名[称号]</div><div class="f">気になる:☆</div><div class="w">ワールド名</div></div></div></div>
 
@@ -218,7 +260,7 @@ h2{font-size:14px;margin-bottom:8px}
 <h2>2-e ワールド詳細(左スワイプで開く / 暗幕・「閉じる」・右スワイプで閉じる)</h2>
 <div class="scr land" data-theme="black">
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
-<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9</div></div></div></div>
+<div class="bd"><div class="ab card"><div class="pw"><div class="photo">写真 16:9</div></div></div></div>
 <div class="dim"></div>
 <div class="ab wm"><div class="nm">ワールド名(2行まで)</div><div class="au">作者: 作者名</div><div class="ds">ワールドの説明(長ければスクロール)</div>
 <button class="acc" style="left:24px;right:42%;margin-right:6px">ポータルを開く</button><button style="left:58%;right:24px;margin-left:6px">閉じる</button></div></div>
@@ -352,12 +394,12 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
     else if(name==='進む'){ if(idx>=N)m='進む: 終了画面へ(モックでは省略)'; else idx++; }
     else if(dir==='right'){ liked[idx]=!liked[idx]; m='気になる: '+(liked[idx]?'★':'☆')+'(進まない)'; }
     else if(dir==='left'){
-      if(hasWorld(idx)){document.getElementById('lvwn').textContent='ワールド名 '+idx;dim.style.display='block';wm.style.display='block';}
+      if(hasWorld(idx)){document.getElementById('lvwn').textContent='ワールド名 '+idx;dim.style.display='block';wm.style.display='block';scr.classList.add('modal');dbg.classList.remove('on','out','ign','lab');}
       else{note.style.display='grid';setTimeout(function(){note.style.display='none'},1200);m='ワールド情報なし(開かない)';}
     }
     render();return m;
   }
-  function closeWm(){dim.style.display='none';wm.style.display='none'}
+  function closeWm(){dim.style.display='none';wm.style.display='none';scr.classList.remove('modal')}
   dim.onclick=function(){if(noclick){noclick=false;return}closeWm()};document.getElementById('lvclose').onclick=closeWm;
   function down(e){
     noclick=false;var p=rel(e);st={a:p,c:p,ign:false,left:false,cancel:false};dbg.classList.add('on');place(p,p,R(),false);e.preventDefault();
