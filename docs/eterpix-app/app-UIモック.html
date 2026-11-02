@@ -58,14 +58,13 @@ h2{font-size:14px;margin-bottom:8px}
 .load .tr i{display:block;height:100%;width:40%;background:var(--acc)}
 .scr .start{left:35%;right:35%;bottom:10%;height:16%;font-size:30px}
 
-/* スワイプ: カード 13.41〜86.59%(幅858.7=写真16:9が余白の内側いっぱい)・上12・下12(ボタン列は一旦なし). 写真はカードの内側に四辺24px空ける */
-.card{left:13.41%;right:13.41%;top:12px;bottom:12px;background:var(--panel);overflow:hidden}
+/* スワイプ: カード 17〜83%・上12・下12(ボタン列は一旦なし). 写真はカードの内側に四辺24px空ける */
+.card{left:17%;right:17%;top:12px;bottom:12px;background:var(--panel);overflow:hidden}
 .photo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:100%;aspect-ratio:16/9;background:#555;color:#ddd;display:grid;place-items:center;font-size:24px}
 .pw{position:absolute;inset:24px;container-type:size}
 .pw .photo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;width:min(100cqw,calc(100cqh*16/9));aspect-ratio:16/9}
-/* 縦向き: 情報帯は写真に被せず、カード下部(下24px)に独立して置く。写真はその上の領域に収める */
-.port .pw{inset:24px 24px 100px 24px}
-.port .card>.band{left:24px;right:24px;bottom:24px}
+/* 情報帯は縦横とも写真に被せず、カード下部(下24px・左右24px)に独立して置く。写真はその上の領域に収める(pwの下余白=24+帯高さ+0) */
+.card>.band{left:24px;right:24px;bottom:24px}
 .pw .photo.tall{aspect-ratio:9/16;width:min(100cqw,calc(100cqh*9/16))}
 .band{position:absolute;left:0;right:0;bottom:0;height:76px;background:rgba(0,0,0,.5);color:#fff}
 .band.d{height:130px}
@@ -167,14 +166,14 @@ h2{font-size:14px;margin-bottom:8px}
 <h2>2-a スワイプ画面(横・黒. カウンタ 12/20. 説明あり)</h2>
 <div class="scr land" data-theme="black">
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span>12</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
-<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真 16:9<div class="band d"><div class="u">投稿者名[称号]</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div></div></div>
+<div class="bd"><div class="ab card"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw" style="bottom:154px"><div class="photo">写真 16:9</div></div><div class="band d"><div class="u">投稿者名[称号]</div><div class="s">説明文(2行まで)</div><div class="w">ワールド名</div></div></div>
 </div>
 <div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
 <h2>2-b スワイプ画面(縦向き・白・横写真 16:9. 説明なし=情報帯が低い. 660×1173.33)</h2>
 <div class="scr port" data-theme="white">
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div></div><div class="nav"><button>i</button><button><i class="ic group s28"></i></button><button><i class="ic settings s28"></i></button><button><i class="ic liked s28"></i></button></div></div>
-<div class="bd"><div class="ab card" style="left:0;right:0"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo">写真(縦写真は縦のまま枠に収める)</div></div><div class="band"><div class="u">投稿者名[称号]</div><div class="w">ワールド名</div></div></div>
+<div class="bd"><div class="ab card" style="left:0;right:0"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw" style="bottom:100px"><div class="photo">横写真 16:9</div></div><div class="band"><div class="u">投稿者名[称号]</div><div class="w">ワールド名</div></div></div>
 </div>
 <div class="ft">2026 EterPix All Rights Reserved.</div></div>
 
@@ -189,7 +188,7 @@ h2{font-size:14px;margin-bottom:8px}
 <div class="lvctl"><label><input type="checkbox" id="lvswap"> 進む・戻るを入れ替え(上下の意味が逆になる)</label></div>
 <div class="scr land live" id="live" data-theme="black">
 <div class="hd"><div class="hl"><div class="title">EterPix-app</div><div class="cnt"><div class="dg c"><span id="lvc">1</span></div><div class="sl">/</div><div class="dg t"><span>20</span></div></div></div><div class="nav"><button>i</button><button><i class="ic group"></i></button><button><i class="ic settings"></i></button><button><i class="ic liked"></i></button></div></div>
-<div class="bd"><div class="ab card" id="lvcard"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw"><div class="photo"><span id="lvph">写真 1</span><div class="band d"><div class="u" id="lvu">投稿者1 ☆</div><div class="s">説明文(2行まで)</div><div class="w" id="lvw">ワールド名</div></div></div></div></div>
+<div class="bd"><div class="ab card" id="lvcard"><div class="lb t"><i class="ic swdown"></i>:前の投稿</div><div class="lb b"><i class="ic swup"></i>:次の投稿</div><div class="lb l"><i class="ic swleft"></i>ワールド情報</div><div class="lb r"><i class="ic swright"></i>気になる</div><div class="pw" style="bottom:154px"><div class="photo"><span id="lvph">写真 1</span></div></div><div class="band d"><div class="u" id="lvu">投稿者1 ☆</div><div class="s">説明文(2行まで)</div><div class="w" id="lvw">ワールド名</div></div></div>
 <div class="lvnote" id="lvnote">ワールド情報なし</div></div>
 <div class="dbg" id="dbg"><div class="ring" id="dr"></div><div class="bar" id="db"></div><div class="dot" id="ds" style="background:#fff"></div><div class="dot" id="dc" style="background:var(--acc)"></div></div>
 <div class="dim" id="lvdim" style="display:none"></div><div class="ab wm" id="lvwm" style="display:none"><div class="nm" id="lvwn">ワールド名</div><div class="au">作者: 作者名</div><div class="ds">ワールドの説明</div><button class="acc" style="left:24px;right:42%;margin-right:6px">ポータルを開く</button><button id="lvclose" style="left:58%;right:24px;margin-left:6px">閉じる</button></div>
