@@ -122,7 +122,7 @@ h2{font-size:14px;margin-bottom:8px}
 /* 操作ラベル: リング外にいる間だけ。操作方向の逆側(開始点の反対側)に90度刻みで固定。ドラッグの角度には追従しない */
 .dbg .dl{position:absolute;display:none;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:rgba(0,0,0,.6);color:#fff;font-size:24px;line-height:32px;white-space:nowrap}
 .dbg .dl .ic{width:32px;height:32px;background:#fff}
-.dbg.lab .dl{display:flex}
+.dbg.on.lab .dl{display:flex}
 .live .card{cursor:grab;touch-action:none;user-select:none}
 .lvlog{font:700 14px/1.6 'NotoSansJP-Bold',monospace;color:#ddd;white-space:pre-wrap;min-height:3.2em;max-width:1173px}
 .lvctl{display:flex;gap:16px;align-items:center;color:#ddd;font-size:14px}
@@ -421,7 +421,7 @@ EterPix は、VRChatで撮った写真を共有する人たちの集まりです
     else if(st.cancel){msg='判定: リング外へ出て戻った → キャンセル(入力なし・クリックにもしない)';noclick=true;}
     else if(d<=r)msg='判定: リング内(距離 '+Math.round(d)+' <= 半径 '+Math.round(r)+')→ 入力なし';
     else{var dir=Math.abs(dx)>=Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');msg='判定: リング外(距離 '+Math.round(d)+' > 半径 '+Math.round(r)+')→ '+{up:'上',down:'下',right:'右',left:'左'}[dir]+' = '+act(dir);}
-    say(msg);st=null;setTimeout(function(){if(!st)dbg.classList.remove('on','out','ign')},600);
+    say(msg);st=null;setTimeout(function(){if(!st)dbg.classList.remove('on','out','ign','lab')},600);
   }
   window.addEventListener('keydown',function(e){
     var m={ArrowUp:'up',ArrowDown:'down',ArrowRight:'right',ArrowLeft:'left'}[e.key];
