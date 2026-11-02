@@ -108,7 +108,7 @@ namespace NudeNyang
         public GameObject dbgRoot;
         public CanvasGroup dbgGroup;
         public RectTransform dbgRing, dbgBar, dbgStart, dbgCur;
-        public Image dbgRingImg;
+        public Image dbgRingImg, dbgStartImg, dbgBarImg;
         public GameObject opLabel;
         public RectTransform opLabelRt;
         public Image opIcon;
@@ -117,6 +117,7 @@ namespace NudeNyang
         public GameObject retryButton;              // 起動画面の再読み込み(取得失敗のときだけ)
         public GameObject zoomStarOutline, zoomStarFilled;
         private bool swipeOut, swipeIgnore;
+        private int panelEnters, panelExits;   // パネル(ヘッダー・スワイプ画面・フッター)の出入り. ドラッグ中に出た数が入った数を上回ったら、パネルの外
         private float dbgHideAt = -1f;
         private Vector2 dbgP;
         private float suppressTapUntil;
@@ -447,7 +448,13 @@ namespace NudeNyang
             if (!swipeDragging)
             {
                 swipeDragging = true; swipeOut = false; swipeIgnore = false;
+                panelEnters = 0; panelExits = 0;
                 dbgHideAt = -1f;
+            }
+            if (!swipeIgnore && panelExits > panelEnters)
+            {
+                swipeIgnore = true; // パネルの外へ出たドラッグは無視
+                Debug.Log("[EtpTrace] eterpix-app swipe ignored (left panel)");
             }
             float r = RingRadius();
             bool outNow = p.magnitude > r;
@@ -486,7 +493,11 @@ namespace NudeNyang
             float len = p.magnitude;
             dbgBar.sizeDelta = new Vector2(len, 6f);
             dbgBar.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(p.y, p.x) * Mathf.Rad2Deg);
-            dbgRingImg.color = outNow && !swipeIgnore ? new Color(0.616f, 0.435f, 1f, 1f) : Color.white;
+            // 白テーマでは見えなくなるので、白の部品はテーマに合わせて暗い色にする(アクセントはそのまま)
+            Color baseCol = isDark ? Color.white : new Color(0.078f, 0.078f, 0.078f, 1f);
+            dbgRingImg.color = outNow && !swipeIgnore ? new Color(0.616f, 0.435f, 1f, 1f) : baseCol;
+            dbgStartImg.color = baseCol;
+            dbgBarImg.color = new Color(baseCol.r, baseCol.g, baseCol.b, 0.5f);
             bool showOp = live && outNow && !swipeIgnore && opLabel != null;
             if (opLabel != null) opLabel.SetActive(showOp);
             if (!showOp) return;
@@ -509,14 +520,9 @@ namespace NudeNyang
         }
 
         // パネルの外へ出た(Panel の EventTrigger PointerExit): 引いている途中なら、そのドラッグは無視する
-        public void OnPanelExit()
-        {
-            if (swipeDragging && !swipeIgnore)
-            {
-                swipeIgnore = true;
-                Debug.Log("[EtpTrace] eterpix-app swipe ignored (left panel)");
-            }
-        }
+        // ヘッダー・スワイプ画面・フッターの EventTrigger から呼ばれる. 画面→ヘッダーのように隣へ移るだけなら、出と入が同数で外にならない
+        public void OnPanelEnter() { if (swipeDragging) panelEnters++; }
+        public void OnPanelExit() { if (swipeDragging) panelExits++; }
 
         // ---- NudeNyang 本体のジェスチャと同じ作法 ----
         // 感度: タブレット共通設定(全ナビゲーションのスワイプで共通)

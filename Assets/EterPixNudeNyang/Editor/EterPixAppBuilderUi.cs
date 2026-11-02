@@ -110,6 +110,8 @@ namespace EterPixNudeNyang
             // ---- フッター(コピーライト) ----
             var footer = Box(root, "Footer", tk.panel);
             Anchor(footer, 0, 0, 1, 0, Vector2.zero, new Vector2(0, FooterHeight));
+            PanelHover(footer.gameObject, app);
+            PanelHover(header.gameObject, app);
             var copy = Label(footer, "Copyright", "2026 EterPix All Rights Reserved.", font, 20, TextAlignmentOptions.TopRight, tk.sub);
             Anchor(copy.rectTransform, 0, 0, 1, 1, new Vector2(0, 0), new Vector2(-Margin, -4)); // 右寄せ(右余白はヘッダーのボタンと同じ16)
 
@@ -176,11 +178,7 @@ namespace EterPixNudeNyang
                 UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnSwipeRelease");
             trig.triggers.Add(endEntry);
             // 画面(Swipe Screen)の外へ出たドラッグを無視するため、PointerExit を U# へ渡す
-            var exitTrig = screen.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
-            var exitEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
-            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(exitEntry.callback,
-                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnPanelExit");
-            exitTrig.triggers.Add(exitEntry);
+            PanelHover(screen.gameObject, app);
 
             // カードの中身(終了画面では隠す)
             var content = new GameObject("Card Content", typeof(RectTransform)); var contentRt = (RectTransform)content.transform;
@@ -314,7 +312,7 @@ namespace EterPixNudeNyang
             app.cardContent = content;
             app.dbgRoot = dbg; app.dbgGroup = dbgCg;
             app.dbgRing = ring; app.dbgBar = bar; app.dbgStart = dotS; app.dbgCur = dotC;
-            app.dbgRingImg = ring.GetComponent<Image>();
+            app.dbgRingImg = ring.GetComponent<Image>(); app.dbgStartImg = dotS.GetComponent<Image>(); app.dbgBarImg = bar.GetComponent<Image>();
             app.opLabel = op; app.opLabelRt = opRt; app.opIcon = opIconImg; app.opText = opText;
             app.swipeIcons = new Sprite[] { EnsureSprite(SwipeUpPath), EnsureSprite(SwipeDownPath), EnsureSprite(SwipeLeftPath), EnsureSprite(SwipeRightPath) };
 
@@ -337,6 +335,20 @@ namespace EterPixNudeNyang
             app.buttonRow = row;
             app.endScreen = end;
             app.endSummary = summary;
+        }
+
+        // パネルの出入りを U# へ渡す(ヘッダー・スワイプ画面・フッターの3つ. 隣へ移るだけなら出と入が相殺する)
+        static void PanelHover(GameObject target, NudeNyangEterPix app)
+        {
+            var t = target.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+            if (t == null) t = target.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            t.triggers.Clear();
+            var enter = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(enter.callback, UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnPanelEnter");
+            t.triggers.Add(enter);
+            var exit = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(exit.callback, UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnPanelExit");
+            t.triggers.Add(exit);
         }
 
         // デバッグ表示の部品(画像. 押せない)
