@@ -405,12 +405,12 @@ namespace EterPixNudeNyang
             else if (side == 1) Anchor(bandRt, 0, 0, 1, 0, new Vector2(DirBand, 0), new Vector2(-DirBand, DirBand));
             else if (side == 2) Anchor(bandRt, 0, 0, 0, 1, new Vector2(0, DirBand), new Vector2(DirBand, -DirBand));
             else Anchor(bandRt, 1, 0, 1, 1, new Vector2(-DirBand, DirBand), new Vector2(0, -DirBand));
-            var holder = new GameObject("Holder", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
+            // 左右は縦型の文字が無いので、アイコンの下に1文字ずつ改行して縦に並べる(上下は横並び)
+            var holder = new GameObject("Holder", typeof(RectTransform), side >= 2 ? typeof(VerticalLayoutGroup) : typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
             var hRt = (RectTransform)holder.transform; hRt.SetParent(bandRt, false);
             hRt.anchorMin = hRt.anchorMax = new Vector2(0.5f, 0.5f); hRt.pivot = new Vector2(0.5f, 0.5f); hRt.anchoredPosition = Vector2.zero;
-            if (side >= 2) hRt.localRotation = Quaternion.Euler(0, 0, -90f);
-            var hlg = holder.GetComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 2; hlg.childAlignment = TextAnchor.MiddleCenter;
+            var hlg = holder.GetComponent<HorizontalOrVerticalLayoutGroup>();
+            hlg.spacing = 2; hlg.childAlignment = side >= 2 ? TextAnchor.UpperCenter : TextAnchor.MiddleCenter;
             hlg.childControlWidth = true; hlg.childControlHeight = true; hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
             var csf = holder.GetComponent<ContentSizeFitter>(); csf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize; csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
@@ -418,10 +418,22 @@ namespace EterPixNudeNyang
             var img = icon.GetComponent<Image>(); img.sprite = EnsureSprite(iconPath); img.preserveAspect = true; img.raycastTarget = false; img.color = Color.white;
             tk.text.Add(img);
             var le = icon.GetComponent<LayoutElement>(); le.preferredWidth = 24; le.preferredHeight = 24;
-            var l = Label(hRt, "Text", text, font, 16, TextAlignmentOptions.MidlineLeft, tk.text);
+            var l = Label(hRt, "Text", side >= 2 ? StackChars(text) : text, font, 16, side >= 2 ? TextAlignmentOptions.Top : TextAlignmentOptions.MidlineLeft, tk.text);
             l.enableWordWrapping = false;
-            var tle = l.gameObject.AddComponent<LayoutElement>(); tle.preferredHeight = 24;
+            if (side < 2) { var tle = l.gameObject.AddComponent<LayoutElement>(); tle.preferredHeight = 24; }
             return l;
+        }
+
+        // 縦に1文字ずつ並べる(空白は詰める). 実行時の NudeNyangEterPix.Vertical と同じ
+        static string StackChars(string s)
+        {
+            string r = "";
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] == ' ') continue;
+                r += (r.Length > 0 ? "\n" : "") + s.Substring(i, 1);
+            }
+            return r;
         }
 
         // 四辺の透明ボタン: 普段は透明、ホバー中だけアクセント色22%

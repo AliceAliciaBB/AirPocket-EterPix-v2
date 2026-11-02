@@ -609,14 +609,26 @@ namespace NudeNyang
         public void OnEdgeLeft() { DoDirection(2); }
         public void OnEdgeRight() { DoDirection(3); }
 
+        // 1文字ずつ改行して縦に並べる(空白は詰める)
+        private string Vertical(string s)
+        {
+            string r = "";
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] == ' ') continue;
+                r += (r.Length > 0 ? "\n" : "") + s.Substring(i, 1);
+            }
+            return r;
+        }
+
         // 四辺の方向ラベルの文字(入れ替え・気になる状態に合わせる)
         private void RefreshLabels()
         {
             if (labelTop == null) return;
             labelTop.text = ":" + OpName(1);
             labelBottom.text = ":" + OpName(0);
-            labelLeft.text = OpName(2);
-            labelRight.text = OpName(3);
+            labelLeft.text = Vertical(OpName(2));   // 左右は縦型の文字が無いので1文字ずつ改行
+            labelRight.text = Vertical(OpName(3));
             if (dirLabels != null) dirLabels.SetActive(!WorldModalOpen());
         }
 
