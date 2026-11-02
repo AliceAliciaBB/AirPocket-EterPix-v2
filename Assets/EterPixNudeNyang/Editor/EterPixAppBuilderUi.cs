@@ -153,6 +153,8 @@ namespace EterPixNudeNyang
         const string SwipeRightPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeRightIcon.png";
         const string RingPath = "Assets/EterPixNudeNyang/Art/EterPixRing.png";
         const string DotPath = "Assets/EterPixNudeNyang/Art/EterPixDot.png";
+        const string EdgeClearPath = "Assets/EterPixNudeNyang/Art/EterPixEdgeClear.png";
+        const string EdgeHoverPath = "Assets/EterPixNudeNyang/Art/EterPixEdgeHover.png";
         const float DirBand = 24f; // 方向ラベルの帯の幅 = 写真の四辺の空き
 
         // 追加計画V: カードは左右12・上下0・面は無色. 写真は四辺24pxの内側. 判定は Drag Probe のずれ(相対方式)
@@ -421,15 +423,14 @@ namespace EterPixNudeNyang
         {
             var b = Box(parent, name, null);
             Anchor(b, minX, minY, maxX, maxY, Vector2.zero, Vector2.zero);
-            var img = b.GetComponent<Image>(); img.color = Color.white;
+            // 色付け(ColorTint)は VRChat で初期状態に反映されず白く残るので、スプライトの切り替えにする(普段=透明、ホバー=アクセント色22%)
+            var clearSprite = EnsureSprite(EdgeClearPath); var hoverSprite = EnsureSprite(EdgeHoverPath);
+            var img = b.GetComponent<Image>(); img.sprite = clearSprite; img.color = Color.white;
             var btn = b.gameObject.AddComponent<Button>(); btn.targetGraphic = img; btn.navigation = new Navigation { mode = Navigation.Mode.None };
-            btn.transition = Selectable.Transition.ColorTint;
-            var cb = btn.colors;
-            var hover = new Color(Accent.r, Accent.g, Accent.b, 0.22f);
-            cb.normalColor = new Color(1, 1, 1, 0); cb.highlightedColor = hover; cb.pressedColor = hover;
-            cb.selectedColor = new Color(1, 1, 1, 0); cb.disabledColor = new Color(1, 1, 1, 0);
-            cb.colorMultiplier = 1f; cb.fadeDuration = 0f;
-            btn.colors = cb;
+            btn.transition = Selectable.Transition.SpriteSwap;
+            var ss = btn.spriteState;
+            ss.highlightedSprite = hoverSprite; ss.pressedSprite = hoverSprite; ss.selectedSprite = clearSprite; ss.disabledSprite = clearSprite;
+            btn.spriteState = ss;
             Wire(btn, app, eventName);
         }
 
