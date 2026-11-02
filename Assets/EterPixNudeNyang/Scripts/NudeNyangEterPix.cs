@@ -585,6 +585,9 @@ namespace NudeNyang
             else if (tapLike) RegisterPhotoTap();
         }
 
+        // 本体の触り判定ゲートに「この面は自前で範囲を持つ」と伝えるための受け口(何もしない. 無いと縦のずれが0に切り詰められる)
+        public void OnSwipeDrag() { }
+
         // 方向の操作: 0=上(次の投稿) 1=下(前の投稿) 2=左(ワールド情報) 3=右(気になる 追加/解除). 入れ替え設定で上下が替わる.
         // 終了画面では「前の投稿」(最後のカードへ)だけ有効
         private void DoDirection(int dir)

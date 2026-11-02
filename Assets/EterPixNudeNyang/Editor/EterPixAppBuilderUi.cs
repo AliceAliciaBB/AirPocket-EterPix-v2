@@ -179,6 +179,12 @@ namespace EterPixNudeNyang
             UnityEditor.Events.UnityEventTools.AddStringPersistentListener(endEntry.callback,
                 UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnSwipeRelease");
             trig.triggers.Add(endEntry);
+            // 本体の触り判定ゲートは、ドラッグの登録(Drag)が無い面を「普通のリスト」とみなし、縦のずれを 0〜(中身−表示) に切り詰める.
+            // 中身=表示の大きさのカードでは縦が常に0になるので、Drag を登録して「自前で範囲を持つ面」と認識させる(中身は何もしない)
+            var dragEntry = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.Drag };
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(dragEntry.callback,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnSwipeDrag");
+            trig.triggers.Add(dragEntry);
             // 画面(Swipe Screen)の外へ出たドラッグを無視するため、PointerExit を U# へ渡す
             PanelHover(screen.gameObject, app);
 
