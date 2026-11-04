@@ -9,7 +9,7 @@ using UnityEngine;
 // 実コードを U# プロキシ経由で直接呼び、結果を [EtpTrace] test PASS/FAIL で出す
 public static class EterPixAppGeometrySelfTest
 {
-    const string ProgramPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Scripts/EterPixAppGeometry";
+    const string ProgramPath = "Assets/EterPixNudeNyang/Scripts/EterPixAppGeometry";
     static int fails;
 
     [MenuItem("NudeNyang/EterPix-app/幾何の自己テスト")]

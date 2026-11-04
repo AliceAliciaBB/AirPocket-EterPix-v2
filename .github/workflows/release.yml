@@ -28,6 +28,14 @@ jobs:
           ZIP_NAME="${PACKAGE_ID}-${VERSION}.zip"
           REPO_URL="https://github.com/${{ github.repository }}"
           RELEASE_URL="${REPO_URL}/releases/download/v${VERSION}/${ZIP_NAME}"
+          # NudeNyangアドオン(NudeNyang本体は含まない). ~付きフォルダはUnityが無視し、導入メニューでAssetsへコピーされる
+          ADDON="Packages/${PACKAGE_ID}/NudeNyangAddon~"
+          mkdir -p "$ADDON"
+          for s in Art Editor Scripts; do
+            cp -r "Assets/EterPixNudeNyang/$s" "$ADDON/$s"
+            cp "Assets/EterPixNudeNyang/$s.meta" "$ADDON/$s.meta"
+          done
+          cp Assets/EterPixNudeNyang/README.md Assets/EterPixNudeNyang/README.md.meta "$ADDON/"
           cd "Packages/${PACKAGE_ID}"
           zip -r "../../$ZIP_NAME" .
           cd ../..

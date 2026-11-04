@@ -108,4 +108,4 @@ EterPix/
 
 ## EterPix-app (NudeNyang Tablet 用アドオン・任意)
 
-`NudeNyangAddon/` は、NudeNyang Tablet(第三者の有償アセット. **本パッケージには含みません**)に EterPix アプリを足す非公式アドオンです. NudeNyang を持っていなければ使わなくて構いません(入っていてもコンパイルは通ります). 使い方は `NudeNyangAddon/README.md` を参照してください.
+配布版のパッケージ内 `NudeNyangAddon~/` は、NudeNyang Tablet(第三者の有償アセット. **本パッケージには含みません**)に EterPix アプリを足す非公式アドオンです. NudeNyang を持っていなければ使わなくて構いません(入っていてもコンパイルは通ります). メニュー **NudeNyang → EterPix-app → アドオンを Assets へ導入** で `Assets/EterPixNudeNyang/` にコピーされます. 使い方はコピー後の `Assets/EterPixNudeNyang/README.md` を参照してください.
