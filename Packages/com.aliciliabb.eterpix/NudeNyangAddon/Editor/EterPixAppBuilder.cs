@@ -15,17 +15,17 @@ namespace EterPixNudeNyang
         const string FontPath = "Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold SDF.asset";
         // モニターと同じロゴ用フォント(StackSansNotch-Bold. ASCIIのみ)
         const string LogoFontPath = "Packages/com.aliciliabb.eterpix/Fonts/StackSansNotch-Bold SDF.asset";
-        const string GroupIconPath = "Assets/EterPixNudeNyang/Art/EterPixGroupIcon.png";
-        const string DarkModeIconPath = "Assets/EterPixNudeNyang/Art/EterPixDarkModeIcon.png";   // Material Symbols "dark_mode"
-        const string LightModeIconPath = "Assets/EterPixNudeNyang/Art/EterPixLightModeIcon.png"; // Material Symbols "light_mode"
-        const string LikedListIconPath = "Assets/EterPixNudeNyang/Art/EterPixLikedListIcon.png"; // Material Symbols "hotel_class"(気になる一覧)
-        const string SettingsIconPath = "Assets/EterPixNudeNyang/Art/EterPixSettingsIcon.png"; // Google Fonts の Material Symbols "settings"(Apache-2.0)
-        const string StarIconPath = "Assets/EterPixNudeNyang/Art/EterPixStarIcon.png"; // Material Symbols "star"(輪郭)
-        const string StarFilledIconPath = "Assets/EterPixNudeNyang/Art/EterPixStarFilledIcon.png"; // 同(塗り)
-        const string ReloadIconPath = "Assets/EterPixNudeNyang/Art/EterPixReloadIcon.png"; // モニターの icon_reload.png と同じ(Material Symbols, Apache-2.0)
-        const string PortalIconPath = "Assets/EterPixNudeNyang/Art/EterPixPortalIcon.png"; // Material Symbols "public"(Apache-2.0)
+        const string GroupIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixGroupIcon.png";
+        const string DarkModeIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixDarkModeIcon.png";   // Material Symbols "dark_mode"
+        const string LightModeIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixLightModeIcon.png"; // Material Symbols "light_mode"
+        const string LikedListIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixLikedListIcon.png"; // Material Symbols "hotel_class"(気になる一覧)
+        const string SettingsIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixSettingsIcon.png"; // Google Fonts の Material Symbols "settings"(Apache-2.0)
+        const string StarIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixStarIcon.png"; // Material Symbols "star"(輪郭)
+        const string StarFilledIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixStarFilledIcon.png"; // 同(塗り)
+        const string ReloadIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixReloadIcon.png"; // モニターの icon_reload.png と同じ(Material Symbols, Apache-2.0)
+        const string PortalIconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixPortalIcon.png"; // Material Symbols "public"(Apache-2.0)
         const string FeedUrl = "https://eterpix.com/api/vrc/v1/public";
-        const string IconPath = "Assets/EterPixNudeNyang/Art/EterPixAppIcon.png";
+        const string IconPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixAppIcon.png";
         static readonly Color Dark = new Color32(0x14, 0x14, 0x14, 0xFF);
         static readonly Color Accent = new Color32(0x9D, 0x6F, 0xFF, 0xFF);
 
@@ -38,9 +38,9 @@ namespace EterPixNudeNyang
                 return;
             }
             // 新しい U# スクリプトにはプログラムアセットが要り、作成直後は未コンパイルで配線に失敗する
-            bool created = EnsureProgram("Assets/EterPixNudeNyang/Scripts/NudeNyangEterPix");
-            created |= EnsureProgram("Assets/EterPixNudeNyang/Scripts/EterPixAppFeed");
-            created |= EnsureProgram("Assets/EterPixNudeNyang/Scripts/EterPixAppImages");
+            bool created = EnsureProgram("Packages/com.aliciliabb.eterpix/NudeNyangAddon/Scripts/NudeNyangEterPix");
+            created |= EnsureProgram("Packages/com.aliciliabb.eterpix/NudeNyangAddon/Scripts/EterPixAppFeed");
+            created |= EnsureProgram("Packages/com.aliciliabb.eterpix/NudeNyangAddon/Scripts/EterPixAppImages");
             if (created)
             {
                 UdonSharp.UdonSharpProgramAsset.CompileAllCsPrograms(true);

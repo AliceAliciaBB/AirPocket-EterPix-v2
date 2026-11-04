@@ -105,3 +105,7 @@ EterPix/
 - `Fonts/NotoSansJP-Bold.ttf` とその SDF は SIL Open Font License 1.1 (`Fonts/OFL.txt`)
 - `Fonts/StackSansNotch-Bold.ttf` とその SDF は SIL Open Font License 1.1 (`Fonts/OFL-StackSansNotch.txt`)。サイトのロゴと同じ書体 Stack Sans Notch (Google Fonts) の可変フォントから、太さ 700 に固定して ASCII の文字だけに絞ったもの
 - `UI/icon_reload.png` は Material Symbols の `refresh` を PNG にしたもの。Apache License 2.0 (`UI/MaterialSymbols_LICENSE.txt`)
+
+## EterPix-app (NudeNyang Tablet 用アドオン・任意)
+
+`NudeNyangAddon/` は、NudeNyang Tablet(第三者の有償アセット. **本パッケージには含みません**)に EterPix アプリを足す非公式アドオンです. NudeNyang を持っていなければ使わなくて構いません(入っていてもコンパイルは通ります). 使い方は `NudeNyangAddon/README.md` を参照してください.

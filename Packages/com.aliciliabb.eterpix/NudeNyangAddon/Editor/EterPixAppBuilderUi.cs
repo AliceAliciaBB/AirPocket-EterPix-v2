@@ -147,14 +147,14 @@ namespace EterPixNudeNyang
             app.subGraphics = tk.sub.ToArray();
         }
 
-        const string SwipeUpPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeUpIcon.png";
-        const string SwipeDownPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeDownIcon.png";
-        const string SwipeLeftPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeLeftIcon.png";
-        const string SwipeRightPath = "Assets/EterPixNudeNyang/Art/EterPixSwipeRightIcon.png";
-        const string RingPath = "Assets/EterPixNudeNyang/Art/EterPixRing.png";
-        const string DotPath = "Assets/EterPixNudeNyang/Art/EterPixDot.png";
-        const string EdgeClearPath = "Assets/EterPixNudeNyang/Art/EterPixEdgeClear.png";
-        const string EdgeHoverPath = "Assets/EterPixNudeNyang/Art/EterPixEdgeHover.png";
+        const string SwipeUpPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixSwipeUpIcon.png";
+        const string SwipeDownPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixSwipeDownIcon.png";
+        const string SwipeLeftPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixSwipeLeftIcon.png";
+        const string SwipeRightPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixSwipeRightIcon.png";
+        const string RingPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixRing.png";
+        const string DotPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixDot.png";
+        const string EdgeClearPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixEdgeClear.png";
+        const string EdgeHoverPath = "Packages/com.aliciliabb.eterpix/NudeNyangAddon/Art/EterPixEdgeHover.png";
         const float DirBand = 24f; // 方向ラベルの帯の幅 = 写真の四辺の空き
 
         // 追加計画V: カードは左右12・上下0・面は無色. 写真は四辺24pxの内側. 判定は Drag Probe のずれ(相対方式)
