@@ -21,7 +21,7 @@ EterPix の写真を、タブレットの中でスワイプして見られます
 ## 入れ方
 
 1. NudeNyang Tablet 本体を `Assets/NudeNyang/` に入れ、タブレットをシーンに置く
-2. VCC で EterPix(`com.aliciliabb.eterpix` 2.6.1 以上)を入れ、メニュー **NudeNyang → EterPix-app → アドオンを Assets へ導入** を実行する(パッケージ内の `NudeNyangAddon~` を `Assets/EterPixNudeNyang/` へコピーします. パッケージ内のスクリプトは `Assets/NudeNyang` を参照できないため、Assets 側に置きます. EterPix を更新したらもう一度実行して上書き)
+2. VCC で EterPix(`com.aliciliabb.eterpix` 2.6.2 以上)を入れ、メニュー **NudeNyang → EterPix-app → アドオンを Assets へ導入** を実行する(パッケージ内の `NudeNyangAddon~` を `Assets/EterPixNudeNyang/` へコピーします. パッケージ内のスクリプトは `Assets/NudeNyang` を参照できないため、Assets 側に置きます. EterPix を更新したらもう一度実行して上書き)
    (本体を入れる前でもコンパイルが通るように作ってあります。パッチを当てるメニューが出ないことはありません)
 3. メニュー **NudeNyang → EterPix-app → パッチを検査** で、`未適用` / `適用済` / `アンカー不一致` を確認
 4. メニュー **NudeNyang → EterPix-app → パッチを適用**(全部検査して、1つでも不一致なら何も書き換えません。元ファイルは `*.eterpix-orig` として隣に残ります)

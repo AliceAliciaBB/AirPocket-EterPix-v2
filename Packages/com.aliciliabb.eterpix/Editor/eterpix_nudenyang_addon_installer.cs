@@ -1,6 +1,5 @@
 using System.IO;
 using UnityEditor;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 namespace EterPix.Editor
@@ -14,7 +13,7 @@ namespace EterPix.Editor
         [MenuItem("NudeNyang/EterPix-app/アドオンを Assets へ導入")]
         public static void Install()
         {
-            var info = PackageInfo.FindForAssembly(typeof(EterPixNudeNyangAddonInstaller).Assembly);
+            var info = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(EterPixNudeNyangAddonInstaller).Assembly);
             string src = info == null ? null : Path.Combine(info.resolvedPath, "NudeNyangAddon~");
             if (src == null || !Directory.Exists(src))
             {
