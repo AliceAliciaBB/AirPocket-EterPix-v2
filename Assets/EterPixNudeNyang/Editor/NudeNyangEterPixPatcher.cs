@@ -20,7 +20,7 @@ namespace EterPixNudeNyang
                 return Directory.Exists("Assets/NudeNyang/Scripts") ? "Assets/NudeNyang" : "Assets/アセット(同期しない)/NudeNyang";
             }
         }
-        public const string ExpectedVersion = "1.0.4";
+        public const string ExpectedVersion = "1.0.8";
 
         sealed class Patch
         {
