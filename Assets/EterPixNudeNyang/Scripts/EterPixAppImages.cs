@@ -33,6 +33,7 @@ namespace EterPixNudeNyang
         private int[] _errors = new int[Slots];
         private VRCImageDownloader _downloader;
         private bool _busy;
+        private bool _discardCurrent;
         private int _current = -1;
         private int _loadedCount;
 
@@ -85,6 +86,23 @@ namespace EterPixNudeNyang
         {
             Evict();
             StartNext();
+        }
+
+        // 取得済みの画像を全部捨てて、取得待ちも空にする(設定の「画像を解放」). 取得中の1枚は止められないので、届いたら捨てる.
+        // 捨てたあと必要なら BeginWindow / Want / EndWindow で取り直す
+        public void ReleaseAll()
+        {
+            int freed = 0;
+            for (int i = 0; i < Slots; i++)
+            {
+                if (_tex[i] != null) { Destroy(_tex[i]); _tex[i] = null; freed++; }
+                _state[i] = StateNone;
+                _errors[i] = 0;
+                _priority[i] = Unneeded;
+            }
+            _loadedCount = 0;
+            if (_busy) _discardCurrent = true;
+            Debug.Log("[EtpTrace] img release all freed=" + freed + " discardCurrent=" + _discardCurrent);
         }
 
         // 必要な画像のうち、取得済みの数と全体の数(起動画面の進行度に使う)
@@ -141,6 +159,15 @@ namespace EterPixNudeNyang
             _busy = false;
             int coid = _current;
             _current = -1;
+            if (_discardCurrent)
+            {
+                // 解放(ReleaseAll)の前に始まった取得: 捨てる
+                _discardCurrent = false;
+                if (result.Result != null) Destroy(result.Result);
+                Debug.Log("[EtpTrace] img coid=" + coid + " discarded (released while downloading)");
+                StartNext();
+                return;
+            }
             if (coid < 0 || coid >= Slots)
             {
                 StartNext();
@@ -162,6 +189,12 @@ namespace EterPixNudeNyang
             _busy = false;
             int coid = _current;
             _current = -1;
+            if (_discardCurrent)
+            {
+                _discardCurrent = false;
+                StartNext();
+                return;
+            }
             if (coid >= 0 && coid < Slots)
             {
                 _errors[coid]++;

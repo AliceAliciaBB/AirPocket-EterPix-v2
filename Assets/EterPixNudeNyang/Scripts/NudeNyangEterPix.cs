@@ -1304,6 +1304,44 @@ namespace NudeNyang
             OnRestartAsk();
         }
 
+        // 設定画面「画像を解放」[解放する]: 取得済みの画像を全部捨て、アプリを閉じてホームへ戻る(自分のタブレットだけ・同期しない).
+        // 位置と気になるは残す. 次に開くと起動画面になり、いまの位置の近くの画像だけ取り直して push to start で続きから見られる
+        private bool resumeOnStart;
+
+        public void OnSettingsReleaseImages()
+        {
+            if (!started || reloading || images == null) return;
+            images.ReleaseAll();
+            started = false;
+            ready = false;
+            resumeOnStart = true;
+            ShowScreen(ScreenStart);
+            PlanResume();
+            RefreshStart();
+            Debug.Log("[EtpTrace] eterpix-app release images -> home cursor=" + cursor);
+            if (pad != null && pad.shell != null) pad.shell.GoHome();
+        }
+
+        // いまの位置から startupPreload 枚ぶんの(重複しない)コラージュを先に取る(気になるは触らない)
+        private void PlanResume()
+        {
+            if (images == null || feed == null || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk) return;
+            bool[] seen = new bool[256];
+            int wanted = 0;
+            int from = cursor < feed.Count ? cursor : 0;
+            images.BeginWindow();
+            for (int i = from; i < feed.Count && wanted < startupPreload; i++)
+            {
+                int coid = feed.Coid[i];
+                if (coid < 0 || coid > 255 || seen[coid]) continue;
+                seen[coid] = true;
+                images.Want(coid, wanted);
+                wanted++;
+            }
+            images.EndWindow();
+            Debug.Log("[EtpTrace] eterpix-app resume preload=" + wanted + " from=" + from);
+        }
+
         // 起動画面の再読み込み(取得に失敗したときだけ出る): 投稿の取得をやり直す
         public void OnRetry()
         {
@@ -1440,7 +1478,8 @@ namespace NudeNyang
         {
             if (!ready || !Take()) return;
             started = true;
-            cursor = 0;
+            if (!resumeOnStart) cursor = 0;
+            resumeOnStart = false;
             ShowScreen(ScreenSwipe);
             ShowCard();
             MarkDirty();

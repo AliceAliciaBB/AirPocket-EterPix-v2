@@ -887,6 +887,7 @@ namespace EterPixNudeNyang
             app.settingImages = images; app.settingLabels = labels; app.settingIcons = icons;
             BuildSettingAction(app, screen, 2, "投稿を更新", "更新する", "OnSettingsReload", font, tk);
             BuildSettingAction(app, screen, 3, "最初から(気になる選択も消える)", "最初から", "OnSettingsRestart", font, tk);
+            BuildSettingAction(app, screen, 4, "画像を解放(アプリを閉じる)", "解放する", "OnSettingsReleaseImages", font, tk);
             screen.gameObject.SetActive(false);
             return screen.gameObject;
         }
