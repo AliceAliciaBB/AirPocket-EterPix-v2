@@ -37,6 +37,50 @@ namespace EterPixNudeNyang
         private int _current = -1;
         private int _loadedCount;
 
+        // ---- 高画質(pad の写真 1 枚. ユーザーが貼った VRCUrl で取る) ----
+        public const int HqNone = 0;
+        public const int HqLoading = 1;
+        public const int HqLoaded = 2;
+        public const int HqFailed = 3;
+        private const int HqSlot = -2; // _current がこの値なら、取得中は高画質
+        private int _hqState = HqNone;
+        private VRCUrl _hqUrl;
+        private bool _hqPending;      // 取得待ち(コラージュの取得中の1枚を待っている)
+        private int _hqPost = -1;     // どの投稿の写真か(feed の添字)
+        private Texture2D _hqTex;
+        private string _hqError = "";
+
+        // 高画質を取る. 取得中の1枚(5秒制限)が終わり次第、コラージュより先に取る. 前の高画質は捨てる
+        public bool RequestHq(VRCUrl url, int post)
+        {
+            if (url == null || VRCUrl.IsNullOrEmpty(url)) return false;
+            ClearHq();
+            _hqUrl = url;
+            _hqPost = post;
+            _hqPending = true;
+            _hqState = HqLoading;
+            _hqError = "";
+            Debug.Log("[EtpTrace] hq request post=" + post + " busy=" + _busy);
+            StartNext();
+            return true;
+        }
+
+        public int HqStatus() { return _hqState; }
+        public int HqPostIndex() { return _hqPost; }
+        public string HqErrorText() { return _hqError; }
+        public Texture2D GetHqTexture() { return _hqState == HqLoaded ? _hqTex : null; }
+
+        // 高画質を捨てる(Zoom を閉じたとき・取り直すとき・画像の解放). 取得中なら、届いたものを捨てる
+        public void ClearHq()
+        {
+            if (_hqTex != null) { Destroy(_hqTex); _hqTex = null; }
+            if (_hqPending) _hqPending = false;
+            else if (_busy && _current == HqSlot) _discardCurrent = true;
+            _hqState = HqNone;
+            _hqPost = -1;
+            _hqError = "";
+        }
+
         private void Start()
         {
             for (int i = 0; i < Slots; i++) _priority[i] = Unneeded;
@@ -101,6 +145,7 @@ namespace EterPixNudeNyang
                 _priority[i] = Unneeded;
             }
             _loadedCount = 0;
+            ClearHq(); // 高画質も捨てる
             if (_busy) _discardCurrent = true;
             Debug.Log("[EtpTrace] img release all freed=" + freed + " discardCurrent=" + _discardCurrent);
         }
@@ -132,6 +177,15 @@ namespace EterPixNudeNyang
         private void StartNext()
         {
             if (_busy) return;
+            if (_hqPending)
+            {
+                _hqPending = false;
+                EnsureDownloader();
+                _busy = true;
+                _current = HqSlot;
+                _downloader.DownloadImage(_hqUrl, null, (IUdonEventReceiver)this, null);
+                return;
+            }
             int best = -1;
             int bestPriority = Unneeded;
             for (int i = 0; i < Slots; i++)
@@ -159,6 +213,25 @@ namespace EterPixNudeNyang
             _busy = false;
             int coid = _current;
             _current = -1;
+            if (coid == HqSlot)
+            {
+                if (_discardCurrent)
+                {
+                    _discardCurrent = false;
+                    if (result.Result != null) Destroy(result.Result);
+                    Debug.Log("[EtpTrace] hq discarded (cleared while downloading)");
+                }
+                else
+                {
+                    if (_hqTex != null) Destroy(_hqTex);
+                    _hqTex = result.Result;
+                    _hqState = HqLoaded;
+                    Debug.Log("[EtpTrace] hq loaded size=" + _hqTex.width + "x" + _hqTex.height + " post=" + _hqPost);
+                    if (owner != null) owner.SendCustomEvent("OnHqLoaded");
+                }
+                StartNext();
+                return;
+            }
             if (_discardCurrent)
             {
                 // 解放(ReleaseAll)の前に始まった取得: 捨てる
@@ -189,6 +262,19 @@ namespace EterPixNudeNyang
             _busy = false;
             int coid = _current;
             _current = -1;
+            if (coid == HqSlot)
+            {
+                if (_discardCurrent) _discardCurrent = false;
+                else
+                {
+                    _hqState = HqFailed;
+                    _hqError = result.ErrorMessage;
+                    Debug.Log("[EtpTrace] hq error=" + result.ErrorMessage + " post=" + _hqPost);
+                    if (owner != null) owner.SendCustomEvent("OnHqFailed");
+                }
+                StartNext();
+                return;
+            }
             if (_discardCurrent)
             {
                 _discardCurrent = false;

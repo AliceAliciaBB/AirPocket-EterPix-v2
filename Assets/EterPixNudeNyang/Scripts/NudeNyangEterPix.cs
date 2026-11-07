@@ -1,6 +1,7 @@
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
+using VRC.SDK3.Components;
 using UnityEngine.UI;
 using TMPro;
 
@@ -154,7 +155,6 @@ namespace NudeNyang
         public TMP_Text[] rowNames;
         public TMP_Text[] rowWorlds;
         public InputField[] rowWebFields;
-        public InputField[] rowHqFields;
         public GameObject[] rowPortalButtons;
         public TMP_Text[] rowNoWorld;
         [HideInInspector] public int[] likedIndices = new int[0];
@@ -169,6 +169,22 @@ namespace NudeNyang
         public TMP_Text zoomWorld;
         [HideInInspector] public int zoomMode; // 0=閉じている 1=情報帯あり 2=UIなし
         [HideInInspector] public int zoomIndex = -1;
+
+        // ---- コピーページ(共通. 一覧の上に重ねる、自分だけの全面. screen は変えず、同期もしない) ----
+        // 流れ: 1 コピー欄でURLをコピー → 2 ペースト欄に貼る → 一致したら取得して結果を出す. いまの呼び出し元は「高画質」だけ
+        public const int CopyHq = 0;
+        public const string PadUrlPrefix = "https://eterpix.com/api/vrc/v1/pad/";
+        public GameObject copyScreen;
+        public TMP_Text copyHeading;
+        public TMP_Text copyDetail;
+        public TMP_Text copyStatus;
+        public InputField copyField;
+        public TMP_Text copyUrlLabel; // コピー欄に重ねて見せる、コピーするURL(コピー欄の文字は隠してあるため)
+        public VRCUrlInputField copyPasteField;
+        [HideInInspector] public int copyKind = -1;
+        [HideInInspector] public int copyPost = -1;
+        private string copyExpected = "";
+        private bool hqWaiting;
 
         // 起動画面
         public GameObject loadingRow;
@@ -378,7 +394,7 @@ namespace NudeNyang
                     }
                     else { images.Want(feed.Coid[zi], 0); needRetry = true; }
                 }
-                else if (zoomMode != 0) { zoomMode = 0; zoomIndex = -1; zoomRoot.SetActive(false); }
+                else if (zoomMode != 0) { zoomMode = 0; zoomIndex = -1; zoomRoot.SetActive(false); if (images != null) images.ClearHq(); }
             }
             returnScreen = sReturn; overlayBack = sBack;
             if (screen != sScreen) ShowScreen(sScreen);
@@ -875,7 +891,6 @@ namespace NudeNyang
                 rowPortalButtons[k].SetActive(hasWorld && portalEnabled);
                 if (rowPortalLabels != null && rowPortalLabels.Length > k) rowPortalLabels[k].text = PortalLabel(post);
                 SetCopyText(rowWebFields[k], "https://eterpix.com/web/post/" + feed.Poid[post]);
-                SetCopyText(rowHqFields[k], "https://eterpix.com/api/vrc/v1/pad/" + feed.Poid[post]);
                 int coid = feed.Coid[post];
                 if (images != null) images.Want(coid, k);
                 BindThumb(k, post);
@@ -907,6 +922,7 @@ namespace NudeNyang
         public void OnCopyEnd()
         {
             if (infoUrlField != null) SetCopyText(infoUrlField, InfoUrl); // 情報ページのURL欄も元の値へ戻す
+            if (copyField != null && copyScreen != null && copyScreen.activeSelf) SetCopyText(copyField, copyExpected); // コピーページの欄も
             ResetGroupFields();
             RebindList();
             SendCustomEventDelayedFrames(nameof(RebindList), 2);
@@ -928,6 +944,116 @@ namespace NudeNyang
         public void RebindList()
         {
             if (screen == ScreenList) UpdateListRows(true);
+        }
+
+        // ---- コピーページ ----
+
+        public void OnRowHq0() { RowHq(0); }
+        public void OnRowHq1() { RowHq(1); }
+        public void OnRowHq2() { RowHq(2); }
+        public void OnRowHq3() { RowHq(3); }
+        public void OnRowHq4() { RowHq(4); }
+        public void OnRowHq5() { RowHq(5); }
+        public void OnRowHq6() { RowHq(6); }
+        public void OnRowHq7() { RowHq(7); }
+
+        private void RowHq(int k)
+        {
+            int item = listFirst + k;
+            if (screen != ScreenList || item < 0 || item >= likedIndices.Length) return;
+            OpenCopy(CopyHq, likedIndices[item]);
+        }
+
+        // コピーページを開く(kind: 何をコピーさせるか. いまは CopyHq だけ)
+        public void OpenCopy(int kind, int post)
+        {
+            if (copyScreen == null || feed == null || post < 0 || post >= feed.Count || !Take()) return;
+            copyKind = kind;
+            copyPost = post;
+            copyExpected = kind == CopyHq ? PadUrlPrefix + feed.Poid[post] : "";
+            hqWaiting = false;
+            if (copyHeading != null) copyHeading.text = kind == CopyHq ? "高画質で見る" : "";
+            if (copyDetail != null) copyDetail.text = kind == CopyHq
+                ? feed.UserLabel[post] + (string.IsNullOrEmpty(feed.WorldLabel[post]) ? "" : " ・ " + feed.WorldLabel[post]) : "";
+            SetCopyText(copyField, copyExpected);
+            if (copyUrlLabel != null) copyUrlLabel.text = copyExpected;
+            if (copyPasteField != null) copyPasteField.SetUrl(VRCUrl.Empty);
+            SetCopyStatus("");
+            copyScreen.SetActive(true);
+            Debug.Log("[EtpTrace] eterpix-app copy open kind=" + kind + " post=" + post);
+            MarkDirty();
+        }
+
+        // 戻る(コピーせずに一覧へ). 取得中ならやめる
+        public void OnCopyBack()
+        {
+            if (!Take()) return;
+            CloseCopy();
+        }
+
+        private void CloseCopy()
+        {
+            if (copyScreen == null || !copyScreen.activeSelf) return;
+            copyScreen.SetActive(false);
+            if (hqWaiting) { hqWaiting = false; if (images != null) images.ClearHq(); }
+            copyKind = -1; copyPost = -1; copyExpected = "";
+            Debug.Log("[EtpTrace] eterpix-app copy closed");
+        }
+
+        private void SetCopyStatus(string text)
+        {
+            if (copyStatus != null) copyStatus.text = text;
+        }
+
+        // ペースト欄の入力が終わった(VRChat の入力UIを閉じた). 空は何もしない. 期待したURLと完全一致しなければ、画面は更新しない
+        public void OnCopyPasteEnd()
+        {
+            if (copyScreen == null || !copyScreen.activeSelf || copyPasteField == null || !Take()) return;
+            VRCUrl url = copyPasteField.GetUrl();
+            if (VRCUrl.IsNullOrEmpty(url)) { SetCopyStatus(""); return; }
+            if (string.IsNullOrEmpty(copyExpected) || url.Get().Trim() != copyExpected)
+            {
+                Debug.Log("[EtpTrace] eterpix-app copy paste mismatch");
+                SetCopyStatus("この投稿の URL と違います。手順1でもう一度コピーしてください");
+                copyPasteField.SetUrl(VRCUrl.Empty);
+                return;
+            }
+            if (hqWaiting) return; // 取得中の二重送信
+            if (copyKind == CopyHq) AcceptHq(url);
+        }
+
+        private void AcceptHq(VRCUrl url)
+        {
+            if (images == null || !images.RequestHq(url, copyPost)) { SetCopyStatus("読み込みを始められませんでした"); return; }
+            hqWaiting = true;
+            SetCopyStatus("高画質を読み込み中…");
+            Debug.Log("[EtpTrace] eterpix-app hq accepted post=" + copyPost);
+        }
+
+        // EterPixAppImages から呼ばれる(高画質が届いた・失敗した)
+        public void OnHqLoaded()
+        {
+            if (!hqWaiting) return;
+            hqWaiting = false;
+            int post = images.HqPostIndex();
+            copyScreen.SetActive(false);
+            copyKind = -1; copyPost = -1; copyExpected = "";
+            if (post < 0 || post >= feed.Count) { images.ClearHq(); return; }
+            zoomIndex = post;
+            zoomMode = 1;
+            zoomRoot.SetActive(true);
+            RefreshZoom();
+            MarkDirty();
+        }
+
+        public void OnHqFailed()
+        {
+            if (!hqWaiting) return;
+            hqWaiting = false;
+            string err = images != null ? images.HqErrorText() : "";
+            if (err != null && err.Contains("Not trusted url hit")) SetCopyStatus("「Allow Untrusted URLs」をONにしてください");
+            else SetCopyStatus("読み込みに失敗しました。もう一度貼り直してください");
+            if (copyPasteField != null) copyPasteField.SetUrl(VRCUrl.Empty);
         }
 
         public void OnRowPhoto0() { RowPhoto(0); }
@@ -1078,6 +1204,7 @@ namespace NudeNyang
                 zoomMode = 0;
                 zoomIndex = -1;
                 zoomRoot.SetActive(false);
+                if (images != null) images.ClearHq(); // 高画質は1枚だけ持つ. 閉じたら捨てる
             }
             Debug.Log("[EtpTrace] eterpix-app zoom mode=" + zoomMode);
             MarkDirty();
@@ -1086,13 +1213,27 @@ namespace NudeNyang
         private void RefreshZoom()
         {
             if (zoomMode == 0 || zoomIndex < 0) return;
-            Texture2D tex = images.GetTexture(feed.Coid[zoomIndex]);
+            // 高画質を貼った本人の画面だけ、フル画質の写真を出す(他の人・貼っていない間はコラージュ)
+            Texture2D hq = images.GetHqTexture();
+            bool useHq = hq != null && images.HqPostIndex() == zoomIndex;
+            Texture2D tex = useHq ? hq : images.GetTexture(feed.Coid[zoomIndex]);
             if (tex == null) { zoomMode = 0; zoomRoot.SetActive(false); return; }
             Vector2 pf = PanelFrame();
-            int turns = geometry.DisplayTurns(feed.Coro[zoomIndex], pf.x, pf.y);
-            zoomPhoto.texture = tex;
-            zoomPhoto.uvRect = geometry.CellUv(feed.Copo[zoomIndex]);
-            zoomPhotoRect.sizeDelta = geometry.FitSize(pf.x, pf.y, turns);
+            int turns;
+            if (useHq)
+            {
+                turns = geometry.HqDisplayTurns(feed.Coro[zoomIndex], hq.width, hq.height, pf.x, pf.y);
+                zoomPhoto.texture = hq;
+                zoomPhoto.uvRect = new Rect(0f, 0f, 1f, 1f);
+                zoomPhotoRect.sizeDelta = geometry.HqFitSize(hq.width, hq.height, pf.x, pf.y, turns);
+            }
+            else
+            {
+                turns = geometry.DisplayTurns(feed.Coro[zoomIndex], pf.x, pf.y);
+                zoomPhoto.texture = tex;
+                zoomPhoto.uvRect = geometry.CellUv(feed.Copo[zoomIndex]);
+                zoomPhotoRect.sizeDelta = geometry.FitSize(pf.x, pf.y, turns);
+            }
             zoomPhotoRect.localRotation = Quaternion.Euler(0f, 0f, turns * -90f);
             zoomUser.text = feed.UserLabel[zoomIndex];
             zoomWorld.text = feed.WorldLabel[zoomIndex];
@@ -1443,6 +1584,7 @@ namespace NudeNyang
         public void ShowScreen(int next)
         {
             screen = next;
+            CloseCopy(); // どの画面へ移っても、コピーページは閉じる
             if (startScreen != null) startScreen.SetActive(next == ScreenStart);
             if (swipeScreen != null) swipeScreen.SetActive(next == ScreenSwipe);
             if (infoScreen != null) infoScreen.SetActive(next == ScreenInfo);

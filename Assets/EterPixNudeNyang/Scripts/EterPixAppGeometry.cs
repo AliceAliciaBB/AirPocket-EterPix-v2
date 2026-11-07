@@ -54,6 +54,41 @@ namespace EterPixNudeNyang
             return new Vector2(CellAspectW * scale, CellAspectH * scale);
         }
 
+        // ---- 高画質(pad の写真. 回転前の原画像で、coro・poro は付かない) ----
+        // 写真を正立させるために時計回りに回す回数(0〜3). 向きの規則(2026-11-07 実画像2種で確認):
+        //   写真の縦横が「正立後の縦横(coro が奇数なら縦)」と一致していれば、すでに正立(coro が 2 のときだけ 180°)、
+        //   食い違っていれば coro 回(例: coro=3 で横長 → 3回. coro=1 で縦長 → 0回)
+        public int HqUprightTurns(int coro, int texW, int texH)
+        {
+            int c = ((coro % 4) + 4) % 4;
+            bool uprightPortrait = c % 2 == 1;
+            bool texPortrait = texH > texW;
+            if (uprightPortrait == texPortrait) return c % 2 == 0 ? c : 0;
+            return c;
+        }
+
+        // 表示枠(frameW × frameH)に対する回転数. 正立後の縦横が枠と食い違うときは、DisplayTurns と同じく反時計回りに90°足す
+        public int HqDisplayTurns(int coro, int texW, int texH, float frameW, float frameH)
+        {
+            int turns = HqUprightTurns(coro, texW, texH);
+            bool uprightLandscape = (((coro % 4) + 4) % 4) % 2 == 0;
+            bool frameLandscape = frameW >= frameH;
+            if (uprightLandscape != frameLandscape) turns = (turns + 3) % 4;
+            return turns;
+        }
+
+        // 回す前の向きでの RawImage の大きさ(写真の縦横比を保ち、回した後に枠へ収まる最大)
+        public Vector2 HqFitSize(int texW, int texH, float frameW, float frameH, int turns)
+        {
+            float w = Mathf.Max(1, texW);
+            float h = Mathf.Max(1, texH);
+            bool rotated = turns % 2 == 1;
+            float fitW = rotated ? h : w;
+            float fitH = rotated ? w : h;
+            float scale = Mathf.Min(frameW / fitW, frameH / fitH);
+            return new Vector2(w * scale, h * scale);
+        }
+
         // 一覧用: セルの中央を 1:1 に切り取る uvRect(横写真は左右、縦写真は上下が切れる).
         // セルの中央の正方形は、写真の中央の正方形でもある(回転しても同じ)ので、coro には依存しない
         public Rect SquareCropUv(int copo)

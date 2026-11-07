@@ -25,7 +25,7 @@ namespace EterPixNudeNyang
             "EterPixは、VRChatで撮影した写真を共有できるSNSです。このアプリでは、EterPixに投稿された公開写真を、スワイプで閲覧できます。R18の投稿は表示されません。\n\n" +
             "<b>スワイプで操作する</b>\n写真をドラッグして離します. 上へ離すと次の投稿、下へ離すと前の投稿、右へ離すと「気になる」の追加・解除(☆/★)、左へ離すとワールド情報を開きます. 離した位置が最初に押した位置から近いときは、何も起きません. 一度遠くへ動かしてから元の近くへ戻して離すと、操作を取り消せます. 矢印キーでも同じ操作ができます. 写真の四辺の帯(マウスを重ねると色が付く)を1回押しても、その辺の操作ができます.\n\n" +
             "<b>写真を拡大する</b>\n写真をすばやく2回押すと拡大します。もう一度押すと情報が消え、さらに押すと閉じます。\n\n" +
-            "<b>気になる投稿の一覧</b>\n右上の「気になる一覧」ボタンで、気になる投稿の一覧を開きます。「WEB」「高画質」を押すと、それぞれのURLをコピーできます。気になる印は、このインスタンスを出ると消えます。\n\n" +
+            "<b>気になる投稿の一覧</b>\n右上の「気になる一覧」ボタンで、気になる投稿の一覧を開きます。「WEB」を押すと、投稿ページのURLをコピーできます。「高画質」を押すとコピー用の画面が開き、手順に沿ってURLをコピー・貼り付けると、その投稿の高画質の写真を大きく見られます(閉じると一覧に戻ります)。気になる印は、このインスタンスを出ると消えます。\n\n" +
             "<b>ワールドの詳細とポータル</b>\n写真を左へスワイプすると、ワールドの名前・作者・説明が出ます。「ポータルを開く」で、撮影されたワールドへのポータルを開けます。詳細は、閉じるボタン・外側・右へのスワイプ(→キー)で閉じます。\n\n" +
             "<b>新しい投稿を読み込む</b>\n右上の歯車を開いて、「投稿を更新」の[更新する]を押すと、投稿を読み直します。見ている位置と気になる印は引き継がれます。「最初から」の[最初から]は、先頭の投稿に戻り、気になる選択も消します(確認が出ます)。\n\n" +
             "<b>設定</b>\n右上の歯車で、表示色(黒/白)と、進む・戻るの左右入れ替えを変えられます。入れ替えは自分の画面だけで、このインスタンスを出ると元に戻ります。\n\n" +
@@ -132,6 +132,7 @@ namespace EterPixNudeNyang
             app.infoScreen = BuildInfo(app, root, font, tk);
             app.groupScreen = BuildGroup(app, root, font, tk);
             app.settingsScreen = BuildSettings(app, root, font, tk);
+            app.copyScreen = BuildCopy(app, root, font, tk); // 一覧の上に重ねる。他の画面より後に作る(前面)
 
             BuildZoom(app, root, font);
             BuildConfirm(app, root, font, tk);
@@ -487,7 +488,7 @@ namespace EterPixNudeNyang
             int pool = NudeNyangEterPix.RowPool;
             app.rowRoots = new GameObject[pool]; app.rowThumbs = new RawImage[pool];
             app.rowNames = new TMP_Text[pool]; app.rowWorlds = new TMP_Text[pool]; app.rowDes = new TMP_Text[pool];
-            app.rowWebFields = new InputField[pool]; app.rowHqFields = new InputField[pool];
+            app.rowWebFields = new InputField[pool];
             app.rowPortalButtons = new GameObject[pool]; app.rowNoWorld = new TMP_Text[pool]; app.rowPortalLabels = new TMP_Text[pool];
             for (int k = 0; k < pool; k++) BuildRow(app, contentRt, k, font, tk);
 
@@ -565,12 +566,20 @@ namespace EterPixNudeNyang
             app.rowPortalLabels[k] = pLabel;
             portal.gameObject.SetActive(false);
 
-            var hq = CopyButton(app, row, "HQ Button", "高画質", font, tk, -(PortalW + BtnGap), HqW, BtnH, BtnFs, 0f);
+            // 高画質: 押すとコピーページ(別ページ)が開く. 見た目は従来の WEB と同じ文字ボタン
+            var hq = Box(row, "HQ Button", tk.btn);
+            hq.anchorMin = hq.anchorMax = new Vector2(1, 0); hq.pivot = new Vector2(1, 0);
+            hq.sizeDelta = new Vector2(HqW, BtnH); hq.anchoredPosition = new Vector2(-(PortalW + BtnGap), 0f);
+            var hqBtn = hq.gameObject.AddComponent<Button>(); hqBtn.targetGraphic = hq.GetComponent<Image>(); hqBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+            var hqLabel = Label(hq, "Label", "高画質", font, BtnFs, TextAlignmentOptions.Center, tk.text);
+            hqLabel.enableWordWrapping = false;
+            Anchor(hqLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            Wire(hqBtn, app, "OnRowHq" + k);
             var web = CopyButton(app, row, "Web Button", "WEB", font, tk, -(PortalW + BtnGap + HqW + BtnGap), WebW, BtnH, BtnFs, 0f);
 
             app.rowRoots[k] = row.gameObject; app.rowThumbs[k] = raw;
             app.rowNames[k] = name; app.rowWorlds[k] = world; app.rowNoWorld[k] = noWorld;
-            app.rowWebFields[k] = web; app.rowHqFields[k] = hq; app.rowPortalButtons[k] = portal.gameObject;
+            app.rowWebFields[k] = web; app.rowPortalButtons[k] = portal.gameObject;
         }
 
         // コピー用ボタン: 見た目はラベル、中身は文字を隠した InputField(押すとVRChatの入力UIが開き、そこでコピーできる).
@@ -932,6 +941,80 @@ namespace EterPixNudeNyang
             screenGo.SetActive(false);
             return screenGo;
         }
+
+        // コピーページ(共通): 戻る・見出し・説明・手順1(コピー欄)・手順2(ペースト欄)・状態文. 一覧の上に重ねる全面(ヘッダー・フッターは残す).
+        // NudeNyang の検索ページの受け渡し(コピー欄 → ペースト欄 → 確認)を見本にしたが、広告・同期・多言語は持たず、EterPix-app の規則に合わせる
+        // (長方形・線なし・面の色はボタンと入力欄だけ・フォントは1種). コピー欄・ペースト欄は押すとVRChatの入力UIが開く
+        static void Top(RectTransform rt, float top, float h)
+        {
+            Anchor(rt, 0, 1, 1, 1, new Vector2(Margin, -(top + h)), new Vector2(-Margin, -top));
+        }
+
+        static GameObject BuildCopy(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            var screen = Screen(root, "Copy Screen");
+            var bgImg = screen.gameObject.AddComponent<Image>(); // 下の一覧を隠し、触りを受け止める
+            tk.bg.Add(bgImg);
+
+            var back = TextButton(screen, "Back Button", "戻る", font, tk, app, "OnCopyBack", false);
+            Anchor(back, 0, 1, 0, 1, new Vector2(Margin, -(Margin + 52f)), new Vector2(Margin + 140f, -Margin));
+
+            var heading = Label(screen, "Heading", "", font, 29, TextAlignmentOptions.MidlineLeft, tk.text);
+            heading.enableWordWrapping = false;
+            Top(heading.rectTransform, 84f, 43f);
+            var detail = Label(screen, "Detail", "", font, 22, TextAlignmentOptions.MidlineLeft, tk.sub);
+            detail.enableWordWrapping = false; detail.overflowMode = TextOverflowModes.Ellipsis;
+            Top(detail.rectTransform, 127f, 34f);
+
+            var step1 = Label(screen, "Step 1", "1. 下の欄を押して、URLをコピーしてください", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
+            step1.enableWordWrapping = false;
+            Top(step1.rectTransform, 185f, 36f);
+            // コピー欄: 文字を隠した InputField の上に、URLを出す固定のラベル(一覧の WEB と同じ方式). 終了時に元の値へ戻す
+            var copyField = CopyButton(app, screen, "Copy Field", "", font, tk, 0, 100, CopyFieldH, 22, 0);
+            var copyRt = (RectTransform)copyField.transform;
+            copyRt.pivot = new Vector2(0, 1);
+            Top(copyRt, 225f, CopyFieldH);
+            var urlLabel = copyField.transform.Find("Label").GetComponent<TMP_Text>();
+            urlLabel.alignment = TextAlignmentOptions.MidlineLeft;
+            urlLabel.enableAutoSizing = true; urlLabel.fontSizeMin = 12; urlLabel.fontSizeMax = 22;
+            urlLabel.rectTransform.offsetMin = new Vector2(12, 0); urlLabel.rectTransform.offsetMax = new Vector2(-12, 0);
+
+            var step2 = Label(screen, "Step 2", "2. 下の欄を押して、コピーしたURLを貼り付けてください", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
+            step2.enableWordWrapping = false;
+            Top(step2.rectTransform, 301f, 36f);
+            // ペースト欄: VRCUrlInputField(VRChat では、貼られたURLだけが実行時にVRCUrlとして使える)
+            var paste = Box(screen, "Paste Field", tk.btn);
+            paste.pivot = new Vector2(0, 1);
+            Top(paste, 341f, CopyFieldH);
+            var pasteImg = paste.GetComponent<Image>();
+            var valueGo = new GameObject("Value", typeof(RectTransform), typeof(Text), typeof(CanvasGroup));
+            var valueRt = (RectTransform)valueGo.transform; valueRt.SetParent(paste, false);
+            Anchor(valueRt, 0, 0, 1, 1, new Vector2(8, 4), new Vector2(-8, -4));
+            var valueText = valueGo.GetComponent<Text>();
+            valueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); valueText.fontSize = 18; valueText.raycastTarget = false;
+            var cg = valueGo.GetComponent<CanvasGroup>(); cg.alpha = 0; cg.blocksRaycasts = false; cg.interactable = false;
+            var pasteField = paste.gameObject.AddComponent<VRC.SDK3.Components.VRCUrlInputField>();
+            pasteField.targetGraphic = pasteImg; pasteField.textComponent = valueText;
+            pasteField.customCaretColor = true; pasteField.caretColor = Color.clear; pasteField.selectionColor = Color.clear;
+            pasteField.transition = Selectable.Transition.None; pasteField.navigation = new Navigation { mode = Navigation.Mode.None };
+            pasteField.AllowSendingOnEndEdit = true;
+            pasteField.SetUrl(VRC.SDKBase.VRCUrl.Empty);
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(pasteField.onEndEdit,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnCopyPasteEnd");
+            var pasteLabel = Label(paste, "Label", "ここを押して貼り付け", font, 22, TextAlignmentOptions.MidlineLeft, tk.sub);
+            pasteLabel.enableWordWrapping = false;
+            Anchor(pasteLabel.rectTransform, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, 0));
+
+            var status = Label(screen, "Status", "", font, 24, TextAlignmentOptions.TopLeft, tk.text);
+            Top(status.rectTransform, 417f, 72f);
+
+            app.copyHeading = heading; app.copyDetail = detail; app.copyStatus = status;
+            app.copyField = copyField; app.copyUrlLabel = urlLabel; app.copyPasteField = pasteField;
+            screen.gameObject.SetActive(false);
+            return screen.gameObject;
+        }
+
+        const float CopyFieldH = 60f;
 
         // 設定画面: 見出し「設定」・行1「テーマ [黒|白]」・行2「進む・戻るを入れ替え [しない|する]」. 端から Margin(16)ずつ.
         // 選択中の側は accent 色. 色は実行時(RefreshSettings)に決める(テーマの塗り直しで上書きされないよう、トークンには入れない)

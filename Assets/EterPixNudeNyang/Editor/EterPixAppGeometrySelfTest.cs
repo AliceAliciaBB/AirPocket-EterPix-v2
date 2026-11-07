@@ -59,6 +59,22 @@ public static class EterPixAppGeometrySelfTest
             Fit(g, 200, 100, 0);
             Fit(g, 100, 200, 1);
 
+            // 高画質: 実画像の標本(coro=3 は 2048x1152 で横倒し, coro=1 は 1153x2048 で正立済み)
+            Int(g.HqUprightTurns(3, 2048, 1152), 3, "hq upright coro3 横長");
+            Int(g.HqUprightTurns(1, 1153, 2048), 0, "hq upright coro1 縦長");
+            Int(g.HqUprightTurns(0, 2048, 1152), 0, "hq upright coro0 横長");
+            Int(g.HqUprightTurns(2, 2048, 1152), 2, "hq upright coro2 横長");
+            Int(g.HqUprightTurns(1, 2048, 1152), 1, "hq upright coro1 横長(未確認の標本)");
+            Int(g.HqDisplayTurns(0, 2048, 1152, 160, 90), 0, "hq turns coro0 横枠");
+            Int(g.HqDisplayTurns(3, 2048, 1152, 160, 90), 2, "hq turns coro3 横長 横枠(正立=縦なので反時計に90°足す)");
+            Int(g.HqDisplayTurns(1, 1153, 2048, 160, 90), 3, "hq turns coro1 縦長 横枠");
+            Int(g.HqDisplayTurns(1, 1153, 2048, 90, 160), 0, "hq turns coro1 縦長 縦枠");
+            Int(g.HqDisplayTurns(3, 2048, 1152, 90, 160), 3, "hq turns coro3 横長 縦枠");
+            HqFit(g, 2048, 1152, 160, 90, 0);
+            HqFit(g, 1153, 2048, 160, 90, 3);
+            HqFit(g, 2048, 1152, 90, 160, 3);
+            HqFit(g, 1153, 2048, 90, 160, 0);
+
             // 一覧用の正方形切り出し: セルの中央、幅は 9/16
             Rect sq = g.SquareCropUv(1);
             Rect(sq, (0.5f - 0.28125f) * 0.5f, 2f / 3f, 0.28125f, 1f / 3f, "square1");
@@ -80,6 +96,18 @@ public static class EterPixAppGeometrySelfTest
         bool touches = Mathf.Abs(w - fw) < 0.001f || Mathf.Abs(h - fh) < 0.001f;
         bool aspect = Mathf.Abs(s.x / s.y - 16f / 9f) < 0.001f;
         Bool(fitsInside && touches && aspect, true, "fit " + fw + "x" + fh + " turns=" + turns);
+    }
+
+    static void HqFit(EterPixAppGeometry g, int tw, int th, float fw, float fh, int turns)
+    {
+        Vector2 s = g.HqFitSize(tw, th, fw, fh, turns);
+        bool rotated = turns % 2 == 1;
+        float w = rotated ? s.y : s.x;
+        float h = rotated ? s.x : s.y;
+        bool fitsInside = w <= fw + 0.001f && h <= fh + 0.001f;
+        bool touches = Mathf.Abs(w - fw) < 0.001f || Mathf.Abs(h - fh) < 0.001f;
+        bool aspect = Mathf.Abs(s.x / s.y - (float)tw / th) < 0.001f;
+        Bool(fitsInside && touches && aspect, true, "hqfit " + tw + "x" + th + " in " + fw + "x" + fh + " turns=" + turns);
     }
 
     static void Rect(Rect actual, float x, float y, float w, float h, string label)
