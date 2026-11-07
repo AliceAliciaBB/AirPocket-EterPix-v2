@@ -218,9 +218,8 @@ namespace NudeNyang
         public Color lightText = new Color(0.078f, 0.078f, 0.078f, 1f);
         public Color lightSub = new Color(0.38f, 0.38f, 0.38f, 1f);
 
-        // 起動時に先に取っておくコラージュの枚数. これが取れたら「push to start」を出す.
-        // 5秒間隔で1枚ずつなので、全部(約26枚)を待つと約130秒かかる. 残りは開始後に裏で取る.
-        // 仮の値(合意書「ロードの定義」が未決. 決まり次第この値を調整する)
+        // (追加計画Xで未使用になった. シーンに保存された値との互換のため残す. 起動時に待つ枚数は FirstLoadCount = 1.
+        // 5秒間隔で1枚ずつ取るので、1枚が揃ったらすぐスワイプ画面へ入り、残りは裏で取る)
         public int startupPreload = 3;
 
         [HideInInspector] public int screen = ScreenStart;
@@ -239,6 +238,13 @@ namespace NudeNyang
         private bool themeApplied;
         private bool started;
 
+        // ロード開始の許可(ユーザーごと・自分の端末だけ・同期しない). OFF の間は投稿データも画像も一切取らない.
+        // 他のプレイヤーが取得していても、Quest や弱い PC の端末が巻き込まれないようにするため(計画書 追加計画X).
+        // 「ロードする」で ON、設定の「画像を解放」(タスクキル)で OFF に戻る
+        private bool loadAllowed;
+        // 「ロードする」の直後に、スワイプ画面へ入るために必ず待つコラージュの枚数(残りの先読みは入った後の ShowCard の窓が担う)
+        private const int FirstLoadCount = 1;
+
         // NudeNyangTabletShell から毎フレーム呼ばれる(パッチP6)
         public void Present()
         {
@@ -251,14 +257,13 @@ namespace NudeNyang
                 if (!show) CancelPortal();
                 Debug.Log("[EtpTrace] eterpix-app visible=" + show);
             }
-            // 初めて開いたときに投稿を取りに行く(VRChatのダウンロードは5秒間隔なので、開くまで取らない)
+            // 初めて開いたときは起動画面(「ロードする」)を出すだけ. 投稿も画像も、ユーザーが「ロードする」を押す(loadAllowed が ON になる)まで取らない
             if (show && !fetchStarted && feed != null)
             {
                 fetchStarted = true;
                 if (!themeApplied) { themeApplied = true; ApplyTheme(); }
                 ShowScreen(ScreenStart);
                 RefreshStart();
-                feed.Fetch();
             }
             if (!show) return;
             RelayoutCopyIfNeeded();
@@ -320,8 +325,8 @@ namespace NudeNyang
                 nextSend = Time.unscaledTime + SyncInterval;
                 SendSync();
             }
-            // 受けた状態は、自分のフィード・画像が揃ってから適用する
-            if (pendingRemote && Time.unscaledTime >= retryAt && visible && feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk) ApplyRemote();
+            // 受けた状態は、自分のフィード・画像が揃ってから適用する(自分がロードを許可していない間は溜めるだけ. 適用すると取得が始まるため)
+            if (pendingRemote && loadAllowed && Time.unscaledTime >= retryAt && visible && feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk) ApplyRemote();
         }
 
         private void SendSync()
@@ -739,6 +744,7 @@ namespace NudeNyang
         public void OnFeedChanged()
         {
             Debug.Log("[EtpTrace] eterpix-app feed status=" + feed.Status + " count=" + feed.Count);
+            if (!loadAllowed) return; // 許可がない間に届いた分は使わない
             if (reloading) { FinishReload(); return; }
             if (feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk) PlanStartup();
             RefreshStart();
@@ -1546,33 +1552,59 @@ namespace NudeNyang
             OnRestartAsk();
         }
 
-        // 設定画面「画像を解放」[解放する]: 取得済みの画像を全部捨て、アプリを閉じてホームへ戻る(自分のタブレットだけ・同期しない).
-        // 位置と気になるは残す. 次に開くと起動画面になり、いまの位置の近くの画像だけ取り直して push to start で続きから見られる
+        // 設定画面「画像を解放」[解放する] = タスクキル: 取得済みの画像を全部捨て、ロードの許可(loadAllowed)を OFF に戻し、
+        // アプリを閉じてホームへ戻る(自分のタブレットだけ・同期しない). 次に「ロードする」を押すまで、通信・取得を一切しない.
+        // 位置と気になるは残す. 次に「ロードする」を押すと、いまの位置の画像から取り直して、そのままスワイプ画面で続きから見られる
         private bool resumeOnStart;
 
         public void OnSettingsReleaseImages()
         {
             if (!started || reloading || images == null) return;
-            images.ReleaseAll();
+            loadAllowed = false;
+            images.SetAllowed(false); // 画像・高画質・取得待ちを捨て、以降の取得を断る(取得中の1枚は届いたら捨てる)
+            if (feed != null) feed.SetAllowed(false);
             started = false;
             ready = false;
             resumeOnStart = true;
+            syncDirty = false;
+            // 起動画面へ戻すが、これは自分だけの状態. 他の人の画面を引き戻さないよう、同期の送信を抑える
+            bool prevApplying = applyingRemote;
+            applyingRemote = true;
             ShowScreen(ScreenStart);
-            PlanResume();
+            applyingRemote = prevApplying;
             RefreshStart();
-            Debug.Log("[EtpTrace] eterpix-app release images -> home cursor=" + cursor);
+            Debug.Log("[EtpTrace] eterpix-app release images -> loadAllowed=false home cursor=" + cursor);
             if (pad != null && pad.shell != null) pad.shell.GoHome();
         }
 
-        // いまの位置から startupPreload 枚ぶんの(重複しない)コラージュを先に取る(気になるは触らない)
+        // 起動画面「ロードする」: ここで初めて、投稿データと画像の取得を許可する(自分だけ・同期しない)
+        public void OnLoadStart()
+        {
+            if (loadAllowed || feed == null || images == null) return;
+            loadAllowed = true;
+            feed.SetAllowed(true);
+            images.SetAllowed(true);
+            Debug.Log("[EtpTrace] eterpix-app load start (loadAllowed=true) feedStatus=" + feed.Status + " resume=" + resumeOnStart);
+            if (feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk && feed.Count > 0)
+            {
+                PlanResume(); // 解放後: 持っている投稿データのまま、いまの位置から取り直す(位置・気になるを残す)
+            }
+            else
+            {
+                feed.Fetch(); // 初回(または取得に失敗していた): 届いたら OnFeedChanged → PlanStartup
+            }
+            RefreshStart();
+        }
+
+        // いまの位置から FirstLoadCount 枚ぶんの(重複しない)コラージュを先に取る(気になるは触らない)
         private void PlanResume()
         {
-            if (images == null || feed == null || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk) return;
+            if (images == null || feed == null || !loadAllowed || feed.Status != EterPixNudeNyang.EterPixAppFeed.StatusOk) return;
             bool[] seen = new bool[256];
             int wanted = 0;
             int from = cursor < feed.Count ? cursor : 0;
             images.BeginWindow();
-            for (int i = from; i < feed.Count && wanted < startupPreload; i++)
+            for (int i = from; i < feed.Count && wanted < FirstLoadCount; i++)
             {
                 int coid = feed.Coid[i];
                 if (coid < 0 || coid > 255 || seen[coid]) continue;
@@ -1587,19 +1619,19 @@ namespace NudeNyang
         // 起動画面の再読み込み(取得に失敗したときだけ出る): 投稿の取得をやり直す
         public void OnRetry()
         {
-            if (feed == null) return;
+            if (feed == null || !loadAllowed) return;
             feed.Fetch();
             RefreshStart();
         }
 
-        // 先頭から startupPreload 枚ぶんの(重複しない)コラージュを先に取る
+        // 先頭から FirstLoadCount 枚ぶんの(重複しない)コラージュを先に取る
         private void PlanStartup()
         {
-            if (images == null) return;
+            if (images == null || !loadAllowed) return;
             bool[] seen = new bool[256];
             int wanted = 0;
             images.BeginWindow();
-            for (int i = 0; i < feed.Count && wanted < startupPreload; i++)
+            for (int i = 0; i < feed.Count && wanted < FirstLoadCount; i++)
             {
                 int coid = feed.Coid[i];
                 if (coid < 0 || coid > 255 || seen[coid]) continue;
@@ -1625,6 +1657,17 @@ namespace NudeNyang
                 needed = images.NeededCount();
                 settled = images.NeededSettledCount();
             }
+            // 許可前(開いた直後・画像を解放した後): 「ロードする」ボタンだけを出す. 何も取得しない
+            if (!loadAllowed)
+            {
+                ready = false;
+                loadingRow.SetActive(false);
+                if (startButton != null) startButton.SetActive(true);
+                if (retryButton != null) retryButton.SetActive(false);
+                if (statusLabel != null) statusLabel.gameObject.SetActive(false);
+                Debug.Log("[EtpTrace] eterpix-app start-refresh waiting for load (loadAllowed=false)");
+                return;
+            }
             bool failed = status == EterPixNudeNyang.EterPixAppFeed.StatusUntrusted
                 || status == EterPixNudeNyang.EterPixAppFeed.StatusServerError
                 || status == EterPixNudeNyang.EterPixAppFeed.StatusEmpty;
@@ -1635,13 +1678,19 @@ namespace NudeNyang
             int total = 1 + needed;
             int current = (status == EterPixNudeNyang.EterPixAppFeed.StatusOk ? 1 : 0) + settled;
             float p = failed ? 0f : (done ? 1f : (float)current / (float)total);
-            // 概算の残り時間: 画像1枚約5秒の見込みで、(1−進行率) × 先読み枚数 × 5秒(切り上げ)
-            int remain = Mathf.CeilToInt((1f - p) * startupPreload * 5f);
+            // 概算の残り時間: 画像1枚約5秒の見込みで、(1−進行率) × 最初に待つ枚数 × 5秒(切り上げ)
+            int remain = Mathf.CeilToInt((1f - p) * FirstLoadCount * 5f);
             if (percentLabel != null) percentLabel.text = Mathf.RoundToInt(p * 100f) + "%(残り約" + remain + "秒)";
             if (barFill != null) barFill.anchorMax = new Vector2(p, 1f);
 
             loadingRow.SetActive(!failed && !done);
-            if (startButton != null) startButton.SetActive(done);
+            if (startButton != null) startButton.SetActive(false); // 「ロードする」は許可前だけ
+            if (done)
+            {
+                // 最初の1枚が揃った(失敗してあきらめた場合も含む): ボタン待ちなしで、すぐスワイプ画面へ
+                EnterSwipe();
+                return;
+            }
             if (retryButton != null) retryButton.SetActive(failed);
             if (statusLabel != null)
             {
@@ -1718,9 +1767,10 @@ namespace NudeNyang
         public void OnInfo() { ToggleOverlay(ScreenInfo); }
         public void OnGroup() { ToggleOverlay(ScreenGroup); }
 
-        public void OnStart()
+        // 最初の1枚が揃ったら自動で呼ばれる(従来の「push to start」ボタンの代わり)
+        private void EnterSwipe()
         {
-            if (!ready || !Take()) return;
+            if (started || !ready) return;
             started = true;
             if (!resumeOnStart) cursor = 0;
             resumeOnStart = false;

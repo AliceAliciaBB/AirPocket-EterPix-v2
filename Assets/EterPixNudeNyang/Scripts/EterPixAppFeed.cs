@@ -45,10 +45,19 @@ namespace EterPixNudeNyang
         private bool _fetching;
         private bool _reloading;
         private int _busyRetry;
+        // ロード許可(ユーザーごと). false の間は、投稿データも取らない(Fetch / Reload が断る. 423 の再試行も実行時に断られる)
+        private bool _allowed;
+
+        public void SetAllowed(bool allowed)
+        {
+            _allowed = allowed;
+            if (!allowed) _busyRetry = 0;
+            Debug.Log("[EtpTrace] feed allowed=" + allowed);
+        }
 
         public void Fetch()
         {
-            if (_fetching) return;
+            if (_fetching || !_allowed) return;
             if (feedUrl == null || VRCUrl.IsNullOrEmpty(feedUrl))
             {
                 Debug.Log("[EtpTrace] feed: feedUrl が未設定です");
@@ -64,7 +73,7 @@ namespace EterPixNudeNyang
         // 読み直し: Status は動かさず(見ているデータをそのまま使い続け)、取れたら配列を入れ替えて通知する
         public void Reload()
         {
-            if (_fetching) return;
+            if (_fetching || !_allowed) return;
             _reloading = true;
             if (feedUrl == null || VRCUrl.IsNullOrEmpty(feedUrl)) { Finish(StatusServerError); return; }
             _fetching = true;

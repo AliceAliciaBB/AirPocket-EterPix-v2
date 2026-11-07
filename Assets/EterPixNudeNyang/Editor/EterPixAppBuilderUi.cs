@@ -813,16 +813,16 @@ namespace EterPixNudeNyang
             Anchor(fill, 0, 0, 0, 1, Vector2.zero, Vector2.zero);
             fill.anchorMax = new Vector2(0, 1);
 
-            // 開始ボタン(ロード完了後に出る)
+            // 「ロードする」ボタン(ロードの許可前だけ出る. 押すと投稿と画像の取得が始まり、最初の1枚が揃ったらスワイプ画面へ移る)
             var start = Box(screen, "Start Button", null);
             Anchor(start, 0.35f, 0.10f, 0.65f, 0.26f, Vector2.zero, Vector2.zero);
             var sImg = start.GetComponent<Image>(); sImg.color = Accent;
             var sBtn = start.gameObject.AddComponent<Button>(); sBtn.targetGraphic = sImg; sBtn.navigation = new Navigation { mode = Navigation.Mode.None };
-            var sLabel = Label(start, "Label", "push to start", font, 30, TextAlignmentOptions.Center, null);
+            var sLabel = Label(start, "Label", "ロードする", font, 30, TextAlignmentOptions.Center, null);
             sLabel.color = Dark;
             Anchor(sLabel.rectTransform, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
-            Wire(sBtn, app, "OnStart");
-            start.gameObject.SetActive(false);
+            Wire(sBtn, app, "OnLoadStart");
+            start.gameObject.SetActive(true); // 開いた直後は許可前なので最初から出す(RefreshStart が状態に合わせる)
 
             // 取得に失敗したときの表示(ロード行の代わりに出る)
             var status = Label(screen, "Status", "", font, 26, TextAlignmentOptions.Center, tk.text);

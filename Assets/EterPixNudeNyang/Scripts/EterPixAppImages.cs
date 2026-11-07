@@ -33,6 +33,8 @@ namespace EterPixNudeNyang
         private int[] _errors = new int[Slots];
         private VRCImageDownloader _downloader;
         private bool _busy;
+        // ロード許可(ユーザーごと). false の間は、取得を一切始めない(Want / EndWindow / StartNext / RequestHq が断る)
+        private bool _allowed;
         private bool _discardCurrent;
         private int _current = -1;
         private int _loadedCount;
@@ -55,7 +57,7 @@ namespace EterPixNudeNyang
         // 高画質を取る. 取得中の1枚(5秒制限)が終わり次第、コラージュより先に取る. 前の高画質は捨てる
         public bool RequestHq(VRCUrl url, int post)
         {
-            if (url == null || VRCUrl.IsNullOrEmpty(url)) return false;
+            if (!_allowed || url == null || VRCUrl.IsNullOrEmpty(url)) return false;
             ClearHq();
             _hqUrl = url;
             _keptUrl = url; _keptPost = post; // 直近の1件だけ保持(次に同じ投稿の「高画質」を押したとき、貼り直しなしで取り直す)
@@ -124,7 +126,7 @@ namespace EterPixNudeNyang
         // priority が小さいほど先に取る(現在のカードに近い順)。取得済みなら何もしない
         public void Want(int coid, int priority)
         {
-            if (coid < 0 || coid >= Slots) return;
+            if (!_allowed || coid < 0 || coid >= Slots) return;
             if (priority < _priority[coid]) _priority[coid] = priority;
             if (_state[coid] == StateNone || _state[coid] == StateFailed)
             {
@@ -138,6 +140,15 @@ namespace EterPixNudeNyang
         {
             Evict();
             StartNext();
+        }
+
+        // ロードの許可を切り替える(ユーザーごと). false にすると、持っている画像・高画質・取得待ちをすべて捨て、以降の取得を断る.
+        // 取得中の1枚は止められないので、届いたら捨てる(その後の StartNext も断られる)
+        public void SetAllowed(bool allowed)
+        {
+            if (!allowed) ReleaseAll();
+            _allowed = allowed;
+            Debug.Log("[EtpTrace] img allowed=" + allowed);
         }
 
         // 取得済みの画像を全部捨てて、取得待ちも空にする(設定の「画像を解放」). 取得中の1枚は止められないので、届いたら捨てる.
@@ -185,7 +196,7 @@ namespace EterPixNudeNyang
 
         private void StartNext()
         {
-            if (_busy) return;
+            if (_busy || !_allowed) return;
             if (_hqPending)
             {
                 _hqPending = false;
