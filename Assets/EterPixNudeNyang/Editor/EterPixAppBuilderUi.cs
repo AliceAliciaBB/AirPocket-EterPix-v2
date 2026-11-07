@@ -144,6 +144,7 @@ namespace EterPixNudeNyang
             if (panelRect.x > 1f && panelRect.y > 1f) app.panelSize = panelRect;
             var cardRect = app.cardFrame.rect.size;
             if (cardRect.x > 1f && cardRect.y > 1f) app.cardSize = cardRect;
+            if (app.copyScreen != null) app.LayoutCopy(); // コピーページの配置は panelSize を使う
 
             app.bgGraphics = tk.bg.ToArray();
             app.panelGraphics = tk.panel.ToArray();
@@ -942,79 +943,135 @@ namespace EterPixNudeNyang
             return screenGo;
         }
 
-        // コピーページ(共通): 戻る・見出し・説明・手順1(コピー欄)・手順2(ペースト欄)・状態文. 一覧の上に重ねる全面(ヘッダー・フッターは残す).
-        // NudeNyang の検索ページの受け渡し(コピー欄 → ペースト欄 → 確認)を見本にしたが、広告・同期・多言語は持たず、EterPix-app の規則に合わせる
-        // (長方形・線なし・面の色はボタンと入力欄だけ・フォントは1種). コピー欄・ペースト欄は押すとVRChatの入力UIが開く
-        static void Top(RectTransform rt, float top, float h)
+        // コピーページ(共通): 本体(NudeNyang)の検索ページの「コピー → ペースト」画面を複製し、EterPix-app の規則に直したもの.
+        // 配置のたびに、シーン内のタブレットの NudeNyangMediaKeyboard.handoffView から階層ごと複製する(NudeNyang のスクリプト・リスナー・広告は持ち込まない).
+        // 位置・大きさは、実行時の NudeNyangEterPix.LayoutCopy(本体の LayoutHandoff と同じ計算)が決める
+        static Transform Counterpart(Transform srcRoot, Transform cloneRoot, Transform src)
         {
-            Anchor(rt, 0, 1, 1, 1, new Vector2(Margin, -(top + h)), new Vector2(-Margin, -top));
+            // 複製元での「子の順番の道」を、複製側でたどる(同じ名前の部品が多いので、名前では探さない)
+            var path = new Stack<int>();
+            for (var t = src; t != srcRoot; t = t.parent) path.Push(t.GetSiblingIndex());
+            var c = cloneRoot;
+            while (path.Count > 0) c = c.GetChild(path.Pop());
+            return c;
+        }
+
+        static void ClearListeners(UnityEngine.Events.UnityEventBase evt)
+        {
+            for (int i = evt.GetPersistentEventCount() - 1; i >= 0; i--) UnityEditor.Events.UnityEventTools.RemovePersistentListener(evt, i);
+        }
+
+        static TMP_Text CopyText(Transform t, TMP_FontAsset font, List<Graphic> token, string text, Color? fixedColor)
+        {
+            var tm = t.GetComponent<TMP_Text>();
+            if (font != null) tm.font = font; // フォントは NotoSansJP-Bold の1種
+            tm.fontStyle = FontStyles.Normal; tm.richText = false; tm.raycastTarget = false;
+            if (text != null) tm.text = text;
+            if (fixedColor.HasValue) tm.color = fixedColor.Value; else if (token != null) token.Add(tm);
+            return tm;
         }
 
         static GameObject BuildCopy(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
         {
+            // 複製元: このタブレットの keyboard の handoff 画面
+            NudeNyangMediaKeyboard kb = null;
+            foreach (var k in Object.FindObjectsOfType<NudeNyangMediaKeyboard>(true))
+            {
+                if (EditorUtility.IsPersistent(k) || k.handoffView == null || k.handoffCopyTitle == null) continue;
+                if (kb == null || (k.search != null && k.search.pad == app.pad)) kb = k;
+            }
+            if (kb == null)
+            {
+                Debug.LogError("[EtpTrace] builder: 複製元(NudeNyangMediaKeyboard の handoff 画面)が見つかりません. コピーページは作りません");
+                return null;
+            }
+            var src = kb.handoffView.transform;
             var screen = Screen(root, "Copy Screen");
             var bgImg = screen.gameObject.AddComponent<Image>(); // 下の一覧を隠し、触りを受け止める
             tk.bg.Add(bgImg);
 
-            var back = TextButton(screen, "Back Button", "戻る", font, tk, app, "OnCopyBack", false);
-            Anchor(back, 0, 1, 0, 1, new Vector2(Margin, -(Margin + 52f)), new Vector2(Margin + 140f, -Margin));
+            // 1. 階層ごと複製する
+            var cloneGo = Object.Instantiate(kb.handoffView, screen, false);
+            cloneGo.name = "Copy Page";
+            var clone = (RectTransform)cloneGo.transform;
+            Anchor(clone, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            cloneGo.SetActive(true);
 
-            var heading = Label(screen, "Heading", "", font, 29, TextAlignmentOptions.MidlineLeft, tk.text);
-            heading.enableWordWrapping = false;
-            Top(heading.rectTransform, 84f, 43f);
-            var detail = Label(screen, "Detail", "", font, 22, TextAlignmentOptions.MidlineLeft, tk.sub);
-            detail.enableWordWrapping = false; detail.overflowMode = TextOverflowModes.Ellipsis;
-            Top(detail.rectTransform, 127f, 34f);
+            // 部品の対応を先に全部取る(あとで外すと、子の順番が変わるため)
+            Transform C(Component c) { return Counterpart(src, clone, c.transform); }
+            var back = C(kb.handoffBack); var backIcon = C(kb.handoffBackIcon); var backLabel = C(kb.handoffBackLabel);
+            var caption = C(kb.handoffQueryCaption); var query = C(kb.handoffQuery); var intro = C(kb.handoffIntro);
+            var copyCard = C(kb.copyField); var pasteCard = C(kb.pasteField);
+            var copyTitle = C(kb.handoffCopyTitle); var pasteTitle = C(kb.handoffPasteTitle);
+            var copyDetail = C(kb.copyInstruction); var pasteDetail = C(kb.pasteInstruction);
+            var num1 = C(kb.handoffNumbers[0]); var num2 = C(kb.handoffNumbers[1]);
+            var gCopy = C(kb.handoffGlyphs[0]); var gPaste = C(kb.handoffGlyphs[1]); var gNext = C(kb.handoffGlyphs[2]);
+            var gOpenCopy = C(kb.handoffGlyphs[3]); var gOpenPaste = C(kb.handoffGlyphs[4]);
 
-            var step1 = Label(screen, "Step 1", "1. 下の欄を押して、URLをコピーしてください", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
-            step1.enableWordWrapping = false;
-            Top(step1.rectTransform, 185f, 36f);
-            // コピー欄: 文字を隠した InputField の上に、URLを出す固定のラベル(一覧の WEB と同じ方式). 終了時に元の値へ戻す
-            var copyField = CopyButton(app, screen, "Copy Field", "", font, tk, 0, 100, CopyFieldH, 22, 0);
-            var copyRt = (RectTransform)copyField.transform;
-            copyRt.pivot = new Vector2(0, 1);
-            Top(copyRt, 225f, CopyFieldH);
-            var urlLabel = copyField.transform.Find("Label").GetComponent<TMP_Text>();
-            urlLabel.alignment = TextAlignmentOptions.MidlineLeft;
-            urlLabel.enableAutoSizing = true; urlLabel.fontSizeMin = 12; urlLabel.fontSizeMax = 22;
-            urlLabel.rectTransform.offsetMin = new Vector2(12, 0); urlLabel.rectTransform.offsetMax = new Vector2(-12, 0);
+            // 2. 外す: 線・丸(バッジ)・操作名の丸み・自動検索の注記・Premium 広告・検索語の編集・触りの補助(NudeNyang のスクリプト付き)
+            var remove = new List<Transform>();
+            foreach (var b in kb.handoffBadges) remove.Add(C(b));
+            foreach (var b in kb.handoffBorders) remove.Add(C(b));
+            foreach (var c in kb.handoffChipImages) remove.Add(C(c));
+            remove.Add(C(kb.handoffFooter)); remove.Add(C(kb.handoffFooterIcon));
+            remove.Add(C(kb.handoffPremium)); remove.Add(C(kb.handoffEdit));
+            foreach (var t in clone.GetComponentsInChildren<Transform>(true))
+                if (t.name.StartsWith("Handoff tap input") || t.name == "Tremor tolerant touch") remove.Add(t);
+            foreach (var t in remove) if (t != null) Object.DestroyImmediate(t.gameObject);
 
-            var step2 = Label(screen, "Step 2", "2. 下の欄を押して、コピーしたURLを貼り付けてください", font, 26, TextAlignmentOptions.MidlineLeft, tk.text);
-            step2.enableWordWrapping = false;
-            Top(step2.rectTransform, 301f, 36f);
-            // ペースト欄: VRCUrlInputField(VRChat では、貼られたURLだけが実行時にVRCUrlとして使える)
-            var paste = Box(screen, "Paste Field", tk.btn);
-            paste.pivot = new Vector2(0, 1);
-            Top(paste, 341f, CopyFieldH);
-            var pasteImg = paste.GetComponent<Image>();
-            var valueGo = new GameObject("Value", typeof(RectTransform), typeof(Text), typeof(CanvasGroup));
-            var valueRt = (RectTransform)valueGo.transform; valueRt.SetParent(paste, false);
-            Anchor(valueRt, 0, 0, 1, 1, new Vector2(8, 4), new Vector2(-8, -4));
-            var valueText = valueGo.GetComponent<Text>();
-            valueText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); valueText.fontSize = 18; valueText.raycastTarget = false;
-            var cg = valueGo.GetComponent<CanvasGroup>(); cg.alpha = 0; cg.blocksRaycasts = false; cg.interactable = false;
-            var pasteField = paste.gameObject.AddComponent<VRC.SDK3.Components.VRCUrlInputField>();
-            pasteField.targetGraphic = pasteImg; pasteField.textComponent = valueText;
-            pasteField.customCaretColor = true; pasteField.caretColor = Color.clear; pasteField.selectionColor = Color.clear;
-            pasteField.transition = Selectable.Transition.None; pasteField.navigation = new Navigation { mode = Navigation.Mode.None };
-            pasteField.AllowSendingOnEndEdit = true;
-            pasteField.SetUrl(VRC.SDKBase.VRCUrl.Empty);
+            // NudeNyang のスクリプトが残っていないこと(本体への参照を持ち込まない)
+            foreach (var ub in clone.GetComponentsInChildren<VRC.Udon.UdonBehaviour>(true))
+                Debug.LogWarning("[EtpTrace] builder: コピーページに UdonBehaviour が残っています: " + ub.name);
+
+            // 3. EterPix-app の規則へ: 長方形・線なし. 面の色を持つのはボタンと入力欄(コピー欄・ペースト欄)だけ
+            foreach (var card in new[] { copyCard, pasteCard })
+            {
+                var im = card.GetComponent<Image>();
+                im.sprite = null; im.type = Image.Type.Simple; im.color = Color.white; tk.btn.Add(im);
+            }
+            foreach (var g in new[] { backIcon, gCopy, gPaste, gNext, gOpenCopy, gOpenPaste })
+            {
+                var im = g.GetComponent<Image>(); im.color = Color.white; im.raycastTarget = false; tk.text.Add(im); // 記号は文字色に従う
+            }
+            var backTm = CopyText(backLabel, font, tk.text, "戻る", null);
+            var captionTm = CopyText(caption, font, tk.sub, "高画質で見る", null);
+            var queryTm = CopyText(query, font, tk.text, "", null);
+            var introTm = CopyText(intro, font, tk.sub, "下の順に進めると、この投稿の高画質の写真を表示します。", null);
+            var copyTitleTm = CopyText(copyTitle, font, tk.text, "コピー用の窓を開く", null);
+            var pasteTitleTm = CopyText(pasteTitle, font, tk.text, "貼り付け用の窓を開く", null);
+            var copyDetailTm = CopyText(copyDetail, font, tk.sub, "欄を押して、出てきた「Copy」を選んでください。", null);
+            var pasteDetailTm = CopyText(pasteDetail, font, tk.sub, "欄を押して、「Paste」を選び、確定してください。", null);
+            var num1Tm = CopyText(num1, font, null, "1", Accent);
+            var num2Tm = CopyText(num2, font, null, "2", Accent);
+            queryTm.alignment = TextAlignmentOptions.MidlineLeft;
+            var status = Label(clone, "Status", "", font, 20, TextAlignmentOptions.TopLeft, tk.text);
+
+            // 4. つなぐ(NudeNyang へのリスナーを全部外してから、EterPix-app のイベントへ)
+            foreach (var btn in clone.GetComponentsInChildren<Button>(true)) ClearListeners(btn.onClick);
+            Wire(back.GetComponent<Button>(), app, "OnCopyBack");
+            var copyField = copyCard.GetComponent<InputField>();
+            ClearListeners(copyField.onEndEdit); copyField.text = "";
+            UnityEditor.Events.UnityEventTools.AddStringPersistentListener(copyField.onEndEdit,
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnCopyEnd");
+            var pasteField = pasteCard.GetComponent<VRC.SDK3.Components.VRCUrlInputField>();
+            ClearListeners(pasteField.onEndEdit);
+            pasteField.SetUrl(VRC.SDKBase.VRCUrl.Empty); pasteField.AllowSendingOnEndEdit = true;
             UnityEditor.Events.UnityEventTools.AddStringPersistentListener(pasteField.onEndEdit,
                 UdonSharpEditorUtility.GetBackingUdonBehaviour(app).SendCustomEvent, "OnCopyPasteEnd");
-            var pasteLabel = Label(paste, "Label", "ここを押して貼り付け", font, 22, TextAlignmentOptions.MidlineLeft, tk.sub);
-            pasteLabel.enableWordWrapping = false;
-            Anchor(pasteLabel.rectTransform, 0, 0, 1, 1, new Vector2(12, 0), new Vector2(-12, 0));
 
-            var status = Label(screen, "Status", "", font, 24, TextAlignmentOptions.TopLeft, tk.text);
-            Top(status.rectTransform, 417f, 72f);
-
-            app.copyHeading = heading; app.copyDetail = detail; app.copyStatus = status;
-            app.copyField = copyField; app.copyUrlLabel = urlLabel; app.copyPasteField = pasteField;
+            app.copyRects = new[]
+            {
+                (RectTransform)back, (RectTransform)backIcon, (RectTransform)backLabel, (RectTransform)caption, (RectTransform)query, (RectTransform)intro,
+                (RectTransform)copyCard, (RectTransform)pasteCard, (RectTransform)copyTitle, (RectTransform)pasteTitle, (RectTransform)copyDetail, (RectTransform)pasteDetail,
+                (RectTransform)num1, (RectTransform)num2, (RectTransform)gCopy, (RectTransform)gPaste, (RectTransform)gNext, (RectTransform)gOpenCopy, (RectTransform)gOpenPaste,
+                status.rectTransform
+            };
+            app.copyTexts = new TMP_Text[] { backTm, captionTm, queryTm, introTm, copyTitleTm, pasteTitleTm, copyDetailTm, pasteDetailTm, num1Tm, num2Tm, status };
+            app.copyHeading = captionTm; app.copyDetail = queryTm; app.copyStatus = status;
+            app.copyField = copyField; app.copyPasteField = pasteField;
             screen.gameObject.SetActive(false);
             return screen.gameObject;
         }
-
-        const float CopyFieldH = 60f;
 
         // 設定画面: 見出し「設定」・行1「テーマ [黒|白]」・行2「進む・戻るを入れ替え [しない|する]」. 端から Margin(16)ずつ.
         // 選択中の側は accent 色. 色は実行時(RefreshSettings)に決める(テーマの塗り直しで上書きされないよう、トークンには入れない)

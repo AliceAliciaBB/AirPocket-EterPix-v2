@@ -179,8 +179,15 @@ namespace NudeNyang
         public TMP_Text copyDetail;
         public TMP_Text copyStatus;
         public InputField copyField;
-        public TMP_Text copyUrlLabel; // コピー欄に重ねて見せる、コピーするURL(コピー欄の文字は隠してあるため)
         public VRCUrlInputField copyPasteField;
+        // 本体の検索ページの受け渡し画面を複製した部品. 配置は LayoutCopy(本体の LayoutHandoff と同じ計算)で行う
+        // copyRects: 0 戻る 1 戻る記号 2 戻る文字 3 見出し 4 詳細 5 説明 6 コピー欄 7 ペースト欄 8 コピー題 9 ペースト題 10 コピー説明 11 ペースト説明
+        //            12 数字1 13 数字2 14 コピー記号 15 ペースト記号 16 矢印 17 コピー開く 18 ペースト開く 19 状態文
+        public RectTransform[] copyRects;
+        // copyTexts: 0 戻る文字 1 見出し 2 詳細 3 説明 4 コピー題 5 ペースト題 6 コピー説明 7 ペースト説明 8 数字1 9 数字2 10 状態文
+        public TMP_Text[] copyTexts;
+        private Vector2 copyLaidOut;
+        private const float CopyChrome = 132f; // ヘッダー 76 + フッター 56(コピーページはその間に出る)
         [HideInInspector] public int copyKind = -1;
         [HideInInspector] public int copyPost = -1;
         private string copyExpected = "";
@@ -254,6 +261,7 @@ namespace NudeNyang
                 feed.Fetch();
             }
             if (!show) return;
+            RelayoutCopyIfNeeded();
             // 他のプレイヤーの操作に追従している間・ジェスチャ中は入力を受けない
             if (screen == ScreenList) UpdateListRows(false);
             group.interactable = group.blocksRaycasts = pad.shell.view == 2 && !pad.shell.GestureActive(); // 他の人が操作中でも押せる(押した人が操作権を引き継ぐ. Take)
@@ -976,10 +984,11 @@ namespace NudeNyang
             if (copyDetail != null) copyDetail.text = kind == CopyHq
                 ? feed.UserLabel[post] + (string.IsNullOrEmpty(feed.WorldLabel[post]) ? "" : " ・ " + feed.WorldLabel[post]) : "";
             SetCopyText(copyField, copyExpected);
-            if (copyUrlLabel != null) copyUrlLabel.text = copyExpected;
             if (copyPasteField != null) copyPasteField.SetUrl(VRCUrl.Empty);
             SetCopyStatus("");
             copyScreen.SetActive(true);
+            copyLaidOut = PanelFrame();
+            LayoutCopy();
             Debug.Log("[EtpTrace] eterpix-app copy open kind=" + kind + " post=" + post);
             MarkDirty();
         }
@@ -1003,6 +1012,71 @@ namespace NudeNyang
         private void SetCopyStatus(string text)
         {
             if (copyStatus != null) copyStatus.text = text;
+        }
+
+        // 画面の大きさ(向き)が変わったら、開いているコピーページを置き直す
+        private void RelayoutCopyIfNeeded()
+        {
+            if (copyScreen == null || !copyScreen.activeSelf) return;
+            Vector2 pf = PanelFrame();
+            if (pf == copyLaidOut) return;
+            copyLaidOut = pf;
+            LayoutCopy();
+        }
+
+        private void CopyPlace(RectTransform r, float x, float y, float w, float h)
+        {
+            r.anchorMin = new Vector2(0f, 1f); r.anchorMax = new Vector2(0f, 1f); r.pivot = new Vector2(0f, 1f);
+            r.anchoredPosition = new Vector2(x, -y); r.sizeDelta = new Vector2(w, h);
+        }
+
+        private void CopyCenter(RectTransform r, float x, float w, float h)
+        {
+            r.anchorMin = new Vector2(0f, 0.5f); r.anchorMax = new Vector2(0f, 0.5f); r.pivot = new Vector2(0f, 0.5f);
+            r.anchoredPosition = new Vector2(x, 0f); r.sizeDelta = new Vector2(w, h);
+        }
+
+        private void CopyType(TMP_Text t, float max, float min)
+        {
+            if (t == null) return;
+            t.enableAutoSizing = true; t.fontSize = max; t.fontSizeMax = max; t.fontSizeMin = min; t.enableWordWrapping = true;
+        }
+
+        // 本体の検索ページの受け渡し画面(NudeNyangMediaKeyboard.LayoutHandoff)と同じ計算. 自動検索の注記・Premium・編集ボタンの分は除いてある
+        public void LayoutCopy()
+        {
+            if (copyRects == null || copyTexts == null || copyRects.Length < 20 || copyTexts.Length < 11) return;
+            Vector2 pf = PanelFrame();
+            float w = pf.x;
+            float h = Mathf.Max(300f, pf.y - CopyChrome);
+            float s = Mathf.Clamp(h / 640f, 0.45f, 1.25f);
+            bool wide = w > h;
+            float content = wide ? Mathf.Min(w * 0.76f, 1000f) : w - 48f;
+            float left = (w - content) * 0.5f;
+            float headLeft = wide ? left + content * 0.18f : left;
+            float headWidth = wide ? content * 0.64f : content;
+            CopyPlace(copyRects[0], 28f * s, 20f * s, w - 56f * s, 38f * s);
+            CopyPlace(copyRects[1], 0f, 8f * s, 25f * s, 25f * s);
+            CopyPlace(copyRects[2], 38f * s, 0f, w - 100f * s, 38f * s); CopyType(copyTexts[0], 20f * s, 14f * s);
+            CopyPlace(copyRects[3], headLeft, 72f * s, headWidth, 26f * s); CopyType(copyTexts[1], 18f * s, 14f * s);
+            CopyPlace(copyRects[4], headLeft, 103f * s, headWidth, 56f * s); CopyType(copyTexts[2], 50f * s, 26f * s);
+            CopyPlace(copyRects[5], headLeft, 163f * s, headWidth, 34f * s); CopyType(copyTexts[3], 20f * s, 14f * s);
+            for (int i = 0; i < 2; i++)
+            {
+                float top = (230f + i * 198f) * s;
+                CopyPlace(copyRects[6 + i], left, top, content, 154f * s);
+                CopyCenter(copyRects[12 + i], 30f * s, 46f * s, 46f * s); CopyType(copyTexts[8 + i], 27f * s, 27f * s);
+                CopyCenter(copyRects[14 + i], (wide ? 110f : 88f) * s, 48f * s, 54f * s);
+                float textLeft = (wide ? 202f : 152f) * s;
+                float textWidth = content - textLeft - 56f * s;
+                CopyPlace(copyRects[8 + i], textLeft, 25f * s, textWidth, 42f * s); CopyType(copyTexts[4 + i], 30f * s, 21f * s);
+                CopyPlace(copyRects[10 + i], left + textLeft, top + 78f * s, textWidth, 38f * s); CopyType(copyTexts[6 + i], 21f * s, 14f * s);
+                CopyCenter(copyRects[17 + i], content - 38f * s, 24f * s, 26f * s);
+                copyRects[10 + i].SetAsLastSibling(); // 説明の文字は、欄の面より前に出す
+            }
+            CopyPlace(copyRects[16], w * 0.5f - 14f * s, 392f * s, 28f * s, 30f * s);
+            CopyPlace(copyRects[19], left, 600f * s, content, 34f * s); CopyType(copyTexts[10], 20f * s, 13f * s);
+            copyRects[19].SetAsLastSibling();
         }
 
         // ペースト欄の入力が終わった(VRChat の入力UIを閉じた). 空は何もしない. 期待したURLと完全一致しなければ、画面は更新しない
