@@ -415,7 +415,31 @@ namespace ali.eterpix.v2
 
         private void UpdatePagingLabel(int slotInWindow, int count)
         {
-            if (pageLabel != null) pageLabel.text = $"{slotInWindow + 1} / {count}";
+            // 現在・全体をそれぞれ3桁分の幅で予約する(数字を等幅にし、スラッシュと全体の開始位置を絶対位置で固定。左寄せ)。
+            // 桁数が変わっても「/」と全体の位置が動かない。ゼロ埋めはしない。
+            if (pageLabel != null)
+                pageLabel.text = "<mspace=0.6em>" + (slotInWindow + 1) + "</mspace><pos=2.1em>/<pos=3em><mspace=0.6em>" + count + "</mspace>";
+        }
+
+        // ---- ランダム(全体から1枚を選んで表示。次へ/前へと同じく全員に同期。今のページとは別のページを選ぶ) ----
+        public void PageRandom()
+        {
+            if (_requester == null || _requester.VisibleCount <= 0) return;
+
+            int count = _requester.VisibleCount;
+            int current = NormalizeIndex(_syncedPageIndex, count);
+            int next = current;
+            if (count >= 2)
+            {
+                // 今のページを除いた count-1 通りから選ぶ
+                next = NormalizeIndex(current + 1 + Random.Range(0, count - 1), count);
+            }
+
+            Networking.SetOwner(Networking.LocalPlayer, this.gameObject);
+            _syncedPageIndex = next;
+            RequestSerialization();
+
+            RefreshDisplay();
         }
 
         public const string PortalLabelOpen = "ポータルを開く";
