@@ -167,6 +167,8 @@ namespace NudeNyang
         public GameObject zoomBand;
         public TMP_Text zoomUser;
         public TMP_Text zoomWorld;
+        public TMP_Text zoomLoading;      // 高画質の読み込み中の表示(Zoom の中央)
+        private bool hqZoomLoading;       // コピーページを挟まず Zoom で高画質を読み込み中
         [HideInInspector] public int zoomMode; // 0=閉じている 1=情報帯あり 2=UIなし
         [HideInInspector] public int zoomIndex = -1;
 
@@ -407,7 +409,7 @@ namespace NudeNyang
                     }
                     else { images.Want(feed.Coid[zi], 0); needRetry = true; }
                 }
-                else if (zoomMode != 0) { zoomMode = 0; zoomIndex = -1; zoomRoot.SetActive(false); if (images != null) images.ClearHq(); }
+                else if (zoomMode != 0) { zoomMode = 0; zoomIndex = -1; hqZoomLoading = false; zoomRoot.SetActive(false); if (images != null) images.ClearHq(); }
             }
             returnScreen = sReturn; overlayBack = sBack;
             if (screen != sScreen) ShowScreen(sScreen);
@@ -975,7 +977,23 @@ namespace NudeNyang
         {
             int item = listFirst + k;
             if (screen != ScreenList || item < 0 || item >= likedIndices.Length) return;
-            OpenCopy(CopyHq, likedIndices[item]);
+            int post = likedIndices[item];
+            // 直近に貼った同じ投稿なら、コピーページを挟まず、すぐ Zoom へ(読み込みが要るなら Zoom の上に読み込み中を出す)
+            if (images != null && images.HasKept(post)) { OpenHqZoom(post); return; }
+            OpenCopy(CopyHq, post);
+        }
+
+        private void OpenHqZoom(int post)
+        {
+            if (images == null || feed == null || post < 0 || post >= feed.Count || !Take()) return;
+            if (!images.RequestHq(images.KeptUrl(), post)) { OpenCopy(CopyHq, post); return; }
+            hqZoomLoading = true;
+            zoomIndex = post;
+            zoomMode = 1;
+            zoomRoot.SetActive(true);
+            RefreshZoom();
+            Debug.Log("[EtpTrace] eterpix-app hq zoom direct (kept url) post=" + post);
+            MarkDirty();
         }
 
         // コピーページを開く(kind: 何をコピーさせるか. いまは CopyHq だけ)
@@ -997,12 +1015,6 @@ namespace NudeNyang
             LayoutCopy();
             Debug.Log("[EtpTrace] eterpix-app copy open kind=" + kind + " post=" + post);
             MarkDirty();
-            // 直近に貼った同じ投稿なら、貼り直しなしですぐ取得を始める(読み込み中の表示のまま. 戻るでやめられる)
-            if (kind == CopyHq && images != null && images.HasKept(post))
-            {
-                Debug.Log("[EtpTrace] eterpix-app hq reuse kept url post=" + post);
-                AcceptHq(images.KeptUrl());
-            }
         }
 
         // 戻る(コピーせずに一覧へ). 取得中ならやめる
@@ -1119,6 +1131,13 @@ namespace NudeNyang
         // EterPixAppImages から呼ばれる(高画質が届いた・失敗した)
         public void OnHqLoaded()
         {
+            if (hqZoomLoading)
+            {
+                hqZoomLoading = false;
+                if (zoomMode == 0 || images.HqPostIndex() != zoomIndex) { images.ClearHq(); return; }
+                RefreshZoom(); // コラージュの仮表示から、高画質へ差し替える
+                return;
+            }
             if (!hqWaiting) return;
             hqWaiting = false;
             int post = images.HqPostIndex();
@@ -1134,10 +1153,20 @@ namespace NudeNyang
 
         public void OnHqFailed()
         {
-            if (!hqWaiting) return;
+            bool fromZoom = hqZoomLoading;
+            if (!hqWaiting && !fromZoom) return;
             hqWaiting = false;
+            hqZoomLoading = false;
             if (images != null) images.DropKept(); // 失敗した URL は保持しない(貼り直してもらう)
             string err = images != null ? images.HqErrorText() : "";
+            if (fromZoom)
+            {
+                // Zoom で読み込み中に失敗した: Zoom を閉じて、コピーページ(貼り直し)へ戻す
+                int post = zoomIndex;
+                zoomMode = 0; zoomIndex = -1; zoomRoot.SetActive(false);
+                if (images != null) images.ClearHq();
+                OpenCopy(CopyHq, post);
+            }
             if (err != null && err.Contains("Not trusted url hit")) SetCopyStatus("「Allow Untrusted URLs」をONにしてください");
             else SetCopyStatus("読み込みに失敗しました。もう一度貼り直してください");
             if (copyPasteField != null) copyPasteField.SetUrl(VRCUrl.Empty);
@@ -1290,8 +1319,9 @@ namespace NudeNyang
             {
                 zoomMode = 0;
                 zoomIndex = -1;
+                hqZoomLoading = false;
                 zoomRoot.SetActive(false);
-                if (images != null) images.ClearHq(); // 高画質は1枚だけ持つ. 閉じたら捨てる
+                if (images != null) images.ClearHq(); // 高画質は1枚だけ持つ. 閉じたら捨てる(読み込み中なら取りやめ)
             }
             Debug.Log("[EtpTrace] eterpix-app zoom mode=" + zoomMode);
             MarkDirty();
@@ -1304,10 +1334,13 @@ namespace NudeNyang
             Texture2D hq = images.GetHqTexture();
             bool useHq = hq != null && images.HqPostIndex() == zoomIndex;
             Texture2D tex = useHq ? hq : images.GetTexture(feed.Coid[zoomIndex]);
-            if (tex == null) { zoomMode = 0; zoomRoot.SetActive(false); return; }
+            if (tex == null && !hqZoomLoading) { zoomMode = 0; zoomRoot.SetActive(false); return; }
+            if (zoomLoading != null) zoomLoading.gameObject.SetActive(hqZoomLoading && !useHq);
             Vector2 pf = PanelFrame();
-            int turns;
-            if (useHq)
+            int turns = 0;
+            zoomPhoto.enabled = tex != null; // コラージュも無いまま高画質を待つ間は、黒地に読み込み中だけ
+            if (tex == null) { }
+            else if (useHq)
             {
                 turns = geometry.HqDisplayTurns(feed.Coro[zoomIndex], hq.width, hq.height, pf.x, pf.y);
                 zoomPhoto.texture = hq;

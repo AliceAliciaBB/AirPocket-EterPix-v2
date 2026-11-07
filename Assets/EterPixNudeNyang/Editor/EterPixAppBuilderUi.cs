@@ -640,6 +640,13 @@ namespace EterPixNudeNyang
             Anchor(world.rectTransform, 0, 0, 1, 0, new Vector2(28, 28), new Vector2(-28, 62)); // 文字だけ24上げる
             app.zoomDes = des;
 
+            // 高画質の読み込み中(コピーページを挟まず Zoom へ直行したときに、画面の中央に出す)
+            var loading = Label(zoomRt, "Loading", "高画質を読み込み中…", font, 28, TextAlignmentOptions.Center, null);
+            loading.color = Color.white; loading.raycastTarget = false;
+            Anchor(loading.rectTransform, 0.1f, 1f, 0.9f, 1f, new Vector2(0, -88), new Vector2(0, -40)); // 上寄せ(写真の仮表示に重なっても読めるよう、黒帯の外の上端)
+            loading.gameObject.SetActive(false);
+            app.zoomLoading = loading;
+
             // 全面のタップで 情報帯あり → UIなし → 閉じる
             var tap = zoom.AddComponent<Button>(); tap.targetGraphic = zoom.GetComponent<Image>(); tap.navigation = new Navigation { mode = Navigation.Mode.None };
             Wire(tap, app, "OnZoomTap");
