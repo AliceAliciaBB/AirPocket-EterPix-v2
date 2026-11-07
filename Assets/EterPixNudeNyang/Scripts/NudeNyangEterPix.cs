@@ -991,6 +991,12 @@ namespace NudeNyang
             LayoutCopy();
             Debug.Log("[EtpTrace] eterpix-app copy open kind=" + kind + " post=" + post);
             MarkDirty();
+            // 直近に貼った同じ投稿なら、貼り直しなしですぐ取得を始める(読み込み中の表示のまま. 戻るでやめられる)
+            if (kind == CopyHq && images != null && images.HasKept(post))
+            {
+                Debug.Log("[EtpTrace] eterpix-app hq reuse kept url post=" + post);
+                AcceptHq(images.KeptUrl());
+            }
         }
 
         // 戻る(コピーせずに一覧へ). 取得中ならやめる
@@ -1124,6 +1130,7 @@ namespace NudeNyang
         {
             if (!hqWaiting) return;
             hqWaiting = false;
+            if (images != null) images.DropKept(); // 失敗した URL は保持しない(貼り直してもらう)
             string err = images != null ? images.HqErrorText() : "";
             if (err != null && err.Contains("Not trusted url hit")) SetCopyStatus("「Allow Untrusted URLs」をONにしてください");
             else SetCopyStatus("読み込みに失敗しました。もう一度貼り直してください");

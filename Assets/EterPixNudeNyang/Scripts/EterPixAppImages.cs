@@ -45,6 +45,8 @@ namespace EterPixNudeNyang
         private const int HqSlot = -2; // _current がこの値なら、取得中は高画質
         private int _hqState = HqNone;
         private VRCUrl _hqUrl;
+        private VRCUrl _keptUrl;      // 直近に貼られた高画質の URL(1件)
+        private int _keptPost = -1;   // その投稿(feed の添字)
         private bool _hqPending;      // 取得待ち(コラージュの取得中の1枚を待っている)
         private int _hqPost = -1;     // どの投稿の写真か(feed の添字)
         private Texture2D _hqTex;
@@ -56,6 +58,7 @@ namespace EterPixNudeNyang
             if (url == null || VRCUrl.IsNullOrEmpty(url)) return false;
             ClearHq();
             _hqUrl = url;
+            _keptUrl = url; _keptPost = post; // 直近の1件だけ保持(次に同じ投稿の「高画質」を押したとき、貼り直しなしで取り直す)
             _hqPost = post;
             _hqPending = true;
             _hqState = HqLoading;
@@ -64,6 +67,11 @@ namespace EterPixNudeNyang
             StartNext();
             return true;
         }
+
+        // 保持した URL(破棄=ClearHq では消えない. 画像を解放・取得の失敗・別の投稿で取り直したときに入れ替わる/消える)
+        public bool HasKept(int post) { return _keptPost == post && _keptUrl != null && !VRCUrl.IsNullOrEmpty(_keptUrl); }
+        public VRCUrl KeptUrl() { return _keptUrl; }
+        public void DropKept() { _keptUrl = VRCUrl.Empty; _keptPost = -1; }
 
         public int HqStatus() { return _hqState; }
         public int HqPostIndex() { return _hqPost; }
@@ -146,6 +154,7 @@ namespace EterPixNudeNyang
             }
             _loadedCount = 0;
             ClearHq(); // 高画質も捨てる
+            DropKept(); // 保持した URL も捨てる
             if (_busy) _discardCurrent = true;
             Debug.Log("[EtpTrace] img release all freed=" + freed + " discardCurrent=" + _discardCurrent);
         }
