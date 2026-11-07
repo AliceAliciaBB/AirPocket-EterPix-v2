@@ -9,7 +9,7 @@ EterPix の写真を、タブレットの中でスワイプして見られます
 ## 必要なもの
 
 - **NudeNyang Tablet の正規製品(別途購入)**。このリポジトリ/配布物には本体のファイルを含みません。
-- 対応バージョン: **NudeNyang 1.0.8**(2026-11-04. 1.0.5 から更新. 全パッチのアンカーが期待回数で一致することをファイル照合で確認. **Unity 上でのパッチ適用・Play での動作は未確認**. 1.0.5 までは Play で起動・同期ログを確認済み. 更新すると本体のファイルが上書きされてパッチが消えるので、更新後は「パッチを検査 → 適用」と Builder をやり直す)(`Assets/NudeNyang/InstallManager/Editor/Updates/installed-release.json` の `version`)
+- 対応バージョン: **NudeNyang 1.0.9**(2026-11-07. 1.0.8 から更新. 全パッチ(P1〜P11)のアンカーが期待回数で一致することをファイル照合で確認. Unity 上で「パッチを検査」(全18件 未適用・不一致なし)→「パッチを適用」(18件)→ Builder(4台に配線)まで確認済み. Play(ClientSim)は起動したがコンパイルエラーなし. VRChat SDK 内の `UdonManager.OnSceneLoaded` で `IsNetworkingSupported cannot be changed` の例外が1件出る(NudeNyang/EterPix のコードはスタックに無い. 1.0.8 以前でも出ていたかは未確認). **Play でアプリを開いての同期ログ(`[EtpTrace]`)は未確認**. 1.0.5 までは Play で起動・同期ログを確認済み. 更新すると本体のファイルが上書きされてパッチが消えるので、更新後は「パッチを検査 → 適用」と Builder をやり直す)(`Assets/NudeNyang/InstallManager/Editor/Updates/installed-release.json` の `version`)
 - 本体は公式の場所 `Assets/NudeNyang/` に入れてください(旧い配置 `Assets/アセット(同期しない)/NudeNyang/` も検出しますが、非推奨)
 - VRChat SDK(Worlds)+ UdonSharp
 
