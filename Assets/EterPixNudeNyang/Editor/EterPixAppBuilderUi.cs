@@ -33,11 +33,15 @@ namespace EterPixNudeNyang
         // 本文のあとに、コピーできるURLの欄が入る(URL は NudeNyangEterPix.InfoUrl)
         const string InfoFooter = "最新情報は X @_alicilia をご確認ください";
 
-        // 仮の文面(合意書でも「仮」)
+        // グループ画面の文面. モニターのグループウィンドウ(EterpixMonitor_Split/Stack の bg_GroupWindow)と同じ
         const string GroupText =
-            "グループ\n\n" +
-            "ここにグループの説明が入ります(文面は仮)。\n\n" +
-            "EterPix は、VRChatで撮った写真を共有する人たちの集まりです。投稿された写真は、このアプリのほか、ワールドのモニターでも見られます。";
+            "EterPixのグループ\n\n" +
+            "SNSサイトEterPix（エターピクス）並びに、ワールドギミックを製作しています！\n" +
+            "イベントは、追加機能の募集や、一緒に投稿写真を見る会を想定しています！\n" +
+            "ぜひご参加下さい！";
+        const string GroupSiteLabel = "Webサイト";
+        const string GroupBoothLabel = "ギミックの配布場所";
+        const string GroupOpenLabel = "グループのページを開く";
 
         class Tokens
         {
@@ -126,7 +130,7 @@ namespace EterPixNudeNyang
             BuildList(app, root, font, tk);
 
             app.infoScreen = BuildInfo(app, root, font, tk);
-            app.groupScreen = TextScreen(root, "Group Screen", GroupText, font, tk);
+            app.groupScreen = BuildGroup(app, root, font, tk);
             app.settingsScreen = BuildSettings(app, root, font, tk);
 
             BuildZoom(app, root, font);
@@ -871,6 +875,62 @@ namespace EterPixNudeNyang
             app.infoUrlField = field;
             screen.gameObject.SetActive(false);
             return screen.gameObject;
+        }
+
+        // 縦にスクロールできる面(情報ページと同じ作り). 戻り値の Content に子を積んでいく
+        static RectTransform ScrollScreen(NudeNyangEterPix app, RectTransform root, string name, out GameObject screenGo)
+        {
+            var screen = Screen(root, name);
+            // 縦向きの viewport 回転でも消えないよう、一覧と同じステンシルの Mask で切る
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            var viewportRt = (RectTransform)viewport.transform; viewportRt.SetParent(screen, false);
+            var vpImg = viewport.GetComponent<Image>(); vpImg.color = Color.white; vpImg.raycastTarget = true;
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
+            Anchor(viewportRt, 0, 0, 1, 1, Vector2.zero, Vector2.zero);
+            var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            var contentRt = (RectTransform)content.transform; contentRt.SetParent(viewportRt, false);
+            contentRt.anchorMin = new Vector2(0, 1); contentRt.anchorMax = new Vector2(1, 1); contentRt.pivot = new Vector2(0.5f, 1);
+            contentRt.offsetMin = Vector2.zero; contentRt.offsetMax = Vector2.zero;
+            var vlg = content.GetComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset((int)Margin, (int)Margin, (int)Margin, (int)Margin); vlg.spacing = 20; // 余白は全周16
+            vlg.childControlWidth = true; vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
+            vlg.childAlignment = TextAnchor.UpperLeft;
+            content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var scroll = screen.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewportRt; scroll.content = contentRt;
+            scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f; scroll.inertia = true;
+            var catcher = screen.gameObject.AddComponent<Image>(); catcher.color = new Color(0, 0, 0, 0);
+            screenGo = screen.gameObject;
+            return contentRt;
+        }
+
+        // コピーできるURL欄をスクロール面に1つ積む(情報ページと同じ方式)
+        static InputField GroupUrlField(NudeNyangEterPix app, RectTransform contentRt, string name, string url, TMP_FontAsset font, Tokens tk)
+        {
+            var field = CopyButton(app, contentRt, name, url, font, tk, 0, 520, 52, 24, 10);
+            var fieldRt = (RectTransform)field.transform;
+            fieldRt.anchorMin = new Vector2(0, 1); fieldRt.anchorMax = new Vector2(0, 1); fieldRt.pivot = new Vector2(0, 1);
+            var le = field.gameObject.AddComponent<LayoutElement>(); le.preferredWidth = 520; le.preferredHeight = 52;
+            field.text = url;
+            return field;
+        }
+
+        // グループ画面: モニターのグループウィンドウと同じ並び(見出し+本文・Webサイト・ギミックの配布場所・グループのページを開く)
+        static GameObject BuildGroup(NudeNyangEterPix app, RectTransform root, TMP_FontAsset font, Tokens tk)
+        {
+            GameObject screenGo;
+            var contentRt = ScrollScreen(app, root, "Group Screen", out screenGo);
+            Label(contentRt, "Body", GroupText, font, 26, TextAlignmentOptions.TopLeft, tk.text);
+            Label(contentRt, "Site Label", GroupSiteLabel, font, 26, TextAlignmentOptions.TopLeft, tk.text);
+            app.groupSiteField = GroupUrlField(app, contentRt, "Site Url Button", NudeNyangEterPix.InfoUrl, font, tk);
+            Label(contentRt, "Booth Label", GroupBoothLabel, font, 26, TextAlignmentOptions.TopLeft, tk.text);
+            app.groupBoothField = GroupUrlField(app, contentRt, "Booth Url Button", NudeNyangEterPix.GroupBoothUrl, font, tk);
+            var open = TextButton(contentRt, "Group Open Button", GroupOpenLabel, font, tk, app, "OnOpenGroupPage", false);
+            var openLe = open.gameObject.AddComponent<LayoutElement>(); openLe.preferredWidth = 520; openLe.preferredHeight = 60;
+            screenGo.SetActive(false);
+            return screenGo;
         }
 
         // 設定画面: 見出し「設定」・行1「テーマ [黒|白]」・行2「進む・戻るを入れ替え [しない|する]」. 端から Margin(16)ずつ.

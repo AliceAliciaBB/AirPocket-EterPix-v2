@@ -143,6 +143,12 @@ namespace NudeNyang
         public TMP_Text listHeading;
         public InputField infoUrlField;
         public const string InfoUrl = "https://eterpix.com/";
+        // グループ画面(モニターのグループウィンドウと同じ内容). URL欄は情報画面と同じコピー用の欄
+        public InputField groupSiteField;
+        public InputField groupBoothField;
+        public const string GroupBoothUrl = "https://alicilia.booth.pm/items/8894268";
+        // EterPixのVRChatグループ(モニター eterpix_monitor.GroupId と同じ値)
+        public const string GroupId = "grp_b3f71193-2ed1-4de0-a5f1-3237609f4aeb";
         public GameObject[] rowRoots;
         public RawImage[] rowThumbs;
         public TMP_Text[] rowNames;
@@ -901,8 +907,22 @@ namespace NudeNyang
         public void OnCopyEnd()
         {
             if (infoUrlField != null) SetCopyText(infoUrlField, InfoUrl); // 情報ページのURL欄も元の値へ戻す
+            ResetGroupFields();
             RebindList();
             SendCustomEventDelayedFrames(nameof(RebindList), 2);
+        }
+
+        // グループ画面のURL欄を元の値へ戻す
+        private void ResetGroupFields()
+        {
+            if (groupSiteField != null) SetCopyText(groupSiteField, InfoUrl);
+            if (groupBoothField != null) SetCopyText(groupBoothField, GroupBoothUrl);
+        }
+
+        // グループ画面のボタン. VRChatのメインメニューでグループのページを開く(押した本人のみ. 操作権は要らない)
+        public void OnOpenGroupPage()
+        {
+            VRC.Economy.Store.OpenGroupPage(GroupId);
         }
 
         public void RebindList()
@@ -1444,6 +1464,7 @@ namespace NudeNyang
             if (next != ScreenList) CancelPortal();
             if (next == ScreenList) OpenList();
             if (next == ScreenInfo && infoUrlField != null) SetCopyText(infoUrlField, InfoUrl);
+            if (next == ScreenGroup) ResetGroupFields();
             if (next == ScreenSwipe && started) ShowCard(); // 一覧などで入れ替わった先読みを、現在のカードに合わせて取り直す
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
             if (fetchStarted) MarkDirty();

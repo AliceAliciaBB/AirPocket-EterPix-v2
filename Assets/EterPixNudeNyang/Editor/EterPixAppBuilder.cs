@@ -157,6 +157,7 @@ namespace EterPixNudeNyang
             if (viewportInput == null) { Debug.LogWarning("[EtpTrace] builder: ConfigureViewportInput が見つかりません(面の入力は未設定)"); return; }
             SurfaceInput(pad, viewportInput, app.listScreen);
             SurfaceInput(pad, viewportInput, app.infoScreen);
+            SurfaceInput(pad, viewportInput, app.groupScreen);
         }
 
         // ScrollRect を持つ画面に、面の入力(押す→ドラッグ→離す)を付ける. ボタンが無くてゲートが無い画面には、ボタン0個のゲートを作る
