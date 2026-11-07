@@ -49,7 +49,8 @@ BOOTH の unitypackage は過去版と同じ **`Assets/EterPix/...` 配置** で
    return System.IO.File.Exists(path) ? ("ok " + new System.IO.FileInfo(path).Length) : "missing";
    ```
    `IncludeDependencies` は付けない (VRChat SDK 等を巻き込むため).
-   2.5. **pathname 書き換え (bash)**: `Packages/com.aliciliabb.eterpix` → `Assets/EterPix` に直し、`package.json` は除外して再パックする.
+   2.5. **pathname 書き換え (bash)**: `Packages/com.aliciliabb.eterpix` → `Assets/EterPix` に直し、VCC 専用のもの (`package.json` と `eterpix_nudenyang_addon_installer.cs`) は除外して再パックする.
+   `eterpix_nudenyang_addon_installer.cs` は VCC 配布物内の `NudeNyangAddon~` を探すメニューで、BOOTH 版では押すとエラー案内が出るだけなので入れない (2026-11-07 ユーザー判断).
    ```bash
    cd /v/Etp-vrc-gimmick
    RAW=_raw_<版名>.unitypackage; OUT=<版名>.unitypackage
@@ -57,14 +58,14 @@ BOOTH の unitypackage は過去版と同じ **`Assets/EterPix/...` 配置** で
    for d in $T/*/; do
      p=$(cat $d/pathname)
      case "$p" in
-       */package.json) rm -rf $d; continue;;
+       */package.json|*/eterpix_nudenyang_addon_installer.cs) rm -rf $d; continue;;
      esac
      printf '%s' "${p/#Packages\/com.aliciliabb.eterpix/Assets\/EterPix}" > $d/pathname
    done
    tar -czf $OUT -C $T $(ls $T) && rm -rf $T $RAW
    ```
    ※ `pathname` は末尾改行なしで書く. 初回は手順 3 に加え、直近の過去版 (`20261018-etp-vrc` 等) とパス一覧を diff して差が意図どおりか確認する.
-3. **中身の検証 (bash)**: パス一覧が `Assets/EterPix/...` のみ (`Packages/` や `package.json` が 0 件) であること、変更点が反映されていること。
+3. **中身の検証 (bash)**: パス一覧が `Assets/EterPix/...` のみ (`Packages/` や `package.json`、`addon_installer` が 0 件) で、直近の BOOTH 版とのパス一覧の差が意図どおり (VCC 専用ファイル以外の差分が無い) であること、変更点が反映されていること。
    ```bash
    P=<版名>.unitypackage
    for d in $(tar -tzf $P | grep /pathname); do tar -xzOf $P "$d"; echo; done | sort
