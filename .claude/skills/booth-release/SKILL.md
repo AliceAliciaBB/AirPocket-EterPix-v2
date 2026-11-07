@@ -1,6 +1,6 @@
 ---
 name: booth-release
-description: Use when the EterPix VRChat gimmick needs a new BOOTH release - the user asks to make a new zip / unitypackage for BOOTH, update booth_商品説明.md, or says the gimmick changed (API URL, prefab, script) and the distributed package must be rebuilt.
+description: Use when the EterPix VRChat gimmick needs a new BOOTH release - the user asks to make a new zip / unitypackage for BOOTH, update the BOOTH product description (docs/booth-description.md), or says the gimmick changed (API URL, prefab, script) and the distributed package must be rebuilt.
 ---
 
 # booth-release
@@ -13,7 +13,10 @@ EterPix ギミック (`Assets/EterPix`) を BOOTH 配布用に書き出し、商
 |------|------|
 | 配布元フォルダ (Unity) | `V:\VRChatSDK-Unity\AirPocket-EterPix\Assets\EterPix` |
 | 出力先 (過去版もここ) | `V:\Etp-vrc-gimmick\` |
-| 商品説明 (git: eterpix-v10) | `D:\git\eterpix-v10\docs\booth_商品説明.md` |
+| 商品説明の正本 (git: eterpix_integrated_management の main) | `D:\git\eterpix_integrated_management\docs\booth-description.md` |
+
+商品説明は統合管理リポジトリの main に置く (Unity側はブランチごとに文書が食い違うため). 編集はそのリポジトリの規則どおり専用 worktree で行う.
+**VCC版だけの更新 (BOOTHのファイルを差し替えない更新) でも、商品説明の「バージョン」欄は更新する.**
 
 ## バージョン名
 
@@ -44,14 +47,14 @@ EterPix ギミック (`Assets/EterPix`) を BOOTH 配布用に書き出し、商
    ```powershell
    Compress-Archive -Path "V:\Etp-vrc-gimmick\<版名>.unitypackage" -DestinationPath "V:\Etp-vrc-gimmick\<版名>.zip"
    ```
-5. **商品説明の更新** (`booth_商品説明.md`):
+5. **商品説明の更新** (`docs/booth-description.md`):
    - メタデータの `更新日` を今日に
    - 「バージョン」欄の先頭に `<版名> : <利用者向けの変更内容>` を追加 (新しい順)
    - 旧版が動かなくなる変更 (API 形式変更など) のときは、「## 内容」の先頭に
      `【重要】<直前の版名> 以前のバージョンをお使いの方へ` の告知を置く。
      不要になった古い告知は削除する
    - 文面は BOOTH にそのまま貼る前提: 利用者向けの平易な日本語、内部実装の用語は最小限
-6. **コミット・プッシュ**: `D:\git\eterpix-v10` で `booth_商品説明.md` だけを add してコミット・プッシュ.
+6. **コミット・プッシュ**: `D:\git\eterpix_integrated_management` の専用 worktree で `docs/booth-description.md` だけを add してコミットし、`origin/main` へ反映する (マージはユーザーの完了指示後).
 7. **報告**: 出力ファイル名とサイズ、検証結果、「## 内容 以下を BOOTH に貼り、ダウンロードファイルを差し替える」旨を伝える.
 
 ## よくある間違い
