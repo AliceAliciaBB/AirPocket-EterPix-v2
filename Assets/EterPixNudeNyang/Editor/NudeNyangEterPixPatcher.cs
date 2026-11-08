@@ -161,6 +161,58 @@ namespace EterPixNudeNyang
             AssetDatabase.Refresh();
         }
 
+        // 「パッチを適用」の逆. 当てた変更(P1〜P11)を取り除き、NudeNyang 本体を元に戻す.
+        // 各パッチを「置換後 → アンカー」で逆に置換する(.eterpix-orig は本体の更新前のものが残るため使わない).
+        // 事前に全部検査し、1つでも安全に戻せなければ何も書かない
+        [MenuItem("NudeNyang/EterPix-app/パッチを外す (本体を元に戻す)")]
+        public static void RevertMenu() { Revert(true); }
+
+        public static bool Revert(bool confirm)
+        {
+            CheckVersion();
+            var plan = new System.Collections.Generic.List<string[]>(); // {path, newText, bom}
+            foreach (var group in Patches().GroupBy(p => p.File))
+            {
+                string path = Root + "/" + group.Key;
+                bool bom; string text = Read(path, out bom);
+                if (text == null) { Debug.LogError("[EtpTrace] patch 外せません (ファイル無し): " + group.Key + " 何も書き換えていません"); return false; }
+                bool changed = false;
+                foreach (var p in group.Reverse())
+                {
+                    int s = State(p, text);
+                    if (s == 0) continue; // 未適用
+                    if (s >= 2) { Debug.LogError("[EtpTrace] patch " + p.Id + " 外せません (アンカー不一致): " + p.File + " 何も書き換えていません"); return false; }
+                    if (Count(text, p.Replacement) != p.Expected)
+                    {
+                        Debug.LogError("[EtpTrace] patch " + p.Id + " 外せません (置換後の文字列が " + Count(text, p.Replacement) + " 回. 期待 " + p.Expected + "): " + p.File + " 手で変更された可能性があります. 何も書き換えていません");
+                        return false;
+                    }
+                    text = text.Replace(p.Replacement, p.Anchor); changed = true;
+                    if (Count(text, p.Anchor) != p.Expected)
+                    {
+                        Debug.LogError("[EtpTrace] patch " + p.Id + " 外すとアンカーが期待回数になりません: " + p.File + " 何も書き換えていません");
+                        return false;
+                    }
+                }
+                if (changed) plan.Add(new[] { path, text, bom ? "1" : "0" });
+            }
+            if (plan.Count == 0) { Debug.Log("[EtpTrace] patch 外すものがありません(すべて未適用)"); return true; }
+            if (confirm && !EditorUtility.DisplayDialog("パッチを外す",
+                plan.Count + " 個の NudeNyang 本体のファイルから、EterPix-app 用の変更を取り除きます.\n"
+                + "先に、開いているシーンから EterPix-app を削除し、ホームの12番目のタイルも元に戻します.\n"
+                + "(他のシーンに EterPix-app を配置している場合は、先にそのシーンで「削除」を実行してください)\n\n"
+                + "「パッチを適用」でいつでも戻せます. 実行しますか?", "外す", "やめる")) return false;
+
+            // シーン側を先に戻す(パッチを外すと AppCount=11 に戻り、12番目のタイルが残るため)
+            EterPixAppBuilder.RemoveAll(false);
+            EterPixAppBuilder.ShrinkHomeToOriginal();
+            foreach (var item in plan)
+                File.WriteAllBytes(item[0], new UTF8Encoding(item[2] == "1").GetPreamble().Concat(new UTF8Encoding(false).GetBytes(item[1])).ToArray());
+            Debug.Log("[EtpTrace] patch 外しました " + plan.Count + " ファイル(シーンは保存してください)");
+            AssetDatabase.Refresh();
+            return true;
+        }
+
         static void CheckVersion()
         {
             string path = Root + "/InstallManager/Editor/Updates/installed-release.json";

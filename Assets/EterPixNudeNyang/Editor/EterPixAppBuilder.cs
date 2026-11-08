@@ -70,6 +70,30 @@ namespace EterPixNudeNyang
             Debug.Log("[EtpTrace] builder: " + removed + " / " + pads.Length + " 台のタブレットから EterPix-app を削除しました");
         }
 
+        // パッチを外す前に、ホームの12番目の空きタイル(削除で非表示にしたもの)と配列の延長を、元の長さ(11)に戻す.
+        // 12番目が空きタイルでなければ(EterPix-app が残っているなど)触らない
+        public static void ShrinkHomeToOriginal()
+        {
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            foreach (var pad in Object.FindObjectsOfType<NudeNyangTablet>(true).Where(p => !EditorUtility.IsPersistent(p) && p.gameObject.scene == scene))
+            {
+                var shell = pad.shell;
+                int idx = NudeNyangEterPix.AppId - 1;
+                if (shell == null || shell.homeIcons == null || shell.homeIcons.Length != idx + 1) continue;
+                var tile = shell.homeIcons[idx];
+                if (tile != null && !tile.name.StartsWith("(未使用")) continue;
+                Undo.RecordObject(shell, "ホームを元の長さに戻す");
+                if (tile != null) Undo.DestroyObjectImmediate(tile.gameObject);
+                System.Array.Resize(ref shell.homeIcons, idx);
+                if (shell.homeLabels != null && shell.homeLabels.Length == idx + 1) System.Array.Resize(ref shell.homeLabels, idx);
+                if (shell.appSprites != null && shell.appSprites.Length == idx + 1) System.Array.Resize(ref shell.appSprites, idx);
+                if (shell.appColors != null && shell.appColors.Length == idx + 1) System.Array.Resize(ref shell.appColors, idx);
+                UdonSharpEditorUtility.CopyProxyToUdon(shell);
+                EditorUtility.SetDirty(shell);
+                Debug.Log("[EtpTrace] builder: " + pad.name + " のホームを " + idx + " 個に戻しました");
+            }
+        }
+
         static bool Remove(NudeNyangTablet pad)
         {
             var shell = pad.shell;
