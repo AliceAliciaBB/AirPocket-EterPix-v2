@@ -30,9 +30,9 @@ MonoBehaviour:
     receiptPending: 1
     receiptInstalled: 1
     publicationWaiting: 1
-    nextPublicationCheckAt: 1794061151993
+    nextPublicationCheckAt: 1794104838890
     publicationTrackingVersion: 1
-    receiptRevision: 3
+    receiptRevision: 2
     thumbnailUrl: https://api.vrchat.cloud/api/1/image/file_f2294583-21c4-43f4-9b1c-1ce624b647d9/1/256
     uploadedThumbnailUrl: 
     verificationMarker: 
