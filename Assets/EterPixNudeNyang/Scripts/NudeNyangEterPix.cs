@@ -314,7 +314,8 @@ namespace NudeNyang
         // 自分が操作したときに呼ぶ(他の人の状態を適用している間は呼ばない)
         private void MarkDirty()
         {
-            if (applyingRemote) return;
+            // ロード前の人は同期の送信者にならない(起動画面などの個人の状態で、ロード済みの人の画面を戻さない. 追加計画Z)
+            if (applyingRemote || !loadAllowed) return;
             syncDirty = true;
         }
 
@@ -335,7 +336,8 @@ namespace NudeNyang
         {
             if (!Networking.IsOwner(gameObject)) Networking.SetOwner(Networking.LocalPlayer, gameObject);
             bool feedOk = feed != null && feed.Status == EterPixNudeNyang.EterPixAppFeed.StatusOk;
-            sScreen = screen; sReturn = returnScreen; sBack = overlayBack;
+            // i・グループ・設定は個人の画面なので送らない(開く前の基準の画面を送る. 追加計画Z)
+            sScreen = IsTextOverlay(screen) ? overlayBack : screen; sReturn = returnScreen; sBack = overlayBack;
             sStarted = started; sDark = isDark; sZoomMode = zoomMode;
             sWorldOpen = WorldModalOpen();
             sCursor = (started && feedOk) ? (cursor >= feed.Count ? "#end" : feed.Poid[cursor]) : "";
@@ -412,7 +414,12 @@ namespace NudeNyang
                 else if (zoomMode != 0) { zoomMode = 0; zoomIndex = -1; hqZoomLoading = false; zoomRoot.SetActive(false); if (images != null) images.ClearHq(); }
             }
             returnScreen = sReturn; overlayBack = sBack;
-            if (screen != sScreen) ShowScreen(sScreen);
+            if (IsTextOverlay(screen))
+            {
+                // 自分が i・グループ・設定を開いている間は、画面を奪わない. 閉じたときの戻り先だけ、みんなの画面に合わせる
+                overlayBack = sScreen;
+            }
+            else if (screen != sScreen) ShowScreen(sScreen);
             else if (screen == ScreenSwipe && started) ShowCard();
             else if (screen == ScreenList) OpenList();
             // ワールド詳細モーダル: 相手が開いていれば同じ投稿で開き、閉じていれば閉じる(リロード中の自分は触らない)
@@ -1014,7 +1021,7 @@ namespace NudeNyang
             copyLaidOut = PanelFrame();
             LayoutCopy();
             Debug.Log("[EtpTrace] eterpix-app copy open kind=" + kind + " post=" + post);
-            MarkDirty();
+            // コピーページは個人の画面なので、開いても同期しない(追加計画Z)
         }
 
         // 戻る(コピーせずに一覧へ). 取得中ならやめる
@@ -1772,7 +1779,7 @@ namespace NudeNyang
             if (next == ScreenGroup) ResetGroupFields();
             if (next == ScreenSwipe && started) ShowCard(); // 一覧などで入れ替わった先読みを、現在のカードに合わせて取り直す
             Debug.Log("[EtpTrace] eterpix-app screen=" + next);
-            if (fetchStarted) MarkDirty();
+            if (fetchStarted && !IsTextOverlay(next)) MarkDirty(); // i・グループ・設定を開くのは個人の操作(追加計画Z)
         }
 
         // i・グループは同じボタンで開閉する(開く前の画面へ戻る)
