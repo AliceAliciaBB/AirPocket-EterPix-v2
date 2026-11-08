@@ -52,6 +52,75 @@ namespace EterPixNudeNyang
             Debug.Log("[EtpTrace] builder: " + pads.Length + " 台のタブレットに EterPix-app を配線しました");
         }
 
+        // 「配置」の逆: アクティブなシーンの全タブレットから EterPix-app を取り除く(パッチと本体のファイルには触らない).
+        // 「配置」をやり直せば、最新版だけが入る状態になる
+        [MenuItem("NudeNyang/EterPix-app/削除 (シーンの全タブレット)")]
+        public static void RemoveAllMenu() { RemoveAll(true); }
+
+        public static void RemoveAll(bool confirm)
+        {
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            var pads = Object.FindObjectsOfType<NudeNyangTablet>(true).Where(p => !EditorUtility.IsPersistent(p) && p.gameObject.scene == scene).ToArray();
+            if (confirm && !EditorUtility.DisplayDialog("EterPix-app の削除",
+                "シーン「" + scene.name + "」の " + pads.Length + " 台のタブレットから、EterPix-app(画面・サービス・ホームのアイコン)を取り除きます.\n"
+                + "パッチと NudeNyang 本体のファイルは変更しません. 「配置」をやり直せば、最新版が入ります.\n\nUndo で戻せます. 実行しますか?", "削除する", "やめる")) return;
+            int removed = 0;
+            foreach (var pad in pads) if (Remove(pad)) removed++;
+            if (removed > 0) UnityEngine.SceneManagement.SceneManager.SetActiveScene(scene);
+            Debug.Log("[EtpTrace] builder: " + removed + " / " + pads.Length + " 台のタブレットから EterPix-app を削除しました");
+        }
+
+        static bool Remove(NudeNyangTablet pad)
+        {
+            var shell = pad.shell;
+            bool did = false;
+            Undo.SetCurrentGroupName("EterPix-app を削除");
+            // サービス(Feed / Images / Geometry を子に持つ)
+            var service = pad.transform.Find("EterPix app service");
+            if (service != null) { Undo.DestroyObjectImmediate(service.gameObject); did = true; }
+            if (shell == null) return did;
+            // 画面本体(コピーページ・Zoom・触り判定ゲート・面の入力も中にある)
+            if (shell.appFrame != null)
+            {
+                var panel = shell.appFrame.Find("EterPix app");
+                if (panel != null) { Undo.DestroyObjectImmediate(panel.gameObject); did = true; }
+            }
+            Undo.RecordObject(shell, "EterPix-app を削除");
+            var eterpixField = typeof(NudeNyangTabletShell).GetField("eterpix");
+            if (eterpixField != null && eterpixField.GetValue(shell) != null) { eterpixField.SetValue(shell, null); did = true; }
+            // ホームの12番目: 削除せず、非表示の「空きタイル」に戻す(パッチの AppCount=12 のまま配列を縮めると、本体が全要素を使うため壊れる)
+            int index = NudeNyangEterPix.AppId - 1;
+            if (shell.homeIcons != null && shell.homeIcons.Length > index && shell.homeIcons[index] != null)
+            {
+                var tile = shell.homeIcons[index];
+                Undo.RecordObject(tile.gameObject, "EterPix-app を削除");
+                tile.name = "(未使用 " + (index + 1) + ")";
+                var img = tile.GetComponent<Image>();
+                if (img != null) { Undo.RecordObject(img, "EterPix-app を削除"); img.color = Color.clear; }
+                var glyph = tile.Find("Glyph");
+                var gi = glyph != null ? glyph.GetComponent<Image>() : null;
+                if (gi != null) { Undo.RecordObject(gi, "EterPix-app を削除"); gi.sprite = null; }
+                var label = tile.Find("Label");
+                var lt = label != null ? label.GetComponent<Text>() : null;
+                if (lt != null) { Undo.RecordObject(lt, "EterPix-app を削除"); lt.text = ""; }
+                var btn = tile.GetComponent<Button>();
+                if (btn != null)
+                {
+                    Undo.RecordObject(btn, "EterPix-app を削除");
+                    for (int i = btn.onClick.GetPersistentEventCount() - 1; i >= 0; i--) UnityEditor.Events.UnityEventTools.RemovePersistentListener(btn.onClick, i);
+                }
+                tile.gameObject.SetActive(false);
+                did = true;
+            }
+            if (shell.appSprites != null && shell.appSprites.Length > index) shell.appSprites[index] = null;
+            if (shell.appColors != null && shell.appColors.Length > index) shell.appColors[index] = Color.clear;
+            if (shell.homeLabels != null && shell.homeLabels.Length > index && shell.homeLabels[index] != null) shell.homeLabels[index].text = "";
+            UdonSharpEditorUtility.CopyProxyToUdon(shell);
+            EditorUtility.SetDirty(shell);
+            Debug.Log("[EtpTrace] builder: " + pad.name + " から EterPix-app を削除");
+            return did;
+        }
+
         public static void Build(NudeNyangTablet pad)
         {
             var shell = pad.shell;
@@ -117,6 +186,16 @@ namespace EterPixNudeNyang
             var tile = shell.homeIcons[index];
             if (tile != null)
             {
+                // 「削除」で空きタイルに戻された後でも元どおりになるよう、名前・表示・ラベル・クリックの呼び先を保証する
+                tile.name = "EterPix";
+                tile.gameObject.SetActive(true);
+                var tileLabel = tile.Find("Label");
+                var tileText = tileLabel != null ? tileLabel.GetComponent<Text>() : null;
+                if (tileText != null) tileText.text = "EterPix";
+                var tileButton = tile.GetComponent<Button>();
+                if (tileButton != null && tileButton.onClick.GetPersistentEventCount() == 0)
+                    UnityEditor.Events.UnityEventTools.AddStringPersistentListener(tileButton.onClick,
+                        UdonSharpEditorUtility.GetBackingUdonBehaviour(shell).SendCustomEvent, "OpenEterPix");
                 var tileImage = tile.GetComponent<Image>();
                 if (tileImage != null) { tileImage.color = Accent; EditorUtility.SetDirty(tileImage); }
                 var glyph = tile.Find("Glyph");

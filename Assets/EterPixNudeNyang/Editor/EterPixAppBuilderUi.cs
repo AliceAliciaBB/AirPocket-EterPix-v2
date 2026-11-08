@@ -118,6 +118,13 @@ namespace EterPixNudeNyang
             PanelHover(header.gameObject, app);
             var copy = Label(footer, "Copyright", "2026 EterPix All Rights Reserved.", font, 20, TextAlignmentOptions.TopRight, tk.sub);
             Anchor(copy.rectTransform, 0, 0, 1, 1, new Vector2(0, 0), new Vector2(-Margin, -4)); // 右寄せ(右余白はヘッダーのボタンと同じ16)
+            // 左側にバージョン(vX.X.X). 配置のときの package.json の値を焼く(古い配置のままだと古い番号が見える=最新が入ったかの目印)
+            string ver = PackageVersion();
+            if (!string.IsNullOrEmpty(ver))
+            {
+                var vl = Label(footer, "Version", "v" + ver, font, 20, TextAlignmentOptions.TopLeft, tk.sub);
+                Anchor(vl.rectTransform, 0, 0, 1, 1, new Vector2(Margin, 0), new Vector2(0, -4));
+            }
 
             // ---- 画面(ヘッダーとフッターの間) ----
             app.startScreen = Screen(root, "Start Screen").gameObject;
@@ -953,6 +960,19 @@ namespace EterPixNudeNyang
         // コピーページ(共通): 本体(NudeNyang)の検索ページの「コピー → ペースト」画面を複製し、EterPix-app の規則に直したもの.
         // 配置のたびに、シーン内のタブレットの NudeNyangMediaKeyboard.handoffView から階層ごと複製する(NudeNyang のスクリプト・リスナー・広告は持ち込まない).
         // 位置・大きさは、実行時の NudeNyangEterPix.LayoutCopy(本体の LayoutHandoff と同じ計算)が決める
+        // Packages/com.aliciliabb.eterpix/package.json の version(読めなければ空)
+        static string PackageVersion()
+        {
+            try
+            {
+                const string path = "Packages/com.aliciliabb.eterpix/package.json";
+                if (!System.IO.File.Exists(path)) return "";
+                var m = System.Text.RegularExpressions.Regex.Match(System.IO.File.ReadAllText(path), "\"version\"\\s*:\\s*\"([^\"]+)\"");
+                return m.Success ? m.Groups[1].Value : "";
+            }
+            catch (System.Exception) { return ""; }
+        }
+
         static Transform Counterpart(Transform srcRoot, Transform cloneRoot, Transform src)
         {
             // 複製元での「子の順番の道」を、複製側でたどる(同じ名前の部品が多いので、名前では探さない)
