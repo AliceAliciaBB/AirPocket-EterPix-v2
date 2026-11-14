@@ -127,9 +127,11 @@ EterPix/
 |---|---|---|
 | `Etp2_MenuMonitor` | `etp2_menu_monitor` | データ = `Etp2_MockData`、ビューア = `Etp2_Viewer` |
 | `Etp2_DetailMonitor` | `etp2_detail_monitor` | データ、ビューア |
-| `Etp2_Viewer` | `etp2_viewer` | データ、詳細 = `Etp2_DetailMonitor` |
+| `Etp2_Viewer` | `etp2_viewer` | データ、詳細 = `Etp2_DetailMonitor`、メニュー = `Etp2_MenuMonitor` |
 | `Etp2_PhotoFrame` | `etp2_photo_frame` | ビューア、データ、見せる投稿の番号(空なら全部) |
 
+- 置き場所: メニューモニターは玄関など説明として出しておきたい場所に置く. フォトフレームを押してビューアを開いている間は、ビューアの左隣へ移り、閉じると元の場所へ戻る. 詳細モニター(ワールドに1つ)はビューアを開いている間だけ右隣に出る. どれも押した人の画面だけ
+- ビューアの写真の左右を押しても前/次に切り替わる(下のボタンと同じ)
 - テーマ: `Etp2_Theme` の切り替えモード(0: 見る人が切り替え / 1: 黒固定 / 2: 白固定). 選んだテーマは見た人ごとに保持される(保存キー `eterpix.ui2.theme`. v1 とは別)
 - prefab は**ビルダーの生成物**です. 中身を手で直すと次のビルドで消えます. 直したいときは `Assets/EterPix_dev/UIv2/README.md` を見てください(開発リポジトリだけにあります)
 

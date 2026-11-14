@@ -224,6 +224,7 @@ namespace ali.eterpix.ui2.editor
             var ctx = new Etp2Ctx();
             var m = BuildMonitorSkeleton(root, ctx, "detail", Etp2Spec.DetailNav);
             detail.theme = m.theme;
+            detail.screen = m.screen.gameObject;
             ctx.listeners.Add(detail);
 
             // 5.1 画像説明
@@ -387,6 +388,7 @@ namespace ali.eterpix.ui2.editor
             viewer.theme = theme;
             viewer.tooltip = ctx.tooltip;
             viewer.screen = screen.gameObject;
+            viewer.sideOffset = Etp2Spec.MonitorSize.x + Etp2Spec.MonitorGap;   // ビューアと隣のモニターは同じ幅 560
             ctx.listeners.Add(viewer);
 
             var bg = Img(ctx, screen, "bg_Background", Role.Bg);

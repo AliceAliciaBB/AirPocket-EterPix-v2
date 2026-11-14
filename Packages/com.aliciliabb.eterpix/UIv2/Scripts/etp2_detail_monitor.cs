@@ -16,6 +16,7 @@ namespace ali.eterpix.ui2
 
         [Header("ビルダーが入れる")]
         public etp2_theme_target theme;
+        public GameObject screen;   // ビューアを開いている間だけ出す
 
         [Header("画像説明")]
         public TextMeshProUGUI dateText;
@@ -45,6 +46,26 @@ namespace ali.eterpix.ui2
         private void Start()
         {
             Render();
+            // ふだんは出さない(ワールドに1つ. ビューアを開いている間だけ右隣に出る)
+            if (screen != null && !_shown) screen.SetActive(false);
+        }
+
+        private bool _shown;
+
+        // ビューアが開いたときに呼ぶ. ルートは有効のまま、Screen だけを出す
+        public void ShowBeside(Vector3 position, Quaternion rotation)
+        {
+            _shown = true;
+            transform.SetPositionAndRotation(position, rotation);
+            if (screen != null) screen.SetActive(true);
+            Debug.Log("[Etp2Trace] detail: show beside viewer");
+        }
+
+        public void Hide()
+        {
+            _shown = false;
+            if (screen != null) screen.SetActive(false);
+            Debug.Log("[Etp2Trace] detail: hide");
         }
 
         public void OnViewerChanged()

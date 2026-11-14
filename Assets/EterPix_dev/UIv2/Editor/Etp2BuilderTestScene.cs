@@ -25,7 +25,7 @@ namespace ali.eterpix.ui2.editor
             var camGo = new GameObject("Main Camera");
             camGo.tag = "MainCamera";
             var cam = camGo.AddComponent<Camera>();
-            cam.transform.position = new Vector3(0, 1.55f, -1.25f);
+            cam.transform.position = new Vector3(0, 1.5f, -1.5f);
             cam.transform.rotation = Quaternion.identity;
             cam.fieldOfView = 60;
             cam.clearFlags = CameraClearFlags.SolidColor;
@@ -48,28 +48,43 @@ namespace ali.eterpix.ui2.editor
             float px = Etp2Spec.WorldScale;
             float step = (Etp2Spec.MonitorSize.x + 32) * px;
             float top = 2.0f;
-            var menuGo = PlaceInstance("Etp2_MenuMonitor", new Vector3(-step, top, 0));
+            // メニューモニターの「ふだんの場所」(玄関の代わり). ビューアを開くと左隣へ移る
+            var menuGo = PlaceInstance("Etp2_MenuMonitor", new Vector3(-step * 2, top, 0.6f));
             var viewerGo = PlaceInstance("Etp2_Viewer", new Vector3(0, top, 0));
             var detailGo = PlaceInstance("Etp2_DetailMonitor", new Vector3(step, top, 0));
-            var frameGo = PlaceInstance("Etp2_PhotoFrame", new Vector3(0, top - Etp2Spec.ViewerSize.y * px / 2f, 0.02f));
-
             var d = data.GetComponent<etp2_mock_data>();
             var menu = menuGo.GetComponent<etp2_menu_monitor>();
             var viewer = viewerGo.GetComponent<etp2_viewer>();
             var detail = detailGo.GetComponent<etp2_detail_monitor>();
-            var frame = frameGo.GetComponent<etp2_photo_frame>();
             menu.data = d; menu.viewer = viewer;
-            viewer.data = d; viewer.detail = detail;
+            viewer.data = d; viewer.detail = detail; viewer.menu = menu;
             detail.data = d; detail.viewer = viewer;
-            frame.data = d; frame.viewer = viewer;
-            foreach (UdonSharpBehaviour b in new UdonSharpBehaviour[] { menu, viewer, detail, frame })
+
+            // フォトフレームを複数. ビューアの下に横に並べ、見せる投稿を変える(並び順・ページはフォトフレームごと)
+            int n = Etp2Spec.Posts.GetLength(0);
+            var even = new System.Collections.Generic.List<int>();
+            var odd = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < n; i++) (i % 2 == 0 ? even : odd).Add(i);
+            string[] frameNames = { "Etp2_PhotoFrame_全部", "Etp2_PhotoFrame_偶数", "Etp2_PhotoFrame_奇数" };
+            int[][] frameLists = { new int[0], even.ToArray(), odd.ToArray() };
+            float frameGap = (Etp2Spec.PhotoFrameSize.x + 80) * px;
+            var behaviours = new System.Collections.Generic.List<UdonSharpBehaviour> { menu, viewer, detail };
+            for (int f = 0; f < frameNames.Length; f++)
+            {
+                var frameGo = PlaceInstance("Etp2_PhotoFrame", new Vector3((f - 1) * frameGap, 0.85f, 0));
+                frameGo.name = frameNames[f];
+                var frame = frameGo.GetComponent<etp2_photo_frame>();
+                frame.data = d; frame.viewer = viewer; frame.postIndices = frameLists[f];
+                behaviours.Add(frame);
+            }
+            foreach (UdonSharpBehaviour b in behaviours)
             {
                 UdonSharpEditorUtility.CopyProxyToUdon(b);
                 PrefabUtility.RecordPrefabInstancePropertyModifications(b);
                 PrefabUtility.RecordPrefabInstancePropertyModifications(UdonSharpEditorUtility.GetBackingUdonBehaviour(b));
             }
 
-            BuildDebugPanel(viewer, new Vector3(0, top - (Etp2Spec.ViewerSize.y + 48) * px, 0));
+            BuildDebugPanel(viewer, new Vector3(0, top - (Etp2Spec.ViewerSize.y + 40) * px, 0));
 
             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Etp2Spec.TestScenePath));
             EditorSceneManager.SaveScene(scene, Etp2Spec.TestScenePath);

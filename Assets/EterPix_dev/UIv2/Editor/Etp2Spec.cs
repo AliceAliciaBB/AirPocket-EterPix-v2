@@ -72,6 +72,9 @@ namespace ali.eterpix.ui2.editor
         // 画面の端から幅 200 ずつ、高さは写真の 528. 真ん中は押しても何も起きない
         public const float PhotoHitW = 200;
 
+        // 9章(計画書) ビューアを開いている間、メニューモニターは左隣・詳細モニターは右隣. 間 32(モックの並びと同じ)
+        public const float MonitorGap = 32;
+
         // 6.3 受け渡しのパネル
         public const float HandoverW = 400;
         public const float ProgressH = 8;

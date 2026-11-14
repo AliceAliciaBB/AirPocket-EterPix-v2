@@ -17,8 +17,12 @@ namespace ali.eterpix.ui2
         [Header("ワールド作者がつなぐ")]
         public etp2_mock_data data;
         public etp2_detail_monitor detail;
+        [Tooltip("開いている間はビューアの左隣へ移し、閉じたら元の場所へ戻す(無くてよい)")]
+        public etp2_menu_monitor menu;
 
         [Header("ビルダーが入れる")]
+        [Tooltip("隣のモニターまでの横のずれ(ビューアのルートの座標. 幅 560 + 間 32)")]
+        public float sideOffset = 592f;
         public etp2_theme_target theme;
         public etp2_tooltip tooltip;
         public GameObject screen;          // 閉じると隠す
@@ -75,6 +79,10 @@ namespace ali.eterpix.ui2
             _pos = Mathf.Clamp(frame.localPos, 0, Mathf.Max(0, _list.Length - 1));
             if (screen != null) screen.SetActive(true);
             Show();
+            // 開いている間: メニューモニターは左隣、詳細モニターは右隣(押した人の画面だけ)
+            Transform t = transform;
+            if (menu != null) menu.MoveBeside(t.TransformPoint(new Vector3(-sideOffset, 0f, 0f)), t.rotation);
+            if (detail != null) detail.ShowBeside(t.TransformPoint(new Vector3(sideOffset, 0f, 0f)), t.rotation);
         }
 
         public void OnClose()
@@ -82,6 +90,8 @@ namespace ali.eterpix.ui2
             if (screen != null) screen.SetActive(false);
             if (tooltip != null) tooltip.Hide();
             SetScene(0);
+            if (menu != null) menu.ReturnHome();
+            if (detail != null) detail.Hide();
             Debug.Log("[Etp2Trace] viewer: close");
         }
 

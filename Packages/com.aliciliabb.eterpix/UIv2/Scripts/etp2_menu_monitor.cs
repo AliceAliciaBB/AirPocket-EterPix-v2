@@ -46,6 +46,31 @@ namespace ali.eterpix.ui2
             Paint();
         }
 
+        // ---- 置き場所: ふだんはワールド作者が置いた場所. ビューアを開いている間は左隣(etp2_viewer が呼ぶ) ----
+
+        private bool _homeSaved;
+        private Vector3 _homePos;
+        private Quaternion _homeRot;
+
+        public void MoveBeside(Vector3 position, Quaternion rotation)
+        {
+            if (!_homeSaved)
+            {
+                _homePos = transform.position;
+                _homeRot = transform.rotation;
+                _homeSaved = true;
+            }
+            transform.SetPositionAndRotation(position, rotation);
+            Debug.Log("[Etp2Trace] menu: move beside viewer");
+        }
+
+        public void ReturnHome()
+        {
+            if (!_homeSaved) return;
+            transform.SetPositionAndRotation(_homePos, _homeRot);
+            Debug.Log("[Etp2Trace] menu: return home");
+        }
+
         public void OnTheme()
         {
             if (themeSource == null || !themeSource.IsSwitchable()) return;
