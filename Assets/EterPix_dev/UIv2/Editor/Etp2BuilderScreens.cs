@@ -159,7 +159,7 @@ namespace ali.eterpix.ui2.editor
                 lr.pivot = new Vector2(0.5f, 0);
                 lr.anchoredPosition = Vector2.zero;
                 lr.sizeDelta = new Vector2(0, Etp2Spec.DropdownRowH * Etp2Spec.DropdownMaxRows);
-                var listContent = ScrollArea(ctx, lr, out var listScroll, false);
+                var listContent = ScrollArea(ctx, lr, out var listScroll, false, true);
                 // 一覧の中ではバーとの間を取らない(幅 8 のバーだけ)
                 ((RectTransform)listScroll.viewport).offsetMax = new Vector2(-Etp2Spec.ScrollbarW, 0);
                 VLG(listContent, 0);
@@ -339,9 +339,23 @@ namespace ali.eterpix.ui2.editor
                 row.dateText.overflowMode = TextOverflowModes.Overflow;
 
                 // 3行目から写真説明. 最大2行で自動改行し、あふれは「…」
-                row.descText = NewText(ctx, b.transform, "Desc", "", Etp2Spec.FsBody, Role.None, TextAlignmentOptions.TopLeft, true, true);
+                // U# では文字の高さを測れないので、見えない測り用の文字の高さを実行時に読んで箱の高さを決める(etp2_post_row._FitDesc)
+                var descBox = NewRect(b.transform, "DescBox");
+                float max = TwoLineHeight(b.transform);
+                row.descLayout = LE(descBox, -1, max, -1, 0);   // 最小は 0(1行のときは低くする)
+                row.maxDescHeight = max;
+                row.descText = NewText(ctx, descBox, "Desc", "", Etp2Spec.FsBody, Role.None, TextAlignmentOptions.TopLeft, true, true);
                 row.descText.overflowMode = TextOverflowModes.Ellipsis;
-                row.descText.maxVisibleLines = 2;
+                Stretch(row.descText.rectTransform);
+                var measure = NewText(ctx, descBox, "DescMeasure", "", Etp2Spec.FsBody, Role.None, TextAlignmentOptions.TopLeft, true, true);
+                measure.color = new Color(1, 1, 1, 0);   // 見えない(高さを測るだけ)
+                measure.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                var mr = measure.rectTransform;
+                mr.anchorMin = new Vector2(0, 1); mr.anchorMax = new Vector2(1, 1); mr.pivot = new Vector2(0.5f, 1);
+                mr.anchoredPosition = Vector2.zero; mr.sizeDelta = Vector2.zero;
+                FitVertical(measure);
+                row.descMeasure = measure;
+                row.descMeasureRect = mr;
 
                 row.indexButton = OnClickIndex(b, detail, nameof(etp2_detail_monitor.OnRow), i);
                 rows[i] = row;
@@ -350,6 +364,15 @@ namespace ali.eterpix.ui2.editor
             }
             EditorPaintDynamic(buttons);
             return rows;
+        }
+
+        // 写真説明(13、行の高さ 1.6 倍)の2行ぶんの高さ
+        // 1行目はフォント本来の行の高さ、2行目からは 1.6 倍ずつ(実測: 13px で 1行 18.8 / 2行 39.6 / 3行 60.4)
+        static float TwoLineHeight(Transform parent)
+        {
+            var fi = Etp2Parts.Font.faceInfo;
+            float first = Etp2Spec.FsBody * fi.lineHeight / fi.pointSize;
+            return Mathf.Ceil(first + Etp2Spec.FsBody * Etp2Spec.BodyLineHeight);
         }
 
         // ---- 6章 ビューア ----

@@ -41,6 +41,7 @@ namespace ali.eterpix.ui2.editor
             world.transform.position = new Vector3(0, 0, -1.2f);
             var desc = world.AddComponent<VRC.SDK3.Components.VRCSceneDescriptor>();
             desc.spawns = new[] { world.transform };
+            world.AddComponent<VRC.Core.PipelineManager>();   // 無いと Play できない
 
             var theme = PlaceInstance("Etp2_Theme", Vector3.zero);
             var data = PlaceInstance("Etp2_MockData", Vector3.zero);

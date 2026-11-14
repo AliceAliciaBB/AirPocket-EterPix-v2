@@ -20,6 +20,7 @@ namespace ali.eterpix.ui2.editor
         public readonly List<Button> btn = new List<Button>();
         public readonly List<Image> btnImages = new List<Image>();
         public readonly List<Scrollbar> scrollbars = new List<Scrollbar>();
+        public readonly List<Scrollbar> listScrollbars = new List<Scrollbar>();
         public readonly List<Button> accButtons = new List<Button>();
         public readonly List<Image> accImages = new List<Image>();
         public readonly List<TextMeshProUGUI> accTexts = new List<TextMeshProUGUI>();
@@ -35,6 +36,7 @@ namespace ali.eterpix.ui2.editor
             t.btnButtons = btn.ToArray();
             t.btnImages = btnImages.ToArray();
             t.scrollbars = scrollbars.ToArray();
+            t.listScrollbars = listScrollbars.ToArray();
             t.accButtons = accButtons.ToArray();
             t.accImages = accImages.ToArray();
             t.accTexts = accTexts.ToArray();
@@ -425,7 +427,7 @@ namespace ali.eterpix.ui2.editor
 
         // 1.4 スクロールバー: 幅 8、溝は背景、つまみはボタン. 中身は ScrollRect.
         // バーの幅は最初から取っておき、出ても中身がずれない. 戻り値は中身(縦に並ぶ)
-        public static RectTransform ScrollArea(Etp2Ctx ctx, RectTransform area, out ScrollRect scroll, bool permanentBar = true)
+        public static RectTransform ScrollArea(Etp2Ctx ctx, RectTransform area, out ScrollRect scroll, bool permanentBar = true, bool inList = false)
         {
             scroll = area.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false;
@@ -449,7 +451,7 @@ namespace ali.eterpix.ui2.editor
             content.sizeDelta = Vector2.zero;
             FitVertical(content);
 
-            var track = Img(ctx, area, "bg_ScrollTrack", Role.Bg, true);
+            var track = Img(ctx, area, inList ? "btn_ScrollTrack" : "bg_ScrollTrack", inList ? Role.Btn : Role.Bg, true);
             var tr = track.rectTransform;
             tr.anchorMin = new Vector2(1, 0);
             tr.anchorMax = new Vector2(1, 1);
@@ -466,7 +468,7 @@ namespace ali.eterpix.ui2.editor
             bar.targetGraphic = handle;
             bar.transition = Selectable.Transition.ColorTint;
             bar.navigation = new Navigation { mode = Navigation.Mode.None };
-            ctx.scrollbars.Add(bar);
+            if (inList) ctx.listScrollbars.Add(bar); else ctx.scrollbars.Add(bar);
 
             scroll.viewport = viewport;
             scroll.content = content;

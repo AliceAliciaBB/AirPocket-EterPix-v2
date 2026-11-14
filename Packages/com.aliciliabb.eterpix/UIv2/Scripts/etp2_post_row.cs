@@ -21,7 +21,26 @@ namespace ali.eterpix.ui2
         public TextMeshProUGUI likesText;
         public Image[] statIcons;
 
+        // 写真説明を最大2行で切る. U# では文字の高さを測れないので、見えない測り用の文字(ContentSizeFitter)の高さを
+        // 1フレーム後に読み、表示側の箱の高さを min(測った高さ, 2行) にする. あふれは表示側の Ellipsis で「…」になる
+        public TextMeshProUGUI descMeasure;
+        public RectTransform descMeasureRect;
+        public LayoutElement descLayout;
+        public float maxDescHeight;
+
         [HideInInspector] public int post = -1;
+
+        private void OnEnable()
+        {
+            SendCustomEventDelayedFrames(nameof(_FitDesc), 1);
+        }
+
+        public void _FitDesc()
+        {
+            if (descMeasureRect == null || descLayout == null || !descMeasureRect.gameObject.activeInHierarchy) return;
+            float h = descMeasureRect.rect.height;
+            descLayout.preferredHeight = Mathf.Min(h, maxDescHeight);
+        }
 
         public void Set(int postIndex, string name, string title, string date, string desc, int views, int stars, int likes)
         {
@@ -32,10 +51,12 @@ namespace ali.eterpix.ui2
             titleText.gameObject.SetActive(!string.IsNullOrEmpty(title));
             dateText.text = date;
             descText.text = desc;
+            if (descMeasure != null) descMeasure.text = desc;
             viewsText.text = etp2_mock_data.FormatCount(views);
             starsText.text = etp2_mock_data.FormatCount(stars);
             likesText.text = etp2_mock_data.FormatCount(likes);
             gameObject.SetActive(true);
+            SendCustomEventDelayedFrames(nameof(_FitDesc), 1);
         }
 
         public void Paint(etp2_theme_target theme, bool current)

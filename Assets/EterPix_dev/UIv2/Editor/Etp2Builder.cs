@@ -241,6 +241,7 @@ namespace ali.eterpix.ui2.editor
             foreach (var b in t.btnButtons) SetColors(b, bt, pr);
             foreach (var b in t.accButtons) SetColors(b, ac, ac);
             foreach (var s in t.scrollbars) SetColors(s, bt, pr);
+            foreach (var s in t.listScrollbars) SetColors(s, pr, pr);
         }
 
         static void SetColors(Selectable s, Color face, Color pressed)

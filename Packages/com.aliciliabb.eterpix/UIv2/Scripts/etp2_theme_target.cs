@@ -22,6 +22,7 @@ namespace ali.eterpix.ui2
         public Button[] btnButtons;       // btn_
         public Image[] btnImages;         // btn_(ボタンでない面: 区切り線・丸アイコン・押せない帯・溝)
         public Scrollbar[] scrollbars;    // btn_(つまみはボタン色、押すと押下色)
+        public Scrollbar[] listScrollbars;   // ドロップダウンの一覧の中(溝は一覧の面=ボタン色、つまみは押下色)
         public Button[] accButtons;       // acc_(ボタン)
         public Image[] accImages;         // acc_(ボタンでない面)
         public TextMeshProUGUI[] accTexts;   // acctx_
@@ -82,6 +83,16 @@ namespace ali.eterpix.ui2
                     sb.pressedColor = cPressed; sb.disabledColor = cButton;
                     sb.colorMultiplier = 1f; sb.fadeDuration = 0f;
                     scrollbars[i].colors = sb;
+                }
+            if (listScrollbars != null)
+                for (int i = 0; i < listScrollbars.Length; i++)
+                {
+                    if (listScrollbars[i] == null) continue;
+                    ColorBlock lb = listScrollbars[i].colors;
+                    lb.normalColor = cPressed; lb.highlightedColor = cPressed; lb.selectedColor = cPressed;
+                    lb.pressedColor = cPressed; lb.disabledColor = cPressed;
+                    lb.colorMultiplier = 1f; lb.fadeDuration = 0f;
+                    listScrollbars[i].colors = lb;
                 }
             if (accButtons != null) for (int i = 0; i < accButtons.Length; i++) PaintButton(accButtons[i], StyleAccent);
             if (accImages != null) for (int i = 0; i < accImages.Length; i++) if (accImages[i] != null) accImages[i].color = cAccent;
