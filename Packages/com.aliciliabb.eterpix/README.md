@@ -109,3 +109,30 @@ EterPix/
 ## EterPix-app (NudeNyang Tablet 用アドオン・任意)
 
 配布版のパッケージ内 `NudeNyangAddon~/` は、NudeNyang Tablet(第三者の有償アセット. **本パッケージには含みません**)に EterPix アプリを足す非公式アドオンです. NudeNyang を持っていなければ使わなくて構いません(入っていてもコンパイルは通ります). メニュー **NudeNyang → EterPix-app → アドオンを Assets へ導入** で `Assets/EterPixNudeNyang/` にコピーされます. 使い方はコピー後の `Assets/EterPixNudeNyang/README.md` を参照してください.
+
+## v2 UI(開発中・第1段階)
+
+`UIv2/` は v2 の画面(メニューモニター・詳細モニター・ビューア・フォトフレーム)です. 今は**ダミーデータで見た目と手元の動きを確かめる段階**で、同期・鍵・APIへの接続はまだありません(計画: リポジトリの `docs/superpowers/plans/2026-11-14-unity-ui-v2.md`).
+
+### 置き方
+
+1. `UIv2/Prefabs/` から次をシーンに置く
+   - `Etp2_Theme`(1つ. **名前を変えない**. 各画面がこの名前で探す)
+   - `Etp2_MockData`(1つ. 第3段階で JSON の読み込みに置き換える)
+   - `Etp2_MenuMonitor`・`Etp2_DetailMonitor`・`Etp2_Viewer`(各1つ)
+   - `Etp2_PhotoFrame`(いくつでも)
+2. 各 prefab のルートの部品の「ワールド作者がつなぐ」欄をつなぐ
+
+| prefab | ルートの部品 | つなぐもの |
+|---|---|---|
+| `Etp2_MenuMonitor` | `etp2_menu_monitor` | データ = `Etp2_MockData`、ビューア = `Etp2_Viewer` |
+| `Etp2_DetailMonitor` | `etp2_detail_monitor` | データ、ビューア |
+| `Etp2_Viewer` | `etp2_viewer` | データ、詳細 = `Etp2_DetailMonitor` |
+| `Etp2_PhotoFrame` | `etp2_photo_frame` | ビューア、データ、見せる投稿の番号(空なら全部) |
+
+- テーマ: `Etp2_Theme` の切り替えモード(0: 見る人が切り替え / 1: 黒固定 / 2: 白固定). 選んだテーマは見た人ごとに保持される(保存キー `eterpix.ui2.theme`. v1 とは別)
+- prefab は**ビルダーの生成物**です. 中身を手で直すと次のビルドで消えます. 直したいときは `Assets/EterPix_dev/UIv2/README.md` を見てください(開発リポジトリだけにあります)
+
+### アイコン
+
+`UIv2/Sprites/etp2_icon_*.png` は、統合管理の v2 モック(HTML)の仮の SVG を白の PNG にしたものです(仮).
