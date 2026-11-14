@@ -35,7 +35,7 @@ namespace ali.eterpix.ui2.editor
             BuildPrefab("Etp2_Viewer", BuildViewer);
             BuildPrefab("Etp2_PhotoFrame", BuildPhotoFrame);
             AssetDatabase.SaveAssets();
-            Debug.Log("[Etp2Trace] builder: prefab を6つ作りました(" + Etp2Spec.PrefabDir + ")");
+            Debug.Log("[Etp2Trace] builder: ビルドが終わりました(" + Etp2Spec.PrefabDir + ")");
         }
 
         // ---- 共通 ----
@@ -86,17 +86,71 @@ namespace ali.eterpix.ui2.editor
             GameObject root = existing ? PrefabUtility.LoadPrefabContents(path) : new GameObject(name);
             try
             {
+                string before = existing ? Canonical(root) : null;
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
                     Object.DestroyImmediate(root.transform.GetChild(i).gameObject);
                 build(root);
                 CopyAllProxies(root);
+                // 作り直した子は fileID が毎回変わるので、中身が同じなら保存しない(同じ入力で差分を出さない)
+                if (before != null && before == Canonical(root))
+                {
+                    Debug.Log("[Etp2Trace] builder: " + name + " は変更なし");
+                    return;
+                }
                 PrefabUtility.SaveAsPrefabAsset(root, path);
+                Debug.Log("[Etp2Trace] builder: " + name + " を保存しました");
             }
             finally
             {
                 if (existing) PrefabUtility.UnloadPrefabContents(root);
                 else Object.DestroyImmediate(root);
             }
+        }
+
+        // prefab の中身を、fileID・instanceID によらない文字列にする.
+        // 階層の順に、名前・部品の種類・部品の値(参照は「階層のパス」か「アセットのパス」に置き換える)を並べる
+        static readonly System.Text.RegularExpressions.Regex InstanceIdRx =
+            new System.Text.RegularExpressions.Regex("\"instanceID\":(-?\\d+)");
+
+        static string Canonical(GameObject root)
+        {
+            var sb = new System.Text.StringBuilder();
+            var paths = new Dictionary<int, string>();
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                string p = PathOf(root.transform, t);
+                paths[t.gameObject.GetInstanceID()] = p;
+                var comps = t.GetComponents<Component>();
+                for (int i = 0; i < comps.Length; i++)
+                    if (comps[i] != null) paths[comps[i].GetInstanceID()] = p + "#" + i + ":" + comps[i].GetType().Name;
+            }
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                sb.Append(paths[t.gameObject.GetInstanceID()]).Append(" active=").Append(t.gameObject.activeSelf).Append('\n');
+                foreach (var c in t.GetComponents<Component>())
+                {
+                    if (c == null) { sb.Append("  (missing)\n"); continue; }
+                    string json = EditorJsonUtility.ToJson(c);
+                    json = InstanceIdRx.Replace(json, m =>
+                    {
+                        int id = int.Parse(m.Groups[1].Value);
+                        if (id == 0) return "null";
+                        if (paths.TryGetValue(id, out var local)) return "\"" + local + "\"";
+                        var obj = EditorUtility.InstanceIDToObject(id);
+                        return obj == null ? "\"?\"" : "\"" + AssetDatabase.GetAssetPath(obj) + ":" + obj.name + "\"";
+                    });
+                    sb.Append("  ").Append(c.GetType().Name).Append(' ').Append(json).Append('\n');
+                }
+            }
+            return sb.ToString();
+        }
+
+        static string PathOf(Transform root, Transform t)
+        {
+            if (t == root) return "";
+            string p = t.name + "[" + t.GetSiblingIndex() + "]";
+            for (var x = t.parent; x != null && x != root; x = x.parent) p = x.name + "[" + x.GetSiblingIndex() + "]/" + p;
+            return p;
         }
 
         static T RootComponent<T>(GameObject root) where T : UdonSharpBehaviour
