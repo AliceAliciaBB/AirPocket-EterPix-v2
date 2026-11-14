@@ -30,6 +30,7 @@ namespace ali.eterpix.ui2.editor
             ResetCache();
             BuildPrefab("Etp2_Theme", BuildTheme);
             BuildPrefab("Etp2_MockData", BuildMockData);
+            BuildPrefab("Etp2_ApiLoader", BuildApiLoader);
             BuildPrefab("Etp2_MenuMonitor", BuildMenuMonitor);
             BuildPrefab("Etp2_DetailMonitor", BuildDetailMonitor);
             BuildPrefab("Etp2_Viewer", BuildViewer);
@@ -57,6 +58,36 @@ namespace ali.eterpix.ui2.editor
                 ti.filterMode = FilterMode.Bilinear;
                 ti.textureCompression = TextureImporterCompression.Uncompressed;
                 ti.SaveAndReimport();
+            }
+        }
+
+        // 計画書 11章. URL はワールド作者(テストシーンはビルダー)が入れる
+        static void BuildApiLoader(GameObject root)
+        {
+            RootComponent<etp2_api_loader>(root);
+        }
+
+        // jsonUrl + "/00" 〜 "/FF"(v1 の vrcurllist と同じ大文字の16進)
+        public static void FillPageUrls(etp2_api_loader loader)
+        {
+            string baseUrl = loader.jsonUrl == null ? "" : loader.jsonUrl.Get().TrimEnd('/');
+            loader.pageUrls = new VRC.SDKBase.VRCUrl[etp2_api_loader.PageCount];
+            for (int i = 0; i < etp2_api_loader.PageCount; i++) loader.pageUrls[i] = new VRC.SDKBase.VRCUrl(baseUrl + "/" + i.ToString("X2"));
+        }
+
+        [MenuItem("EterPix/UIv2/選んだ読み込み係のページ画像の URL を作る")]
+        static void FillSelectedPageUrls()
+        {
+            foreach (var go in Selection.gameObjects)
+            {
+                var loader = go.GetComponent<etp2_api_loader>();
+                if (loader == null) continue;
+                Undo.RecordObject(loader, "ページ画像の URL");
+                FillPageUrls(loader);
+                UdonSharpEditor.UdonSharpEditorUtility.CopyProxyToUdon(loader);
+                PrefabUtility.RecordPrefabInstancePropertyModifications(loader);
+                PrefabUtility.RecordPrefabInstancePropertyModifications(UdonSharpEditor.UdonSharpEditorUtility.GetBackingUdonBehaviour(loader));
+                Debug.Log("[Etp2Trace] builder: ページ画像の URL を作りました " + go.name);
             }
         }
 

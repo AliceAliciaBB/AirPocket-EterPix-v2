@@ -172,7 +172,7 @@ namespace ali.eterpix.ui2
             return s + "]";
         }
 
-        // 候補は投稿の情報から集める. タグは写真説明の中の「#…」
+        // 候補は投稿の情報から集める. タグは API の potg(「#名前」). ダミーのときは写真説明の中の「#…」
         private void CollectCandidates()
         {
             for (int c = 0; c < CatCount; c++) _candCount[c] = 0;
@@ -182,7 +182,7 @@ namespace ali.eterpix.ui2
             {
                 AddCand(CatWorld, data.postWorld[p]);
                 AddCand(CatUser, data.postUser[p]);
-                string d = data.postDesc[p];
+                string d = data.TagsOf(p);
                 if (d == null) continue;
                 int at = d.IndexOf('#');
                 while (at >= 0)

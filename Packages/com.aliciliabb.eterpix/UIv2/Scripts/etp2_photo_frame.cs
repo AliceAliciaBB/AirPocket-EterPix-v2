@@ -17,7 +17,8 @@ namespace ali.eterpix.ui2
         public int[] postIndices;
 
         [Header("ビルダーが入れる")]
-        public RawImage photo;
+        public RawImage photo;                 // 枠(押せる. 写真が無いときは代わりの色)
+        public RawImage photoImg;              // 枠の子の写真(API のとき. 1:1 に切り抜く)
         public TextMeshProUGUI watchersText;   // 「X人が見ています」. 第2段階で使う
         [Tooltip("開いたときにビューアを置く位置と向き(子の ViewerAnchor. 凡例の黒い板を動かして決める)")]
         public Transform viewerAnchor;
@@ -30,13 +31,30 @@ namespace ali.eterpix.ui2
         {
             if (watchersText != null) watchersText.gameObject.SetActive(false);
             if (legend != null) legend.SetActive(false);
+            if (data != null) data.Listen(this);
+            RefreshPhoto();
+        }
+
+        public void OnDataChanged()
+        {
+            int n = GetPostIndices().Length;
+            if (localPos >= n) localPos = 0;
             RefreshPhoto();
         }
 
         public int[] GetPostIndices()
         {
-            if (postIndices != null && postIndices.Length > 0) return postIndices;
             int n = data == null ? 0 : data.PostCount();
+            if (postIndices != null && postIndices.Length > 0)
+            {
+                // データ(API)の件数を超える番号は外す
+                int k = 0;
+                for (int i = 0; i < postIndices.Length; i++) if (postIndices[i] >= 0 && postIndices[i] < n) k++;
+                int[] list = new int[k];
+                k = 0;
+                for (int i = 0; i < postIndices.Length; i++) if (postIndices[i] >= 0 && postIndices[i] < n) list[k++] = postIndices[i];
+                return list;
+            }
             int[] all = new int[n];
             for (int i = 0; i < n; i++) all[i] = i;
             return all;
@@ -48,7 +66,7 @@ namespace ali.eterpix.ui2
             int[] list = GetPostIndices();
             if (list.Length == 0) return;
             int p = list[Mathf.Clamp(localPos, 0, list.Length - 1)];
-            if (data.postColor != null && p < data.postColor.Length) photo.color = data.postColor[p];
+            data.ShowPhoto(p, photo, photoImg, true);
         }
 
         public void OnClick()

@@ -28,7 +28,8 @@ namespace ali.eterpix.ui2
         public GameObject screen;          // 閉じると隠す
 
         [Header("画像と前/次")]
-        public RawImage photo;
+        public RawImage photo;             // 枠(写真が無いときは代わりの色)
+        public RawImage photoImg;          // 枠の子の写真(API のとき)
         public TextMeshProUGUI pageText;
         public TextMeshProUGUI leftLabel;
         public TextMeshProUGUI rightLabel;
@@ -67,6 +68,16 @@ namespace ali.eterpix.ui2
             if (screen != null) screen.SetActive(false);
             ApplyLock();
             ApplySwap();
+            if (data != null) data.Listen(this);
+        }
+
+        // データ(API)が読めた・ページ画像が届いた
+        public void OnDataChanged()
+        {
+            if (_frame == null) return;
+            _list = _frame.GetPostIndices();
+            _pos = Mathf.Clamp(_pos, 0, Mathf.Max(0, _list.Length - 1));
+            if (screen != null && screen.activeSelf) Show();
         }
 
         // ---- 開く・閉じる ----
@@ -128,7 +139,7 @@ namespace ali.eterpix.ui2
             if (_frame != null) { _frame.localPos = _pos; _frame.RefreshPhoto(); }
             int p = _list[_pos];
             _lastPost = p;
-            if (photo != null && data != null && data.postColor != null && p < data.postColor.Length) photo.color = data.postColor[p];
+            if (data != null) data.ShowPhoto(p, photo, photoImg, false);
             if (pageText != null) pageText.text = (_pos + 1) + " / " + _list.Length;
             Debug.Log("[Etp2Trace] viewer: post " + p + " (" + (_pos + 1) + "/" + _list.Length + ")");
             if (detail != null) detail.OnViewerChanged();

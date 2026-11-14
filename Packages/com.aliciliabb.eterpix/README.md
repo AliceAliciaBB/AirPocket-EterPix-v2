@@ -112,13 +112,14 @@ EterPix/
 
 ## v2 UI(開発中・第1段階)
 
-`UIv2/` は v2 の画面(メニューモニター・詳細モニター・ビューア・フォトフレーム)です. 今は**ダミーデータで見た目と手元の動きを確かめる段階**で、同期・鍵・APIへの接続はまだありません(計画: リポジトリの `docs/superpowers/plans/2026-11-14-unity-ui-v2.md`).
+`UIv2/` は v2 の画面(メニューモニター・詳細モニター・ビューア・フォトフレーム)です. 今は**見た目と手元の動きを確かめる段階**で、同期・鍵はまだありません. データはダミーか、VRC-APIv2(`/api/vrc/v2/public`)から読めます(計画: リポジトリの `docs/superpowers/plans/2026-11-14-unity-ui-v2.md`).
 
 ### 置き方
 
 1. `UIv2/Prefabs/` から次をシーンに置く
    - `Etp2_Theme`(1つ. **名前を変えない**. 各画面がこの名前で探す)
-   - `Etp2_MockData`(1つ. 第3段階で JSON の読み込みに置き換える)
+   - `Etp2_MockData`(1つ. 画面が読むデータ. 初めはダミー)
+   - `Etp2_ApiLoader`(1つ. 無くてよい. 置くと VRC-APIv2 から読んで `Etp2_MockData` の中身を置き換える)
    - `Etp2_MenuMonitor`・`Etp2_DetailMonitor`・`Etp2_Viewer`(各1つ)
    - `Etp2_PhotoFrame`(いくつでも)
 2. 各 prefab のルートの部品の「ワールド作者がつなぐ」欄をつなぐ
@@ -129,6 +130,9 @@ EterPix/
 | `Etp2_DetailMonitor` | `etp2_detail_monitor` | データ、ビューア |
 | `Etp2_Viewer` | `etp2_viewer` | データ、詳細 = `Etp2_DetailMonitor`、メニュー = `Etp2_MenuMonitor` |
 | `Etp2_PhotoFrame` | `etp2_photo_frame` | ビューア、データ、見せる投稿の番号(空なら全部) |
+| `Etp2_ApiLoader` | `etp2_api_loader` | データ、JSON の URL(`.../api/vrc/v2/public`)、ページ画像の URL(下) |
+
+- API から読むとき: `Etp2_ApiLoader` を選び、JSON の URL を入れてから、メニュー「EterPix/UIv2/選んだ読み込み係のページ画像の URL を作る」で `/00`〜`/FF` の 256 個を作る. VRChat では「信頼されていない URL を許可」が要る. 読むのは各自の手元だけ(版の同期は後の段階). 写真は投稿の1枚目だけを出す
 
 - 置き場所: メニューモニターは玄関など説明として出しておきたい場所に置く. フォトフレームを押してビューアを開いている間は、ビューアの左隣へ移り、閉じると元の場所へ戻る. 詳細モニター(ワールドに1つ)はビューアを開いている間だけ右隣に出る. どれも押した人の画面だけ
 - ビューアの写真の左右を押しても前/次に切り替わる(下のボタンと同じ)

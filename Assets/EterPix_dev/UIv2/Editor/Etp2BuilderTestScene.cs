@@ -45,6 +45,12 @@ namespace ali.eterpix.ui2.editor
 
             var theme = PlaceInstance("Etp2_Theme", Vector3.zero);
             var data = PlaceInstance("Etp2_MockData", Vector3.zero);
+            // 11章: デモの VRC-APIv2 から読む
+            var loaderGo = PlaceInstance("Etp2_ApiLoader", Vector3.zero);
+            var loader = loaderGo.GetComponent<etp2_api_loader>();
+            loader.jsonUrl = new VRC.SDKBase.VRCUrl(Etp2Spec.DemoApiUrl);
+            Etp2Builder.FillPageUrls(loader);
+            loader.data = data.GetComponent<etp2_mock_data>();
             float px = Etp2Spec.WorldScale;
             float step = (Etp2Spec.MonitorSize.x + 32) * px;
             float top = 2.0f;
@@ -68,7 +74,7 @@ namespace ali.eterpix.ui2.editor
             string[] frameNames = { "Etp2_PhotoFrame_全部", "Etp2_PhotoFrame_偶数", "Etp2_PhotoFrame_奇数" };
             int[][] frameLists = { new int[0], even.ToArray(), odd.ToArray() };
             float frameGap = (Etp2Spec.PhotoFrameSize.x + 80) * px;
-            var behaviours = new System.Collections.Generic.List<UdonSharpBehaviour> { menu, viewer, detail };
+            var behaviours = new System.Collections.Generic.List<UdonSharpBehaviour> { menu, viewer, detail, loader };
             for (int f = 0; f < frameNames.Length; f++)
             {
                 var frameGo = PlaceInstance("Etp2_PhotoFrame", new Vector3((f - 1) * frameGap, 0.85f, 0));

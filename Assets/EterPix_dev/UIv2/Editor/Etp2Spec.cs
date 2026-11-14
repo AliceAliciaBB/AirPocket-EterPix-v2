@@ -78,6 +78,9 @@ namespace ali.eterpix.ui2.editor
         // 10章(計画書) フォトフレームを開いたときのビューアの位置の初めの値: フォトフレームの手前 0.5m(凡例を動かして変えられる)
         public const float ViewerAnchorDistance = 0.5f;
 
+        // 11章(計画書) デモの VRC-APIv2(テストシーンの読み込み係に入れる. 2026-11-14 ユーザー提供)
+        public const string DemoApiUrl = "https://feat-vrc-api-v2-eterpix-v10.reimari-ge-mu-2.workers.dev/api/vrc/v2/public";
+
         // 6.3 受け渡しのパネル
         public const float HandoverW = 400;
         public const float ProgressH = 8;

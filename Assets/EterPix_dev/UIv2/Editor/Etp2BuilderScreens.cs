@@ -242,7 +242,19 @@ namespace ali.eterpix.ui2.editor
                 var half = NewRect(people, h == 0 ? "User" : "Title");
                 HLG(half, Etp2Spec.Gap);
                 LE(half, 0, Etp2Spec.CircleIcon, 1);
-                Circle(ctx, half, "Icon");
+                var circle = Circle(ctx, half, "Icon");
+                if (h == 0)
+                {
+                    // 投稿者のアイコン(API のとき). 丸で切り抜く
+                    circle.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+                    var iconRt = NewRect(circle.transform, "Img");
+                    Stretch(iconRt);
+                    iconRt.gameObject.AddComponent<CanvasRenderer>();
+                    var icon = iconRt.gameObject.AddComponent<RawImage>();
+                    icon.raycastTarget = false;
+                    iconRt.gameObject.SetActive(false);
+                    detail.userIcon = icon;
+                }
                 var t = NewText(ctx, half, "tx_Name", h == 0 ? "ユーザー名" : "称号名", Etp2Spec.FsButton, Role.Tx, TextAlignmentOptions.MidlineLeft, false);
                 LE(t, -1, -1, 1);
                 if (h == 0) detail.userText = t; else { detail.titleText = t; detail.titleRoot = half.gameObject; }
@@ -426,6 +438,7 @@ namespace ali.eterpix.ui2.editor
             photo.color = Etp2Spec.PostColor(0);
             Place(photoRt, Etp2Spec.Pad, top, img, img);
             viewer.photo = photo;
+            viewer.photoImg = PhotoChild(photoRt);
 
             // 写真の左右を押して前/次(見えない押せる範囲. 下のボタンと同じ動きで、入れ替えの設定にも従う)
             for (int h = 0; h < 2; h++)
@@ -497,6 +510,20 @@ namespace ali.eterpix.ui2.editor
             EndScreen(screen, ctx, theme);
         }
 
+        // 写真の枠の子(中央に置き、etp2_mock_data.ShowPhoto が大きさ・向き・UV を決める). 初めは隠す
+        static RawImage PhotoChild(RectTransform box)
+        {
+            var rt = NewRect(box, "Img");
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = box.sizeDelta;
+            rt.gameObject.AddComponent<CanvasRenderer>();
+            var img = rt.gameObject.AddComponent<RawImage>();
+            img.raycastTarget = false;
+            rt.gameObject.SetActive(false);
+            return img;
+        }
+
         // ---- 7章 フォトフレーム ----
 
         static void BuildPhotoFrame(GameObject root)
@@ -518,6 +545,7 @@ namespace ali.eterpix.ui2.editor
             b.navigation = new Navigation { mode = Navigation.Mode.None };
             OnClick(b, frame, nameof(etp2_photo_frame.OnClick));
             frame.photo = photo;
+            frame.photoImg = PhotoChild(photoRt);
 
             // 写真の上 8 に「X人が見ています」. 幅は最大 528、長いときは「…」
             var watch = NewText(ctx, screen, "tx_Watchers", "3人が見ています", Etp2Spec.FsButton, Role.Tx, TextAlignmentOptions.Bottom, false);

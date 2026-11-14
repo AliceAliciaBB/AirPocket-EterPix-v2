@@ -1,10 +1,11 @@
 using UdonSharp;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace ali.eterpix.ui2
 {
-    // 第1段階のダミーデータ. 第3段階で VRC-APIv2 の JSON 読み込みに差し替える.
-    // 画面側はこの部品から読むだけにする(初めの値はビルダーが Etp2Spec から入れる)
+    // 画面が読むデータ. 初めの値はダミー(ビルダーが Etp2Spec から入れる).
+    // etp2_api_loader があれば、VRC-APIv2 の中身で置き換え、NotifyChanged で画面に知らせる(計画書 11章)
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class etp2_mock_data : UdonSharpBehaviour
     {
@@ -18,11 +19,124 @@ namespace ali.eterpix.ui2
         public int[] postStars;
         public int[] postLikes;
         public Color[] postColor;     // 写真の代わりの色
+        public string[] postWorldPrefix;  // ワールド名の前の印(wopt). 無ければ空
+        public string[] postTags;     // 「#夕暮れ #集合写真」. 無い(ダミー)なら説明の中の # を使う
+
+        [Header("写真(API のときだけ. phot[0])")]
+        public int[] postPage;        // ページ画像の番号. -1 は無し
+        public Vector4[] postUv;      // x, y, 幅, 高さ(0〜1)
+        public Vector2[] postPhotoSize; // phwi, phhe(セルの中の向きのまま)
+        public int[] postRot;         // coro(時計回りに 90° × この数)
+        public int[] postIconPage;    // 投稿者のアイコン. -1 は無し
+        public Vector4[] postIconUv;
+        public Texture[] pageTex;     // ページ画像(256)
 
         [Header("ワールド")]
         public string[] worldName;
         public string[] worldAuthor;
         public string[] worldDesc;
+
+        [HideInInspector] public int version;   // JSON を読み直すたびに 1 増える(画像が届いただけでは増えない)
+
+        private UdonSharpBehaviour[] _listeners = new UdonSharpBehaviour[0];
+
+        // 画面が Start で登録する. 中身が変わると OnDataChanged を送る
+        public void Listen(UdonSharpBehaviour b)
+        {
+            if (b == null) return;
+            for (int i = 0; i < _listeners.Length; i++) if (_listeners[i] == b) return;
+            UdonSharpBehaviour[] next = new UdonSharpBehaviour[_listeners.Length + 1];
+            for (int i = 0; i < _listeners.Length; i++) next[i] = _listeners[i];
+            next[_listeners.Length] = b;
+            _listeners = next;
+        }
+
+        public void NotifyChanged()
+        {
+            for (int i = 0; i < _listeners.Length; i++) if (_listeners[i] != null) _listeners[i].SendCustomEvent("OnDataChanged");
+        }
+
+        public string TagsOf(int p)
+        {
+            if (postTags != null && p < postTags.Length) return postTags[p];
+            return postDesc != null && p < postDesc.Length ? postDesc[p] : "";
+        }
+
+        public string WorldLabel(int p)
+        {
+            string pre = postWorldPrefix != null && p < postWorldPrefix.Length ? postWorldPrefix[p] : "";
+            return pre + postWorld[p];
+        }
+
+        private Texture PhotoTex(int p)
+        {
+            if (postPage == null || pageTex == null || p < 0 || p >= postPage.Length) return null;
+            int c = postPage[p];
+            return c >= 0 && c < pageTex.Length ? pageTex[c] : null;
+        }
+
+        // 写真を出す. box: 枠(写真が無いときは代わりの色). img: 枠の子の写真(中央に置く).
+        // cover: 枠いっぱいに切り抜く(フォトフレーム) / false: 縦横比を保って収める(ビューア)
+        public void ShowPhoto(int p, RawImage box, RawImage img, bool cover)
+        {
+            if (box == null) return;
+            Texture tex = PhotoTex(p);
+            if (tex == null || img == null)
+            {
+                if (postColor != null && p >= 0 && p < postColor.Length) box.color = postColor[p];
+                if (img != null) img.gameObject.SetActive(false);
+                return;
+            }
+            box.color = new Color(0f, 0f, 0f, 0f);
+            img.gameObject.SetActive(true);
+            Rect r = box.GetComponent<RectTransform>().rect;
+            Vector4 uv = postUv[p];
+            float w = postPhotoSize[p].x, h = postPhotoSize[p].y;
+            int rot = postRot[p] & 3;
+            bool odd = (rot & 1) == 1;
+            if (cover && r.width > 0f && r.height > 0f)
+            {
+                float target = r.width / r.height;
+                float dw = odd ? h : w, dh = odd ? w : h;   // 回したあとの見た目の大きさ
+                if (dw / dh > target)
+                {
+                    float k = dh * target / dw;              // 見た目の横を削る
+                    if (!odd) { uv.x += uv.z * (1f - k) * 0.5f; uv.z *= k; w *= k; }
+                    else { uv.y += uv.w * (1f - k) * 0.5f; uv.w *= k; h *= k; }
+                }
+                else
+                {
+                    float k = dw / target / dh;              // 見た目の縦を削る
+                    if (!odd) { uv.y += uv.w * (1f - k) * 0.5f; uv.w *= k; h *= k; }
+                    else { uv.x += uv.z * (1f - k) * 0.5f; uv.z *= k; w *= k; }
+                }
+            }
+            float sw = odd ? h : w, sh = odd ? w : h;
+            float s = Mathf.Min(r.width / sw, r.height / sh);
+            RectTransform irt = img.GetComponent<RectTransform>();
+            irt.sizeDelta = new Vector2(w * s, h * s);
+            irt.localEulerAngles = new Vector3(0f, 0f, -90f * rot);
+            img.texture = tex;
+            img.uvRect = new Rect(uv.x, uv.y, uv.z, uv.w);
+            img.color = Color.white;
+        }
+
+        // 投稿者のアイコン(丸の中). 無ければ隠す
+        public void ShowIcon(int p, RawImage icon)
+        {
+            if (icon == null) return;
+            Texture tex = null;
+            if (postIconPage != null && pageTex != null && p >= 0 && p < postIconPage.Length)
+            {
+                int c = postIconPage[p];
+                if (c >= 0 && c < pageTex.Length) tex = pageTex[c];
+            }
+            icon.gameObject.SetActive(tex != null);
+            if (tex == null) return;
+            Vector4 uv = postIconUv[p];
+            icon.texture = tex;
+            icon.uvRect = new Rect(uv.x, uv.y, uv.z, uv.w);
+        }
 
         public int PostCount() { return postUser == null ? 0 : postUser.Length; }
         public int WorldCount() { return worldName == null ? 0 : worldName.Length; }

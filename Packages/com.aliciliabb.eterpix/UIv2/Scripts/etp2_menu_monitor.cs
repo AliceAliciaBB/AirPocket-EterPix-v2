@@ -43,6 +43,7 @@ namespace ali.eterpix.ui2
             if (go != null) themeSource = go.GetComponent<etp2_theme>();
             if (sortPage != null) sortPage.Init(data);
             FillWorlds();
+            if (data != null) data.Listen(this);
             Paint();
         }
 
@@ -96,6 +97,18 @@ namespace ali.eterpix.ui2
 
         public void OnThemeChanged()
         {
+            Paint();
+        }
+
+        // データ(API)が読めた. ワールド一覧とソートの候補を作り直す
+        private int _dataVersion;
+
+        public void OnDataChanged()
+        {
+            if (data == null || data.version == _dataVersion) return;   // ページ画像が届いただけ
+            _dataVersion = data.version;
+            if (sortPage != null) sortPage.Init(data);
+            FillWorlds();
             Paint();
         }
 

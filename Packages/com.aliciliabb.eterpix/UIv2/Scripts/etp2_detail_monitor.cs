@@ -21,6 +21,7 @@ namespace ali.eterpix.ui2
         [Header("画像説明")]
         public TextMeshProUGUI dateText;
         public TextMeshProUGUI userText;
+        public UnityEngine.UI.RawImage userIcon;   // 丸の中の投稿者のアイコン(API のとき)
         public TextMeshProUGUI titleText;
         public GameObject titleRoot;
         public TextMeshProUGUI viewsText;
@@ -45,6 +46,7 @@ namespace ali.eterpix.ui2
 
         private void Start()
         {
+            if (data != null) data.Listen(this);
             Render();
             // ふだんは出さない(ワールドに1つ. ビューアを開いている間だけ右隣に出る)
             if (screen != null && !_shown) screen.SetActive(false);
@@ -69,6 +71,11 @@ namespace ali.eterpix.ui2
         }
 
         public void OnViewerChanged()
+        {
+            Render();
+        }
+
+        public void OnDataChanged()
         {
             Render();
         }
@@ -100,6 +107,7 @@ namespace ali.eterpix.ui2
 
             dateText.text = data.postDate[p];
             userText.text = data.postUser[p];
+            data.ShowIcon(p, userIcon);
             string title = data.postTitle[p];
             titleText.text = title;
             if (titleRoot != null) titleRoot.SetActive(!string.IsNullOrEmpty(title));
@@ -108,7 +116,7 @@ namespace ali.eterpix.ui2
             likesText.text = etp2_mock_data.FormatCount(data.postLikes[p]);
             descText.text = data.postDesc[p];
             string world = data.postWorld[p];
-            worldText.text = world;
+            worldText.text = data.WorldLabel(p);
             int w = data.FindWorld(world);
             authorText.text = w >= 0 ? data.worldAuthor[w] : "";
             worldDescText.text = w >= 0 ? data.worldDesc[w] : "";
@@ -122,6 +130,12 @@ namespace ali.eterpix.ui2
         private void FillRows(etp2_post_row[] rows, bool byWorld, string key)
         {
             if (rows == null) return;
+            if (string.IsNullOrEmpty(key))
+            {
+                // ワールドの情報が無い投稿は、同じワールドでまとめない
+                for (int i = 0; i < rows.Length; i++) if (rows[i] != null) rows[i].gameObject.SetActive(false);
+                return;
+            }
             int[] list = viewer != null ? viewer.CurrentList() : null;
             int n = list != null ? list.Length : data.PostCount();
             int used = 0;
