@@ -424,6 +424,18 @@ namespace ali.eterpix.ui2.editor
             Place(photoRt, Etp2Spec.Pad, top, img, img);
             viewer.photo = photo;
 
+            // 写真の左右を押して前/次(見えない押せる範囲. 下のボタンと同じ動きで、入れ替えの設定にも従う)
+            for (int h = 0; h < 2; h++)
+            {
+                var hit = Img(ctx, screen, h == 0 ? "LeftHit" : "RightHit", Role.None, true);
+                hit.color = new Color(0, 0, 0, 0);
+                Place(hit.rectTransform, h == 0 ? 0 : size.x - Etp2Spec.PhotoHitW, top, Etp2Spec.PhotoHitW, img);
+                var hb = hit.gameObject.AddComponent<Button>();
+                hb.transition = Selectable.Transition.None;
+                hb.navigation = new Navigation { mode = Navigation.Mode.None };
+                OnClick(hb, viewer, h == 0 ? nameof(etp2_viewer.OnLeft) : nameof(etp2_viewer.OnRight));
+            }
+
             // 下の行: [◀ 前の画像]   1 / 12   [次の画像 ▶]
             var pager = NewRect(screen, "Pager");
             Place(pager, Etp2Spec.Pad, top + img + Etp2Spec.Pad, img, Etp2Spec.ButtonH);

@@ -68,6 +68,10 @@ namespace ali.eterpix.ui2.editor
         public const int PostRowPool = 16;
         public const int WorldRowPool = 16;
 
+        // 6.2 写真の左右を押して前/次(v1 の PrevHit / NextHit と同じ. モックには無い. 2026-11-14 ユーザー依頼)
+        // 画面の端から幅 200 ずつ、高さは写真の 528. 真ん中は押しても何も起きない
+        public const float PhotoHitW = 200;
+
         // 6.3 受け渡しのパネル
         public const float HandoverW = 400;
         public const float ProgressH = 8;
