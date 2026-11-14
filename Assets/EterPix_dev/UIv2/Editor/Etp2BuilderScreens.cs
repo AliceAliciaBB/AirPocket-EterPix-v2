@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using TMPro;
+using UdonSharpEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using static ali.eterpix.ui2.editor.Etp2Parts;
@@ -528,6 +529,49 @@ namespace ali.eterpix.ui2.editor
             frame.watchersText = watch;
 
             EndScreen(screen, ctx, theme);
+            BuildViewerAnchor(root, frame);
+        }
+
+        // 計画書 10章: 開いたときにビューアを置く位置(ViewerAnchor)と、凡例の黒い板(EditorOnly)
+        static void BuildViewerAnchor(GameObject root, etp2_photo_frame frame)
+        {
+            var anchor = root.transform.Find(ViewerAnchorName);
+            if (anchor == null)
+            {
+                anchor = new GameObject(ViewerAnchorName).transform;
+                anchor.SetParent(root.transform, false);
+                // 初めの位置: 0.5m 手前. ビューアの中心をフォトフレームの中心と同じ高さに(ルートの座標は px)
+                anchor.localPosition = new Vector3(0, Etp2Spec.ViewerSize.y / 2f, -Etp2Spec.ViewerAnchorDistance / Etp2Spec.WorldScale);
+                anchor.localRotation = Quaternion.identity;
+                anchor.localScale = Vector3.one;
+            }
+            anchor.SetAsLastSibling();
+            if (anchor.GetComponent<etp2_viewer_anchor>() == null) anchor.gameObject.AddUdonSharpComponent<etp2_viewer_anchor>();
+            for (int i = anchor.childCount - 1; i >= 0; i--) Object.DestroyImmediate(anchor.GetChild(i).gameObject);
+
+            // 凡例: 中央 = ビューア、左右 = メニュー・詳細(上端をそろえる). EditorOnly なので VRChat には上がらない
+            var lctx = new Etp2Ctx();
+            var legend = NewRect(anchor, "Legend(EditorOnly)");
+            legend.gameObject.tag = "EditorOnly";
+            legend.anchorMin = legend.anchorMax = new Vector2(0.5f, 0.5f);
+            legend.pivot = new Vector2(0.5f, 1);
+            legend.anchoredPosition = Vector2.zero;
+            float w = Etp2Spec.MonitorSize.x * 3 + Etp2Spec.MonitorGap * 2;
+            legend.sizeDelta = new Vector2(w, Etp2Spec.MonitorSize.y);
+            legend.gameObject.AddComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            string[] names = { "メニューモニター", "ビューア", "詳細モニター" };
+            for (int i = 0; i < 3; i++)
+            {
+                Vector2 size = i == 1 ? Etp2Spec.ViewerSize : Etp2Spec.MonitorSize;
+                var board = Img(lctx, legend, "Board_" + names[i], Role.None);
+                board.color = i == 1 ? Color.black : new Color(0.15f, 0.15f, 0.15f);
+                Place(board.rectTransform, i * (Etp2Spec.MonitorSize.x + Etp2Spec.MonitorGap), 0, size.x, size.y);
+                var label = NewText(lctx, board.transform, "Label", names[i] + "\n(凡例. この位置に出る)", Etp2Spec.FsPageTitle, Role.None, TextAlignmentOptions.Center, true);
+                label.color = new Color(0.7f, 0.7f, 0.7f);
+                Stretch(label.rectTransform);
+            }
+            frame.viewerAnchor = anchor;
+            frame.legend = legend.gameObject;
         }
     }
 }

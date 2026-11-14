@@ -77,6 +77,10 @@ namespace ali.eterpix.ui2.editor
             return created;
         }
 
+        // 作り直さずに残すルートの子(位置・向きをワールド作者が決めるもの. シーンでの調整を消さない)
+        public const string ViewerAnchorName = "ViewerAnchor";
+        static readonly HashSet<string> KeepChildren = new HashSet<string> { ViewerAnchorName };
+
         static void BuildPrefab(string name, Action<GameObject> build)
         {
             string path = Etp2Spec.PrefabDir + "/" + name + ".prefab";
@@ -88,7 +92,11 @@ namespace ali.eterpix.ui2.editor
             {
                 string before = existing ? Canonical(root) : null;
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
-                    Object.DestroyImmediate(root.transform.GetChild(i).gameObject);
+                {
+                    var child = root.transform.GetChild(i);
+                    if (KeepChildren.Contains(child.name)) continue;   // ワールド作者が位置を決める子は残す
+                    Object.DestroyImmediate(child.gameObject);
+                }
                 build(root);
                 CopyAllProxies(root);
                 // 作り直した子は fileID が毎回変わるので、中身が同じなら保存しない(同じ入力で差分を出さない)

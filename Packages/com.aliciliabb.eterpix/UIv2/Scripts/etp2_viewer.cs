@@ -77,6 +77,8 @@ namespace ali.eterpix.ui2
             _frame = frame;
             _list = frame.GetPostIndices();
             _pos = Mathf.Clamp(frame.localPos, 0, Mathf.Max(0, _list.Length - 1));
+            // フォトフレームの前(凡例で決めた位置)へ移る
+            if (frame.viewerAnchor != null) transform.SetPositionAndRotation(frame.viewerAnchor.position, frame.viewerAnchor.rotation);
             if (screen != null) screen.SetActive(true);
             Show();
             // 開いている間: メニューモニターは左隣、詳細モニターは右隣(押した人の画面だけ)

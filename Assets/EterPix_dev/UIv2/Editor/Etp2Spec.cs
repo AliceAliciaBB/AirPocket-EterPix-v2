@@ -75,6 +75,9 @@ namespace ali.eterpix.ui2.editor
         // 9章(計画書) ビューアを開いている間、メニューモニターは左隣・詳細モニターは右隣. 間 32(モックの並びと同じ)
         public const float MonitorGap = 32;
 
+        // 10章(計画書) フォトフレームを開いたときのビューアの位置の初めの値: フォトフレームの手前 0.5m(凡例を動かして変えられる)
+        public const float ViewerAnchorDistance = 0.5f;
+
         // 6.3 受け渡しのパネル
         public const float HandoverW = 400;
         public const float ProgressH = 8;

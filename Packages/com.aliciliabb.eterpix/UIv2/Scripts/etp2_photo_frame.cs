@@ -19,12 +19,17 @@ namespace ali.eterpix.ui2
         [Header("ビルダーが入れる")]
         public RawImage photo;
         public TextMeshProUGUI watchersText;   // 「X人が見ています」. 第2段階で使う
+        [Tooltip("開いたときにビューアを置く位置と向き(子の ViewerAnchor. 凡例の黒い板を動かして決める)")]
+        public Transform viewerAnchor;
+        [Tooltip("凡例(EditorOnly. VRChat では外れる). エディタの Play 中は隠す")]
+        public GameObject legend;
 
         [HideInInspector] public int localPos;
 
         private void Start()
         {
             if (watchersText != null) watchersText.gameObject.SetActive(false);
+            if (legend != null) legend.SetActive(false);
             RefreshPhoto();
         }
 
