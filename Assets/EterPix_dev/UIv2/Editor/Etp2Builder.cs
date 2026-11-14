@@ -422,11 +422,13 @@ namespace ali.eterpix.ui2.editor
 
             // ナビの帯(広げたとき. 幅 216)と暗幕(帯より右)
             var band = Img(ctx, body, "bg_NavBand", Role.Bg, true);
-            Place(band.rectTransform, 0, Etp2Spec.Pad + Etp2Spec.HeaderH, Etp2Spec.NavBandW, size.y - Etp2Spec.Pad - Etp2Spec.HeaderH);
+            // 帯はナビの左端(余白 16)から幅 216 = ボタン 200 + 右の余白 16(モック HTML の .nav.expanded::before はナビ基準)
+            Place(band.rectTransform, Etp2Spec.Pad, Etp2Spec.Pad + Etp2Spec.HeaderH, Etp2Spec.NavBandW, size.y - Etp2Spec.Pad - Etp2Spec.HeaderH);
             m.nav.band = band.gameObject;
             var dim = Img(ctx, body, "dim_NavDim", Role.None, true);
             dim.color = new Color(0, 0, 0, Etp2Spec.DimAlpha);
-            Place(dim.rectTransform, Etp2Spec.NavBandW, Etp2Spec.Pad + Etp2Spec.HeaderH, size.x - Etp2Spec.NavBandW, size.y - Etp2Spec.Pad - Etp2Spec.HeaderH);
+            float bandRight = Etp2Spec.Pad + Etp2Spec.NavBandW;   // 232. 暗幕は帯の右端から
+            Place(dim.rectTransform, bandRight, Etp2Spec.Pad + Etp2Spec.HeaderH, size.x - bandRight, size.y - Etp2Spec.Pad - Etp2Spec.HeaderH);
             var dimButton = dim.gameObject.AddComponent<Button>();
             dimButton.transition = Selectable.Transition.None;
             dimButton.navigation = new Navigation { mode = Navigation.Mode.None };

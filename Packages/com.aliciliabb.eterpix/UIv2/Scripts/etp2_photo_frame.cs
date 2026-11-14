@@ -18,7 +18,7 @@ namespace ali.eterpix.ui2
 
         [Header("ビルダーが入れる")]
         public RawImage photo;                 // 枠(押せる. 写真が無いときは代わりの色)
-        public RawImage photoImg;              // 枠の子の写真(API のとき. 1:1 に切り抜く)
+        public RawImage photoImg;              // 枠の子の写真(API のとき. 縦横比を保って全体を収める)
         public TextMeshProUGUI watchersText;   // 「X人が見ています」. 第2段階で使う
         [Tooltip("開いたときにビューアを置く位置と向き(子の ViewerAnchor. 凡例の黒い板を動かして決める)")]
         public Transform viewerAnchor;
@@ -66,7 +66,7 @@ namespace ali.eterpix.ui2
             int[] list = GetPostIndices();
             if (list.Length == 0) return;
             int p = list[Mathf.Clamp(localPos, 0, list.Length - 1)];
-            data.ShowPhoto(p, photo, photoImg, true);
+            data.ShowPhoto(p, photo, photoImg, false);   // 全体を見せる(切り抜かない. 2026-11-14 ユーザー指摘)
         }
 
         public void OnClick()
