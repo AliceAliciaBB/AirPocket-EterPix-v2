@@ -15,6 +15,8 @@ namespace ali.eterpix.ui2.editor
         public const string ScriptDir = PackageRoot + "/Scripts";
         public const string FontPath = "Packages/com.aliciliabb.eterpix/Fonts/NotoSansJP-Bold SDF.asset";   // 1.1 フォントは1種だけ
         public const string TestScenePath = "Assets/EterPix_dev/UIv2/Etp2_Test.unity";
+        // テストシーンの VRChat のワールド ID(作り直すたびに消えないよう、ビルダーが入れる. 2026-11-15 ユーザー依頼)
+        public const string TestWorldId = "wrld_821b55ac-f9b1-4b6a-b26f-f0d7e5ce8baf";
 
         // ---- 世界の大きさ(v1 のモニターと同じ縮尺. 560px = 0.7m) ----
         public const float WorldScale = 0.00125f;
