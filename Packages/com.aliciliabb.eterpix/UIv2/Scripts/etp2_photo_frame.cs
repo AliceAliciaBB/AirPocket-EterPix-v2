@@ -26,6 +26,7 @@ namespace ali.eterpix.ui2
         public GameObject legend;
 
         [HideInInspector] public int localPos;
+        private int _heldPage = -1;   // 頼んでいるページ画像
 
         private void Start()
         {
@@ -66,6 +67,7 @@ namespace ali.eterpix.ui2
             int[] list = GetPostIndices();
             if (list.Length == 0) return;
             int p = list[Mathf.Clamp(localPos, 0, list.Length - 1)];
+            _heldPage = data.HoldPage(_heldPage, data.PhotoPageOf(p), etp2_api_loader.PriorityFrame);
             data.ShowPhoto(p, photo, photoImg, false);   // 全体を見せる(切り抜かない. 2026-11-14 ユーザー指摘)
         }
 

@@ -36,7 +36,27 @@ namespace ali.eterpix.ui2
         public string[] worldAuthor;
         public string[] worldDesc;
 
-        [HideInInspector] public int version;   // JSON を読み直すたびに 1 増える(画像が届いただけでは増えない)
+        [HideInInspector] public int version;
+        [HideInInspector] public etp2_api_loader loader;   // 読み込み係が Start で入れる. 無ければ画像は無し
+
+        // 画面が出す投稿のページ画像を頼む / 手放す(計画書 13章). 前に頼んだページ(held)を返す値で置き換える
+        public int HoldPage(int held, int page, int priority)
+        {
+            if (held == page || loader == null) return held;   // 読み込み係がまだ無ければ頼まない(JSON が届いたら頼み直す)
+            if (page >= 0) loader.RequestPage(page, priority);
+            if (held >= 0) loader.ReleasePage(held);
+            return page;
+        }
+
+        public int PhotoPageOf(int p)
+        {
+            return postPage != null && p >= 0 && p < postPage.Length ? postPage[p] : -1;
+        }
+
+        public int IconPageOf(int p)
+        {
+            return postIconPage != null && p >= 0 && p < postIconPage.Length ? postIconPage[p] : -1;
+        }   // JSON を読み直すたびに 1 増える(画像が届いただけでは増えない)
 
         private UdonSharpBehaviour[] _listeners = new UdonSharpBehaviour[0];
 

@@ -61,6 +61,8 @@ namespace ali.eterpix.ui2
         private int _scene;   // 0: なし / 1: 確認 / 2: 返事待ち / 3: 要求を受けた
         private float _sceneStart;
         private int _lastPost;
+        private int _heldPhoto = -1;   // 頼んでいるページ画像(写真・アイコン)
+        private int _heldIcon = -1;
 
         private void Start()
         {
@@ -102,6 +104,11 @@ namespace ali.eterpix.ui2
         {
             if (screen != null) screen.SetActive(false);
             if (tooltip != null) tooltip.Hide();
+            if (data != null)
+            {
+                _heldPhoto = data.HoldPage(_heldPhoto, -1, 0);
+                _heldIcon = data.HoldPage(_heldIcon, -1, 0);
+            }
             SetScene(0);
             if (menu != null) menu.ReturnHome();
             if (detail != null) detail.Hide();
@@ -136,10 +143,16 @@ namespace ali.eterpix.ui2
         private void Show()
         {
             if (_list == null || _list.Length == 0) return;
-            if (_frame != null) { _frame.localPos = _pos; _frame.RefreshPhoto(); }
             int p = _list[_pos];
             _lastPost = p;
-            if (data != null) data.ShowPhoto(p, photo, photoImg, false);
+            if (data != null)
+            {
+                // フォトフレームより先に頼む(ビューアの優先度で取らせる)
+                _heldPhoto = data.HoldPage(_heldPhoto, data.PhotoPageOf(p), etp2_api_loader.PriorityViewer);
+                _heldIcon = data.HoldPage(_heldIcon, data.IconPageOf(p), etp2_api_loader.PriorityViewer);   // 詳細モニターのアイコン
+                data.ShowPhoto(p, photo, photoImg, false);
+            }
+            if (_frame != null) { _frame.localPos = _pos; _frame.RefreshPhoto(); }
             if (pageText != null) pageText.text = (_pos + 1) + " / " + _list.Length;
             Debug.Log("[Etp2Trace] viewer: post " + p + " (" + (_pos + 1) + "/" + _list.Length + ")");
             if (detail != null) detail.OnViewerChanged();
