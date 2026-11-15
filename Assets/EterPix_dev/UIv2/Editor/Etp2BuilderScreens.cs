@@ -70,6 +70,7 @@ namespace ali.eterpix.ui2.editor
                 else row.gameObject.SetActive(false);
             }
             menu.worldRows = wRows;
+            menu.worldMore = MoreText(ctx, worlds);
             menu.worldNames = wNames;
             menu.worldAuthors = wAuthors;
 
@@ -127,6 +128,7 @@ namespace ali.eterpix.ui2.editor
             var listRoots = new GameObject[cats];
             var listRects = new RectTransform[cats];
             var emptyRows = new GameObject[cats];
+            var moreRows = new GameObject[cats];
             var candRows = new GameObject[cats * Etp2Spec.SortMaxCand];
             var candNames = new TextMeshProUGUI[cats * Etp2Spec.SortMaxCand];
             var candAdd = new Button[cats * Etp2Spec.SortMaxCand];
@@ -186,6 +188,13 @@ namespace ali.eterpix.ui2.editor
                     candRows[k] = row.gameObject; candNames[k] = nm; candAdd[k] = add; candAddLabels[k] = addLabel;
                     row.gameObject.SetActive(false);
                 }
+                // 候補が多いときの最後の行(押せない)
+                var moreRow = NewRect(listContent, "More");
+                LE(moreRow, -1, Etp2Spec.DropdownRowH);
+                var moreText = NewText(ctx, moreRow, "tx_More", Etp2Spec.MoreText, Etp2Spec.FsBody, Role.Tx, TextAlignmentOptions.MidlineLeft, false);
+                Stretch(moreText.rectTransform, Etp2Spec.TextButtonPadX, 0, 0, 0);
+                moreRow.gameObject.SetActive(false);
+                moreRows[c] = moreRow.gameObject;
                 list.gameObject.SetActive(false);
 
                 // 追加したもの: [名前 16] [×(外す)]
@@ -208,6 +217,7 @@ namespace ali.eterpix.ui2.editor
             sort.listRoots = listRoots;
             sort.listRects = listRects;
             sort.emptyRows = emptyRows;
+            sort.moreRows = moreRows;
             sort.candRows = candRows;
             sort.candNames = candNames;
             sort.candAddButtons = candAdd;
@@ -300,10 +310,20 @@ namespace ali.eterpix.ui2.editor
             // 5.2 同じワールドの投稿・同じユーザーの投稿
             detail.worldHeadText = Body(ctx, m.contents[1], "ワールド: ", "tx_Head");
             detail.worldRows = PostRows(ctx, m.contents[1], detail);
+            detail.worldMore = MoreText(ctx, m.contents[1]);
             detail.userHeadText = Body(ctx, m.contents[2], "ユーザー: ", "tx_Head");
             detail.userRows = PostRows(ctx, m.contents[2], detail);
+            detail.userMore = MoreText(ctx, m.contents[2]);
 
             EndScreen(m.screen, ctx, m.theme);
+        }
+
+        // 計画書 12章: 一覧が行の数より多いときの文(本文 13. 初めは隠す)
+        static GameObject MoreText(Etp2Ctx ctx, RectTransform content)
+        {
+            var t = Body(ctx, content, Etp2Spec.MoreText, "tx_More");
+            t.gameObject.SetActive(false);
+            return t.gameObject;
         }
 
         static etp2_post_row[] PostRows(Etp2Ctx ctx, RectTransform content, etp2_detail_monitor detail)

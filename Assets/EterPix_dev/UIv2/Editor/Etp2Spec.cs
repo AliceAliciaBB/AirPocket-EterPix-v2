@@ -64,9 +64,10 @@ namespace ali.eterpix.ui2.editor
         public const float DropdownRowH = 40;
         public const float DropdownMaxRows = 5.5f;
 
-        // 5.2 一覧の行の数(使い回し)
+        // 5.2 一覧の行の数(使い回し). これより多いときは MoreText を出す(計画書 12章. 2026-11-15 ユーザー決定)
         public const int PostRowPool = 16;
         public const int WorldRowPool = 16;
+        public const string MoreText = "上位16件のみ表示しています";
 
         // 6.2 写真の左右を押して前/次(v1 の PrevHit / NextHit と同じ. モックには無い. 2026-11-14 ユーザー依頼)
         // 画面の端から幅 200 ずつ、高さは写真の 528. 真ん中は押しても何も起きない

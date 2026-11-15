@@ -35,10 +35,12 @@ namespace ali.eterpix.ui2
         [Header("同じワールドの投稿")]
         public TextMeshProUGUI worldHeadText;
         public etp2_post_row[] worldRows;
+        public GameObject worldMore;   // 「上位16件のみ表示しています」
 
         [Header("同じユーザーの投稿")]
         public TextMeshProUGUI userHeadText;
         public etp2_post_row[] userRows;
+        public GameObject userMore;
 
         [HideInInspector] public int pressedIndex;
 
@@ -123,13 +125,14 @@ namespace ali.eterpix.ui2
 
             worldHeadText.text = "ワールド: " + world;
             userHeadText.text = "ユーザー: " + data.postUser[p];
-            FillRows(worldRows, true, world);
-            FillRows(userRows, false, data.postUser[p]);
+            FillRows(worldRows, worldMore, true, world);
+            FillRows(userRows, userMore, false, data.postUser[p]);
         }
 
-        private void FillRows(etp2_post_row[] rows, bool byWorld, string key)
+        private void FillRows(etp2_post_row[] rows, GameObject more, bool byWorld, string key)
         {
             if (rows == null) return;
+            if (more != null) more.SetActive(false);
             if (string.IsNullOrEmpty(key))
             {
                 // ワールドの情報が無い投稿は、同じワールドでまとめない
@@ -139,16 +142,21 @@ namespace ali.eterpix.ui2
             int[] list = viewer != null ? viewer.CurrentList() : null;
             int n = list != null ? list.Length : data.PostCount();
             int used = 0;
-            for (int i = 0; i < n && used < rows.Length; i++)
+            // 並びはビューアの並び(ソート順)のまま. 行より多いときは上から行の数だけ出し、文で知らせる
+            int matched = 0;
+            for (int i = 0; i < n; i++)
             {
                 int q = list != null ? list[i] : i;
                 if ((byWorld ? data.postWorld[q] : data.postUser[q]) != key) continue;
+                matched++;
+                if (used >= rows.Length) continue;
                 // 「同じユーザーの投稿」はユーザー名の代わりにワールド名を出し、称号は出さない(暫定)
                 rows[used].Set(q, byWorld ? data.postUser[q] : data.postWorld[q], byWorld ? data.postTitle[q] : "",
                     data.postDate[q], data.postDesc[q], data.postViews[q], data.postStars[q], data.postLikes[q]);
                 used++;
             }
             for (int i = used; i < rows.Length; i++) if (rows[i] != null) rows[i].gameObject.SetActive(false);
+            if (more != null) more.SetActive(matched > rows.Length);
             PaintRows(rows);
         }
 

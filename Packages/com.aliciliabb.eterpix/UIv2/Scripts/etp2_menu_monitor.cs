@@ -32,6 +32,7 @@ namespace ali.eterpix.ui2
 
         [Header("ワールド一覧(使い回しの行)")]
         public GameObject[] worldRows;
+        public GameObject worldMore;   // 「上位16件のみ表示しています」
         public TextMeshProUGUI[] worldNames;
         public TextMeshProUGUI[] worldAuthors;
 
@@ -116,6 +117,7 @@ namespace ali.eterpix.ui2
         {
             if (worldRows == null) return;
             int n = data == null ? 0 : data.WorldCount();
+            if (worldMore != null) worldMore.SetActive(n > worldRows.Length);   // 「上位16件のみ表示しています」
             for (int i = 0; i < worldRows.Length; i++)
             {
                 if (worldRows[i] == null) continue;

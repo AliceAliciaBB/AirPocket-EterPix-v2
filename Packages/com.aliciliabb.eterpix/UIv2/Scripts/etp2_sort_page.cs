@@ -36,6 +36,7 @@ namespace ali.eterpix.ui2
         public GameObject[] listRoots;           // 上へ開く一覧
         public RectTransform[] listRects;
         public GameObject[] emptyRows;           // 「追加できるものはありません」
+        public GameObject[] moreRows;            // 「上位16件のみ表示しています」(候補が MaxCand より多いとき)
 
         [Header("候補の行(欄 × MaxCand)")]
         public GameObject[] candRows;
@@ -52,6 +53,7 @@ namespace ali.eterpix.ui2
         // 候補(データから集める)
         private string[] _cand = new string[CatCount * MaxCand];
         private int[] _candCount = new int[CatCount];
+        private bool[] _candOver = new bool[CatCount];
         // 編集中と適用済み
         private int _order;
         private string[] _sel = new string[CatCount * MaxSel];
@@ -175,7 +177,7 @@ namespace ali.eterpix.ui2
         // 候補は投稿の情報から集める. タグは API の potg(「#名前」). ダミーのときは写真説明の中の「#…」
         private void CollectCandidates()
         {
-            for (int c = 0; c < CatCount; c++) _candCount[c] = 0;
+            for (int c = 0; c < CatCount; c++) { _candCount[c] = 0; _candOver[c] = false; }
             if (data == null) return;
             int n = data.PostCount();
             for (int p = 0; p < n; p++)
@@ -197,8 +199,9 @@ namespace ali.eterpix.ui2
 
         private void AddCand(int cat, string v)
         {
-            if (string.IsNullOrEmpty(v) || _candCount[cat] >= MaxCand) return;
+            if (string.IsNullOrEmpty(v)) return;
             for (int i = 0; i < _candCount[cat]; i++) if (_cand[cat * MaxCand + i] == v) return;
+            if (_candCount[cat] >= MaxCand) { _candOver[cat] = true; return; }   // 17 件目からは出さず、文で知らせる
             _cand[cat * MaxCand + _candCount[cat]] = v;
             _candCount[cat]++;
         }
@@ -230,9 +233,11 @@ namespace ali.eterpix.ui2
                     candRows[cat * MaxCand + r].SetActive(false);
                 }
                 if (emptyRows != null && emptyRows[cat] != null) emptyRows[cat].SetActive(rows == 0);
+                bool over = _candOver[cat];
+                if (moreRows != null && moreRows[cat] != null) moreRows[cat].SetActive(over);
                 if (listRects != null && listRects[cat] != null)
                 {
-                    float shown = Mathf.Min(Mathf.Max(rows, 1), MaxRows);
+                    float shown = Mathf.Min(Mathf.Max(rows + (over ? 1 : 0), 1), MaxRows);
                     listRects[cat].sizeDelta = new Vector2(listRects[cat].sizeDelta.x, shown * RowHeight);
                 }
 
