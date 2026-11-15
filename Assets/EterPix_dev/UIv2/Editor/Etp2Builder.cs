@@ -35,6 +35,7 @@ namespace ali.eterpix.ui2.editor
             BuildPrefab("Etp2_DetailMonitor", BuildDetailMonitor);
             BuildPrefab("Etp2_Viewer", BuildViewer);
             BuildPrefab("Etp2_PhotoFrame", BuildPhotoFrame);
+            BuildPrefab("Etp2_Cheki", BuildCheki);
             AssetDatabase.SaveAssets();
             Debug.Log("[Etp2Trace] builder: ビルドが終わりました(" + Etp2Spec.PrefabDir + ")");
         }

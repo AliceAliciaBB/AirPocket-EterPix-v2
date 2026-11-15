@@ -84,6 +84,16 @@ namespace ali.eterpix.ui2.editor
                 frame.data = d; frame.viewer = viewer; frame.postIndices = frameLists[f];
                 behaviours.Add(frame);
             }
+            // 14章: チェキ(VRCPlayerObject の元. 入った人ごとに 1 枚). フォトフレームを押すと自分のチェキが前に出る
+            var chekiGo = PlaceInstance("Etp2_Cheki", new Vector3(0, 1.2f, -0.6f));
+            var cheki = chekiGo.GetComponent<etp2_cheki>();
+            cheki.data = d; cheki.viewer = viewer;
+            behaviours.Add(cheki);
+            foreach (UdonSharpBehaviour b in behaviours)
+            {
+                var fr = b as etp2_photo_frame;
+                if (fr != null) fr.cheki = cheki;
+            }
             foreach (UdonSharpBehaviour b in behaviours)
             {
                 UdonSharpEditorUtility.CopyProxyToUdon(b);

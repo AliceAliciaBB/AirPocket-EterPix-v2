@@ -25,6 +25,8 @@ namespace ali.eterpix.ui2.editor
         public static readonly Vector2 MonitorSize = new Vector2(560, 792);
         public static readonly Vector2 ViewerSize = new Vector2(560, 672);
         public static readonly Vector2 PhotoFrameSize = new Vector2(200, 200);   // 仮
+        public static readonly Vector2 ChekiSize = new Vector2(80, 80);          // 計画書 14章. 仮(0.1m 角. 写真だけ)
+        public const float ChekiThickness = 8;
 
         // ---- 1.3 文字の大きさ ----
         public const float FsLogo = 30;

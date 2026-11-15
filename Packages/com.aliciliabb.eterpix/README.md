@@ -122,6 +122,7 @@ EterPix/
    - `Etp2_ApiLoader`(1つ. 無くてよい. 置くと VRC-APIv2 から読んで `Etp2_MockData` の中身を置き換える)
    - `Etp2_MenuMonitor`・`Etp2_DetailMonitor`・`Etp2_Viewer`(各1つ)
    - `Etp2_PhotoFrame`(いくつでも)
+   - `Etp2_Cheki`(1つ. 無くてよい. `VRCPlayerObject` なので、入った人ごとに 1 枚になる. 置くと、フォトフレームを押したときにビューアではなくチェキが前に出て、チェキを持って Use するとビューアが開く)
 2. 各 prefab のルートの部品の「ワールド作者がつなぐ」欄をつなぐ
 
 | prefab | ルートの部品 | つなぐもの |
@@ -130,6 +131,7 @@ EterPix/
 | `Etp2_DetailMonitor` | `etp2_detail_monitor` | データ、ビューア |
 | `Etp2_Viewer` | `etp2_viewer` | データ、詳細 = `Etp2_DetailMonitor`、メニュー = `Etp2_MenuMonitor` |
 | `Etp2_PhotoFrame` | `etp2_photo_frame` | ビューア、データ、見せる投稿の番号(空なら全部) |
+| `Etp2_Cheki` | `etp2_cheki` | データ、ビューア. 各フォトフレームの「チェキ」欄にこれをつなぐ |
 | `Etp2_ApiLoader` | `etp2_api_loader` | データ、JSON の URL(`.../api/vrc/v2/public`)、ページ画像の URL(下) |
 
 - API から読むとき: `Etp2_ApiLoader` を選び、JSON の URL を入れてから、メニュー「EterPix/UIv2/選んだ読み込み係のページ画像の URL を作る」で `/00`〜`/FF` の 256 個を作る. VRChat では「信頼されていない URL を許可」が要る. 読むのは各自の手元だけ(版の同期は後の段階). 写真は投稿の1枚目だけを出す

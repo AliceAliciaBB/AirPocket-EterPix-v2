@@ -544,6 +544,50 @@ namespace ali.eterpix.ui2.editor
             return img;
         }
 
+        // ---- 計画書 14章 チェキ(仮. 写真だけ) ----
+        // ルートに Rigidbody・VRC_Pickup・VRCObjectSync・VRCPlayerObject(ルートの部品は作り直しでも残る)
+        static void BuildCheki(GameObject root)
+        {
+            var cheki = RootComponent<etp2_cheki>(root);
+            root.layer = 13;   // Pickup(床を探す Raycast に当たらない)
+            var rb = root.GetComponent<Rigidbody>();
+            if (rb == null) rb = root.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            var col = root.GetComponent<BoxCollider>();
+            if (col == null) col = root.AddComponent<BoxCollider>();
+            col.size = new Vector3(Etp2Spec.ChekiSize.x, Etp2Spec.ChekiSize.y, Etp2Spec.ChekiThickness);
+            col.center = Vector3.zero;
+            var pickup = root.GetComponent<VRC.SDK3.Components.VRCPickup>();
+            if (pickup == null) pickup = root.AddComponent<VRC.SDK3.Components.VRCPickup>();
+            pickup.AutoHold = VRC.SDKBase.VRC_Pickup.AutoHoldMode.Yes;
+            pickup.UseText = "ビューアを開く";
+            pickup.InteractionText = "チェキ";
+            var sync = root.GetComponent<VRC.SDK3.Components.VRCObjectSync>();
+            if (sync == null) sync = root.AddComponent<VRC.SDK3.Components.VRCObjectSync>();
+            if (root.GetComponent<VRC.SDK3.Components.VRCPlayerObject>() == null) root.AddComponent<VRC.SDK3.Components.VRCPlayerObject>();
+
+            var ctx = new Etp2Ctx();
+            var screen = Screen(root, Etp2Spec.ChekiSize, new Vector2(0.5f, 0.5f));
+            // チェキは UI として押さない(持つ). Screen が付けた当たり判定を外す
+            Object.DestroyImmediate(screen.GetComponent<VRC.SDK3.Components.VRCUiShape>());
+            Object.DestroyImmediate(screen.GetComponent<BoxCollider>());
+            screen.gameObject.layer = 13;
+            var photoRt = NewRect(screen, "Photo");
+            Stretch(photoRt);
+            photoRt.gameObject.AddComponent<CanvasRenderer>();
+            var photo = photoRt.gameObject.AddComponent<RawImage>();
+            photo.raycastTarget = false;
+            photo.color = Etp2Spec.PostColor(0);
+            cheki.photo = photo;
+            cheki.photoImg = PhotoChild(photoRt);
+            cheki.body = screen.gameObject;
+            cheki.objectSync = sync;
+            cheki.pickup = pickup;
+            cheki.body3d = rb;
+        }
+
         // ---- 7章 フォトフレーム ----
 
         static void BuildPhotoFrame(GameObject root)

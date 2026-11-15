@@ -2,6 +2,7 @@ using TMPro;
 using UdonSharp;
 using UnityEngine;
 using UnityEngine.UI;
+using VRC.SDKBase;
 
 namespace ali.eterpix.ui2
 {
@@ -24,6 +25,11 @@ namespace ali.eterpix.ui2
         public Transform viewerAnchor;
         [Tooltip("凡例(EditorOnly. VRChat では外れる). エディタの Play 中は隠す")]
         public GameObject legend;
+
+        [Tooltip("チェキ(VRCPlayerObject の元). 押すと自分のチェキをこの前に出す. 無ければ今までどおりビューアを開く")]
+        public etp2_cheki cheki;
+        [Tooltip("チェキを出す位置(フォトフレームの手前の距離 m)")]
+        public float chekiDistance = 0.3f;
 
         [HideInInspector] public int localPos;
         private int _heldPage = -1;   // 頼んでいるページ画像
@@ -73,6 +79,22 @@ namespace ali.eterpix.ui2
 
         public void OnClick()
         {
+            if (cheki != null)
+            {
+                // 自分のチェキ(VRCPlayerObject の自分の分)を、この前に出す(計画書 14章)
+                Component c = Networking.FindComponentInPlayerObjects(Networking.LocalPlayer, cheki);
+                etp2_cheki mine = c != null ? c.GetComponent<etp2_cheki>() : null;
+                int[] list = GetPostIndices();
+                if (mine != null && list.Length > 0)
+                {
+                    int p = list[Mathf.Clamp(localPos, 0, list.Length - 1)];
+                    Vector3 pos = photo.transform.position - transform.forward * chekiDistance;
+                    Debug.Log("[Etp2Trace] photo_frame: cheki " + gameObject.name);
+                    mine.Spawn(this, p, pos, transform.rotation);
+                    return;
+                }
+                Debug.LogWarning("[Etp2Trace] photo_frame: 自分のチェキが見つからない");
+            }
             if (viewer == null) return;
             Debug.Log("[Etp2Trace] photo_frame: open " + gameObject.name);
             viewer.OpenFrame(this);

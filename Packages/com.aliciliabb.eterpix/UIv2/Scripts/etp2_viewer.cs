@@ -54,6 +54,7 @@ namespace ali.eterpix.ui2
         public float progressWidth = 368f;
 
         private etp2_photo_frame _frame;
+        private etp2_cheki _cheki;     // チェキから開いたとき. 前/次でチェキの投稿を変える(フォトフレームは変えない)
         private int[] _list;
         private int _pos;
         private bool _locked;
@@ -84,14 +85,46 @@ namespace ali.eterpix.ui2
 
         // ---- 開く・閉じる ----
 
+        // ビューアのルートは画面の上端の中央. 画面の中心からルートまで(ルートの座標で 336 = 高さ 672 の半分)
+        public float centerToRoot = 336f;
+        // チェキの前に開くとき、チェキから奥へ離す距離(m)
+        public float chekiDistance = 0.4f;
+
         public void OpenFrame(etp2_photo_frame frame)
         {
             if (frame == null) return;
-            _frame = frame;
-            _list = frame.GetPostIndices();
-            _pos = Mathf.Clamp(frame.localPos, 0, Mathf.Max(0, _list.Length - 1));
             // フォトフレームの前(凡例で決めた位置)へ移る
             if (frame.viewerAnchor != null) transform.SetPositionAndRotation(frame.viewerAnchor.position, frame.viewerAnchor.rotation);
+            Open(frame, null, frame.localPos);
+        }
+
+        // チェキを持って Use した. 見る人の頭からチェキへの向きで、チェキの奥に開く(計画書 14章)
+        public void OpenFromCheki(etp2_cheki cheki)
+        {
+            if (cheki == null || cheki.Frame() == null) return;
+            Vector3 c = cheki.transform.position;
+            Vector3 head = c - Vector3.forward;
+            VRCPlayerApi lp = Networking.LocalPlayer;
+            if (Utilities.IsValid(lp)) head = lp.GetTrackingData(VRCPlayerApi.TrackingDataType.Head).position;
+            Vector3 dir = c - head;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
+            dir.Normalize();
+            Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
+            Vector3 center = c + dir * chekiDistance;
+            transform.SetPositionAndRotation(center + rot * new Vector3(0f, centerToRoot * transform.lossyScale.y, 0f), rot);
+            int[] list = cheki.Frame().GetPostIndices();
+            int pos = 0;
+            for (int i = 0; i < list.Length; i++) if (list[i] == cheki.CurrentPost()) { pos = i; break; }
+            Open(cheki.Frame(), cheki, pos);
+        }
+
+        private void Open(etp2_photo_frame frame, etp2_cheki cheki, int pos)
+        {
+            _frame = frame;
+            _cheki = cheki;
+            _list = frame.GetPostIndices();
+            _pos = Mathf.Clamp(pos, 0, Mathf.Max(0, _list.Length - 1));
             if (screen != null) screen.SetActive(true);
             Show();
             // 開いている間: メニューモニターは左隣、詳細モニターは右隣(押した人の画面だけ)
@@ -104,6 +137,7 @@ namespace ali.eterpix.ui2
         {
             if (screen != null) screen.SetActive(false);
             if (tooltip != null) tooltip.Hide();
+            _cheki = null;
             if (data != null)
             {
                 _heldPhoto = data.HoldPage(_heldPhoto, -1, 0);
@@ -152,7 +186,8 @@ namespace ali.eterpix.ui2
                 _heldIcon = data.HoldPage(_heldIcon, data.IconPageOf(p), etp2_api_loader.PriorityViewer);   // 詳細モニターのアイコン
                 data.ShowPhoto(p, photo, photoImg, false);
             }
-            if (_frame != null) { _frame.localPos = _pos; _frame.RefreshPhoto(); }
+            if (_cheki != null) _cheki.SetPost(p);   // フォトフレームは変えない(計画書 14章)
+            else if (_frame != null) { _frame.localPos = _pos; _frame.RefreshPhoto(); }
             if (pageText != null) pageText.text = (_pos + 1) + " / " + _list.Length;
             Debug.Log("[Etp2Trace] viewer: post " + p + " (" + (_pos + 1) + "/" + _list.Length + ")");
             if (detail != null) detail.OnViewerChanged();

@@ -20,7 +20,8 @@ namespace ali.eterpix.ui2
         public int[] postLikes;
         public Color[] postColor;     // 写真の代わりの色
         public string[] postWorldPrefix;  // ワールド名の前の印(wopt). 無ければ空
-        public string[] postTags;     // 「#夕暮れ #集合写真」. 無い(ダミー)なら説明の中の # を使う
+        public string[] postTags;
+        public string[] postId;       // poid(API のとき. チェキの同期に使う)     // 「#夕暮れ #集合写真」. 無い(ダミー)なら説明の中の # を使う
 
         [Header("写真(API のときだけ. phot[0])")]
         public int[] postPage;        // ページ画像の番号. -1 は無し
@@ -46,6 +47,20 @@ namespace ali.eterpix.ui2
             if (page >= 0) loader.RequestPage(page, priority);
             if (held >= 0) loader.ReleasePage(held);
             return page;
+        }
+
+        public string PostIdOf(int p)
+        {
+            if (postId != null && p >= 0 && p < postId.Length) return postId[p];
+            return p >= 0 ? "dummy-" + p : "";   // ダミーのとき
+        }
+
+        public int FindPost(string poid)
+        {
+            if (string.IsNullOrEmpty(poid)) return -1;
+            if (postId != null) { for (int i = 0; i < postId.Length; i++) if (postId[i] == poid) return i; return -1; }
+            if (poid.StartsWith("dummy-")) { int n; if (int.TryParse(poid.Substring(6), out n) && n < PostCount()) return n; }
+            return -1;
         }
 
         public int PhotoPageOf(int p)

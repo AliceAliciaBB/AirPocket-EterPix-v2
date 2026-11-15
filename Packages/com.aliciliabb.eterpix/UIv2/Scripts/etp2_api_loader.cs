@@ -145,6 +145,7 @@ namespace ali.eterpix.ui2
             }
 
             int n = posts.Count;
+            string[] ids = new string[n];
             string[] user = new string[n], title = new string[n], date = new string[n], desc = new string[n];
             string[] world = new string[n], prefix = new string[n], tags = new string[n];
             int[] views = new int[n], stars = new int[n], likes = new int[n];
@@ -156,6 +157,7 @@ namespace ali.eterpix.ui2
             for (int i = 0; i < n; i++)
             {
                 DataDictionary p = posts[i].TokenType == TokenType.DataDictionary ? posts[i].DataDictionary : new DataDictionary();
+                ids[i] = Str(p, "poid");
                 user[i] = Str(p, "usna");
                 desc[i] = Str(p, "pode");
                 date[i] = FormatDate(Num(p, "poca", 0));
@@ -218,6 +220,7 @@ namespace ali.eterpix.ui2
                 }
             }
 
+            data.postId = ids;
             data.postUser = user; data.postTitle = title; data.postDate = date; data.postDesc = desc;
             data.postWorld = world; data.postWorldPrefix = prefix; data.postTags = tags;
             data.postViews = views; data.postStars = stars; data.postLikes = likes; data.postColor = color;
