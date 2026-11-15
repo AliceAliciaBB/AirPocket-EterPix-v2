@@ -13,8 +13,6 @@ namespace ali.eterpix.ui2
     [UdonBehaviourSyncMode(BehaviourSyncMode.Continuous)]
     public class etp2_cheki : UdonSharpBehaviour
     {
-        public const float HoverHeight = 1.2f;      // 一度持たれたあと、離すと床からこの高さで止まる(仮)
-        public const float RayLength = 50f;
         public const int PriorityOwner = 100;       // 持ち主の画面の写真(ビューアと同じ)
         public const int PriorityOthers = 10;       // ほかの人の画面の写真
 
@@ -23,8 +21,6 @@ namespace ali.eterpix.ui2
         public etp2_viewer viewer;
         [Tooltip("ほかの人のチェキにも写真を出す(その人のページ画像を取るので重くなる. 重さを見て決める)")]
         public bool showPhotoToOthers = false;
-        [Tooltip("床を探す Raycast の対象")]
-        public LayerMask floorLayers = 1;   // Default
 
         [Header("ビルダーが入れる")]
         public RawImage photo;      // 枠(写真が無いときは代わりの色)
@@ -32,7 +28,6 @@ namespace ali.eterpix.ui2
         public GameObject body;     // 出るまでは隠す
         public VRCObjectSync objectSync;
         public VRC_Pickup pickup;   // 出るまでは持てない
-        public Rigidbody body3d;
 
         [UdonSynced] private string _poid = "";
         [UdonSynced] private bool _shown;
@@ -40,8 +35,6 @@ namespace ali.eterpix.ui2
         private etp2_photo_frame _frame;   // 持ち主だけが知っている(押したフォトフレーム)
         private int _post = -1;
         private int _heldPage = -1;
-        private bool _touched;             // 出てから一度でも持たれたか
-        private bool _falling;             // 離して落ちている(持ち主だけ)
 
         private void Start()
         {
@@ -55,8 +48,6 @@ namespace ali.eterpix.ui2
         {
             if (!IsMine()) return;
             _frame = frame;
-            _touched = false;
-            _falling = false;
             if (objectSync != null) { objectSync.SetKinematic(true); objectSync.SetGravity(false); }
             transform.SetPositionAndRotation(position, rotation);
             if (objectSync != null) objectSync.FlagDiscontinuity();
@@ -116,18 +107,12 @@ namespace ali.eterpix.ui2
 
         // ---- 持つ・離す・Use ----
 
-        public override void OnPickup()
-        {
-            _touched = true;
-            _falling = false;
-        }
-
+        // 離したところにそのまま残る(落ちない. 2026-11-15 ユーザー指示で 1.2m の停止はやめた)
         public override void OnDrop()
         {
-            if (!_touched || !IsMine()) return;
-            // 重力で落とし、床から HoverHeight で止める(Update で見る)
-            if (objectSync != null) { objectSync.SetKinematic(false); objectSync.SetGravity(true); }
-            _falling = true;
+            if (!IsMine() || objectSync == null) return;
+            objectSync.SetGravity(false);
+            objectSync.SetKinematic(true);
         }
 
         public override void OnPickupUseDown()
@@ -135,20 +120,6 @@ namespace ali.eterpix.ui2
             if (viewer == null || _post < 0) return;
             Debug.Log("[Etp2Trace] cheki: open viewer post " + _post);
             viewer.OpenFromCheki(this);
-        }
-
-        private void Update()
-        {
-            if (!_falling) return;
-            Vector3 p = transform.position;
-            if (!Physics.Raycast(p + Vector3.up * 0.05f, Vector3.down, out RaycastHit hit, RayLength, floorLayers, QueryTriggerInteraction.Ignore)) return;
-            float stopY = hit.point.y + HoverHeight;
-            if (p.y > stopY) return;
-            _falling = false;
-            if (objectSync != null) { objectSync.SetGravity(false); objectSync.SetKinematic(true); }
-            if (body3d != null) body3d.velocity = Vector3.zero;
-            transform.position = new Vector3(p.x, stopY, p.z);
-            Debug.Log("[Etp2Trace] cheki: stop at " + stopY.ToString("F2"));
         }
     }
 }

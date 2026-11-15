@@ -585,7 +585,6 @@ namespace ali.eterpix.ui2.editor
             cheki.body = screen.gameObject;
             cheki.objectSync = sync;
             cheki.pickup = pickup;
-            cheki.body3d = rb;
         }
 
         // ---- 7章 フォトフレーム ----
