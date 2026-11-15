@@ -9,7 +9,8 @@ namespace ali.eterpix.ui2
     // チェキ(仮). フォトフレームを押すと自分のチェキがその前に出て、その投稿の写真になる.
     // 持って Use するとビューアがチェキの前に開く. 1 人 1 枚(VRCPlayerObject). 位置と投稿(poid)はみんなに同期する.
     // 決まり: 計画書 14章(2026-11-15 ユーザー依頼). 見た目は仮(写真だけ)
-    [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
+    // 同期は Continuous: VRCObjectSync と同じ GameObject の Udon は Manual にできない(VRChat のビルドの決まり)
+    [UdonBehaviourSyncMode(BehaviourSyncMode.Continuous)]
     public class etp2_cheki : UdonSharpBehaviour
     {
         public const float HoverHeight = 1.2f;      // 一度持たれたあと、離すと床からこの高さで止まる(仮)
@@ -52,7 +53,7 @@ namespace ali.eterpix.ui2
 
         public void Spawn(etp2_photo_frame frame, int post, Vector3 position, Quaternion rotation)
         {
-            if (!Networking.IsOwner(gameObject)) return;
+            if (!IsMine()) return;
             _frame = frame;
             _touched = false;
             _falling = false;
@@ -69,8 +70,14 @@ namespace ali.eterpix.ui2
         {
             _post = post;
             _poid = data != null ? data.PostIdOf(post) : "";
-            if (Networking.IsOwner(gameObject)) RequestSerialization();
-            Render();
+            Render();   // Continuous なので送るのは自動
+        }
+
+        // 部屋を出る途中などで自分のプレイヤーが無いときに IsOwner を呼ぶと止まるので確かめる
+        private bool IsMine()
+        {
+            VRCPlayerApi lp = Networking.LocalPlayer;
+            return Utilities.IsValid(lp) && Utilities.IsValid(gameObject) && lp.IsOwner(gameObject);
         }
 
         public int CurrentPost() { return _post; }
@@ -99,7 +106,7 @@ namespace ali.eterpix.ui2
         {
             ApplyVisible();
             if (data == null || photo == null) return;
-            bool mine = Networking.IsOwner(gameObject);
+            bool mine = IsMine();
             bool show = _shown && _post >= 0 && (mine || showPhotoToOthers);
             int page = show ? data.PhotoPageOf(_post) : -1;
             _heldPage = data.HoldPage(_heldPage, page, mine ? PriorityOwner : PriorityOthers);
@@ -117,7 +124,7 @@ namespace ali.eterpix.ui2
 
         public override void OnDrop()
         {
-            if (!_touched || !Networking.IsOwner(gameObject)) return;
+            if (!_touched || !IsMine()) return;
             // 重力で落とし、床から HoverHeight で止める(Update で見る)
             if (objectSync != null) { objectSync.SetKinematic(false); objectSync.SetGravity(true); }
             _falling = true;
