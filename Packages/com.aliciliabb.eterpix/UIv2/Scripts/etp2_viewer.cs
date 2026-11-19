@@ -140,8 +140,14 @@ namespace ali.eterpix.ui2
             return all;
         }
 
+        // 開いた直後の前/次は受け付けない. デスクトップでは開いた左クリック(チェキの Use)が、
+        // そのまま目の前に出たビューアの「前へ」に当たり、1 つ戻ってしまう(最初の写真なら一番古い写真へ回る. 2026-11-19 ユーザー報告)
+        public const float OpenGuardSeconds = 0.5f;
+        private float _openedAt = -10f;
+
         private void Open(etp2_photo_frame frame, etp2_cheki cheki, int pos)
         {
+            _openedAt = Time.time;
             _frame = frame;
             _cheki = cheki;
             _list = ListOf(frame);
@@ -174,8 +180,15 @@ namespace ali.eterpix.ui2
 
         // ---- 前/次 ----
 
-        public void OnLeft() { if (_swap) Step(1); else Step(-1); }
-        public void OnRight() { if (_swap) Step(-1); else Step(1); }
+        public void OnLeft() { if (JustOpened()) return; if (_swap) Step(1); else Step(-1); }
+        public void OnRight() { if (JustOpened()) return; if (_swap) Step(-1); else Step(1); }
+
+        private bool JustOpened()
+        {
+            if (Time.time - _openedAt >= OpenGuardSeconds) return false;
+            Debug.Log("[Etp2Trace] viewer: ignore prev/next just after open");
+            return true;
+        }
 
         private void Step(int d)
         {
