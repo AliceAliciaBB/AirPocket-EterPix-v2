@@ -585,6 +585,16 @@ namespace ali.eterpix.ui2.editor
             cheki.body = screen.gameObject;
             cheki.objectSync = sync;
             cheki.pickup = pickup;
+
+            // 投稿とセッションの値は子の Manual 同期で送る(ルートは VRCObjectSync があるので Continuous しか使えず、置いたままだと送られない)
+            var syncGo = new GameObject("Session");
+            syncGo.layer = 13;
+            syncGo.transform.SetParent(root.transform, false);
+            var ses = syncGo.AddUdonSharpComponent<etp2_cheki_session>();
+            ses.cheki = cheki;
+            UdonSharpEditorUtility.CopyProxyToUdon(ses);
+            UdonSharpEditorUtility.GetBackingUdonBehaviour(ses).SyncMethod = VRC.SDKBase.Networking.SyncType.Manual;
+            cheki.sync = ses;
             BuildChekiOrb(root, cheki, ctx);
         }
 

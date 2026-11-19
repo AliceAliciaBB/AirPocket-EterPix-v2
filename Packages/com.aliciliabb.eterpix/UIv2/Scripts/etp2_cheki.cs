@@ -10,7 +10,8 @@ namespace ali.eterpix.ui2
     // 持って Use するとビューアがチェキの前に開く. 1 人 1 枚(VRCPlayerObject). 位置と投稿(poid)はみんなに同期する.
     // セッション(何人かで同じ投稿を見る)の値も自分のチェキに載せる. 計算はビューアがする(計画書 15章)
     // 決まり: 計画書 14章・15章. 見た目は仮(写真だけ)
-    // 同期は Continuous: VRCObjectSync と同じ GameObject の Udon は Manual にできない(VRChat のビルドの決まり)
+    // 位置は VRCObjectSync. 投稿とセッションの値は子の etp2_cheki_session(Manual)で送る.
+    // ここ(VRCObjectSync と同じ GameObject)は Manual にできず、Continuous は置いたままだと送られないため(2026-11-19 の直し)
     [UdonBehaviourSyncMode(BehaviourSyncMode.Continuous)]
     public class etp2_cheki : UdonSharpBehaviour
     {
@@ -29,15 +30,17 @@ namespace ali.eterpix.ui2
         public GameObject body;     // 出るまでは隠す
         public VRCObjectSync objectSync;
         public VRC_Pickup pickup;   // 出るまでは持てない. 持てるのは持ち主だけ
+        public etp2_cheki_session sync;   // 投稿とセッションの値を送る(子. Manual)
 
-        [UdonSynced] private string _poid = "";
-        [UdonSynced] private bool _shown;
-        [UdonSynced] private Vector3 _framePos;     // 押したフォトフレームの位置(ほかの人は一番近いフォトフレームを探す)
-        [UdonSynced] private int _session = -1;     // 入っているセッションの番号. -1 は入っていない
-        [UdonSynced] private int _joinedAt;         // セッションに入ったサーバー時刻(いちばん早い人がホスト)
-        [UdonSynced] private int _poidAt;           // 投稿を変えたサーバー時刻(いちばん新しい人の投稿を出す)
-        [UdonSynced] private int _lockAt;           // 鍵をかけたサーバー時刻. 0 はかけていない
-        [UdonSynced] private int _hint = -1;        // セッションに入っていない人のチェキに入るとき、その人の playerId
+        // 同期する値の手元の写し. 書くのは持ち主だけで、書いたら Push() で送る. 受け取りは OnSessionData()
+        private string _poid = "";
+        private bool _shown;
+        private Vector3 _framePos;     // 押したフォトフレームの位置(ほかの人は一番近いフォトフレームを探す)
+        private int _session = -1;     // 入っているセッションの番号. -1 は入っていない
+        private int _joinedAt;         // セッションに入ったサーバー時刻(いちばん早い人がホスト)
+        private int _poidAt;           // 投稿を変えたサーバー時刻(いちばん新しい人の投稿を出す)
+        private int _lockAt;           // 鍵をかけたサーバー時刻. 0 はかけていない
+        private int _hint = -1;        // セッションに入っていない人のチェキに入るとき、その人の playerId
 
         private etp2_photo_frame _frame;
         private int _post = -1;
@@ -63,7 +66,7 @@ namespace ali.eterpix.ui2
             _framePos = frame != null ? frame.transform.position : Vector3.zero;
             PlaceAt(position, rotation);
             _shown = true;
-            SetPost(post);
+            SetPost(post);   // SetPost が送る
             Debug.Log("[Etp2Trace] cheki: spawn post " + post + " at " + position);
         }
 
@@ -102,7 +105,8 @@ namespace ali.eterpix.ui2
             if (poid != _poid) _poidAt = Now();   // 変わったときだけ時刻を進める(15章)
             _poid = poid;
             _post = post;
-            Render();   // Continuous なので送るのは自動
+            Push();
+            Render();
         }
 
         private void SetPostId(string poid)
@@ -110,6 +114,7 @@ namespace ali.eterpix.ui2
             if (poid != _poid) _poidAt = Now();
             _poid = poid;
             _post = data != null ? data.FindPost(poid) : -1;
+            Push();
             Render();
         }
 
@@ -134,6 +139,7 @@ namespace ali.eterpix.ui2
             _post = data != null ? data.FindPost(_poid) : -1;
             _framePos = other.FramePos();
             _frame = data != null ? data.FindFrameNear(_framePos) : null;
+            Push();
             Render();
             Debug.Log("[Etp2Trace] cheki: join session " + key + " of player " + other.OwnerId() + (_hint >= 0 ? " (new)" : ""));
         }
@@ -145,6 +151,7 @@ namespace ali.eterpix.ui2
             _session = key;
             _joinedAt = joinerAt - 1;   // 入ってきた人より早く入ったことにする
             _hint = -1;
+            Push();
             Debug.Log("[Etp2Trace] cheki: host of session " + key);
         }
 
@@ -152,12 +159,14 @@ namespace ali.eterpix.ui2
         {
             if (!IsMine()) return;
             if (_session >= 0) Debug.Log("[Etp2Trace] cheki: leave session " + _session);
+            bool changed = _session != -1 || _hint != -1 || _lockAt != 0;
             _session = -1;
             _hint = -1;
             _lockAt = 0;
+            if (changed) Push();
         }
 
-        public void ClearHint() { if (IsMine()) _hint = -1; }
+        public void ClearHint() { if (IsMine() && _hint != -1) { _hint = -1; Push(); } }
 
         // 同じセッションの人がもっと新しい投稿を出した. 自分のチェキもそれに合わせる(時刻も同じにする)
         public void FollowPost(string poid, int at)
@@ -166,6 +175,7 @@ namespace ali.eterpix.ui2
             _poid = poid;
             _poidAt = at;
             _post = data != null ? data.FindPost(poid) : -1;
+            Push();
             Render();
         }
 
@@ -173,6 +183,22 @@ namespace ali.eterpix.ui2
         {
             if (!IsMine()) return;
             _lockAt = on ? Mathf.Max(1, Now()) : 0;
+            Push();
+        }
+
+        // 手元の値を子の同期に写して送る(持ち主だけ)
+        private void Push()
+        {
+            if (!IsMine() || sync == null) return;
+            sync.poid = _poid;
+            sync.shown = _shown;
+            sync.framePos = _framePos;
+            sync.session = _session;
+            sync.joinedAt = _joinedAt;
+            sync.poidAt = _poidAt;
+            sync.lockAt = _lockAt;
+            sync.hint = _hint;
+            sync.RequestSerialization();
         }
 
         private int Now() { return Networking.GetServerTimeInMilliseconds(); }
@@ -219,8 +245,18 @@ namespace ali.eterpix.ui2
             return _frame;
         }
 
-        public override void OnDeserialization()
+        // 子の同期が値を受け取った(ほかの人のチェキ)
+        public void OnSessionData()
         {
+            if (sync == null || IsMine()) return;
+            _poid = sync.poid;
+            _shown = sync.shown;
+            _framePos = sync.framePos;
+            _session = sync.session;
+            _joinedAt = sync.joinedAt;
+            _poidAt = sync.poidAt;
+            _lockAt = sync.lockAt;
+            _hint = sync.hint;
             if (data != null) _post = data.FindPost(_poid);
             ApplyVisible();
             Render();
