@@ -38,7 +38,7 @@ namespace ali.eterpix.ui2
         {
             if (watchersText != null) watchersText.gameObject.SetActive(false);
             if (legend != null) legend.SetActive(false);
-            if (data != null) data.Listen(this);
+            if (data != null) { data.Listen(this); data.AddFrame(this); }
             RefreshPhoto();
         }
 

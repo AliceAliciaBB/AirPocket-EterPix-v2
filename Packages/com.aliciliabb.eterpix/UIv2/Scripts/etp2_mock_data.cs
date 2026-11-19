@@ -74,6 +74,31 @@ namespace ali.eterpix.ui2
         }   // JSON を読み直すたびに 1 増える(画像が届いただけでは増えない)
 
         private UdonSharpBehaviour[] _listeners = new UdonSharpBehaviour[0];
+        private etp2_photo_frame[] _frames = new etp2_photo_frame[0];
+
+        // フォトフレームが Start で登録する. チェキに同期した位置から、一番近いフォトフレームを探す(計画書 15章)
+        public void AddFrame(etp2_photo_frame f)
+        {
+            if (f == null) return;
+            for (int i = 0; i < _frames.Length; i++) if (_frames[i] == f) return;
+            etp2_photo_frame[] next = new etp2_photo_frame[_frames.Length + 1];
+            for (int i = 0; i < _frames.Length; i++) next[i] = _frames[i];
+            next[_frames.Length] = f;
+            _frames = next;
+        }
+
+        public etp2_photo_frame FindFrameNear(Vector3 pos)
+        {
+            etp2_photo_frame best = null;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < _frames.Length; i++)
+            {
+                if (_frames[i] == null) continue;
+                float d = (_frames[i].transform.position - pos).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = _frames[i]; }
+            }
+            return best;
+        }
 
         // 画面が Start で登録する. 中身が変わると OnDataChanged を送る
         public void Listen(UdonSharpBehaviour b)

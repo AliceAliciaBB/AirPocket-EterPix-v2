@@ -54,7 +54,17 @@ namespace ali.eterpix.ui2
         public float progressWidth = 368f;
 
         private etp2_photo_frame _frame;
-        private etp2_cheki _cheki;     // チェキから開いたとき. 前/次でチェキの投稿を変える(フォトフレームは変えない)
+        private etp2_cheki _cheki;     // チェキから開いたとき(開いた場所の元). 前/次は自分のチェキの投稿を変える(フォトフレームは変えない)
+
+        // ---- セッション(計画書 15章. 計算は手元. 値はそれぞれのチェキに同期してある) ----
+        public const float HostLeaveDistance = 1f;   // ホストのチェキがセッションの場所からこれより離れたら、ホストは抜ける(承認 2026-11-19)
+        public const float RecalcSeconds = 0.25f;
+        private etp2_cheki[] _chekis = new etp2_cheki[0];
+        private etp2_cheki _mine;
+        private etp2_cheki _lockHolder;   // 鍵をかけている人のチェキ. 無ければ null
+        private bool _isHost;
+        private Vector3 _anchor;
+        private float _nextRecalc;
         private int[] _list;
         private int _pos;
         private bool _locked;
@@ -77,8 +87,8 @@ namespace ali.eterpix.ui2
         // データ(API)が読めた・ページ画像が届いた
         public void OnDataChanged()
         {
-            if (_frame == null) return;
-            _list = _frame.GetPostIndices();
+            if (_frame == null && _cheki == null) return;
+            _list = ListOf(_frame);
             _pos = Mathf.Clamp(_pos, 0, Mathf.Max(0, _list.Length - 1));
             if (screen != null && screen.activeSelf) Show();
         }
@@ -101,7 +111,7 @@ namespace ali.eterpix.ui2
         // チェキを持って Use した. 見る人の頭からチェキへの向きで、チェキの奥に開く(計画書 14章)
         public void OpenFromCheki(etp2_cheki cheki)
         {
-            if (cheki == null || cheki.Frame() == null) return;
+            if (cheki == null) return;
             Vector3 c = cheki.transform.position;
             Vector3 head = c - Vector3.forward;
             VRCPlayerApi lp = Networking.LocalPlayer;
@@ -109,21 +119,32 @@ namespace ali.eterpix.ui2
             Vector3 dir = c - head;
             dir.y = 0f;
             if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
-            dir.Normalize();
+            dir = dir.normalized;   // Udon では Normalize() が元の値を変えない
             Quaternion rot = Quaternion.LookRotation(dir, Vector3.up);
             Vector3 center = c + dir * chekiDistance;
             transform.SetPositionAndRotation(center + rot * new Vector3(0f, centerToRoot * transform.lossyScale.y, 0f), rot);
-            int[] list = cheki.Frame().GetPostIndices();
+            etp2_photo_frame frame = cheki.Frame();
+            int[] list = ListOf(frame);
             int pos = 0;
             for (int i = 0; i < list.Length; i++) if (list[i] == cheki.CurrentPost()) { pos = i; break; }
-            Open(cheki.Frame(), cheki, pos);
+            Open(frame, cheki, pos);
+        }
+
+        // フォトフレームの並び. フォトフレームが分からないとき(探せなかった)は全部の投稿
+        private int[] ListOf(etp2_photo_frame frame)
+        {
+            if (frame != null) return frame.GetPostIndices();
+            int n = data == null ? 0 : data.PostCount();
+            int[] all = new int[n];
+            for (int i = 0; i < n; i++) all[i] = i;
+            return all;
         }
 
         private void Open(etp2_photo_frame frame, etp2_cheki cheki, int pos)
         {
             _frame = frame;
             _cheki = cheki;
-            _list = frame.GetPostIndices();
+            _list = ListOf(frame);
             _pos = Mathf.Clamp(pos, 0, Mathf.Max(0, _list.Length - 1));
             if (screen != null) screen.SetActive(true);
             Show();
@@ -137,6 +158,8 @@ namespace ali.eterpix.ui2
         {
             if (screen != null) screen.SetActive(false);
             if (tooltip != null) tooltip.Hide();
+            // ビューアを閉じた = セッションを抜ける(15章)
+            if (_cheki != null && Mine() != null && Mine().SessionKey() >= 0) { Mine().LeaveSession(); Recalc(); }
             _cheki = null;
             if (data != null)
             {
@@ -156,7 +179,7 @@ namespace ali.eterpix.ui2
 
         private void Step(int d)
         {
-            if (_list == null || _list.Length == 0) return;
+            if (_list == null || _list.Length == 0 || LockedByOther()) return;
             _pos = (_pos + d + _list.Length) % _list.Length;
             Show();
         }
@@ -164,7 +187,7 @@ namespace ali.eterpix.ui2
         // 詳細モニターの一覧から選んだ投稿を出す
         public void SelectPost(int post)
         {
-            if (_list == null) return;
+            if (_list == null || LockedByOther()) return;
             for (int i = 0; i < _list.Length; i++)
             {
                 if (_list[i] != post) continue;
@@ -186,7 +209,7 @@ namespace ali.eterpix.ui2
                 _heldIcon = data.HoldPage(_heldIcon, data.IconPageOf(p), etp2_api_loader.PriorityViewer);   // 詳細モニターのアイコン
                 data.ShowPhoto(p, photo, photoImg, false);
             }
-            if (_cheki != null) _cheki.SetPost(p);   // フォトフレームは変えない(計画書 14章)
+            if (_cheki != null) { if (Mine() != null) Mine().SetPost(p); }   // フォトフレームは変えない(計画書 14章). 書くのは自分のチェキ(15章)
             else if (_frame != null) { _frame.localPos = _pos; _frame.RefreshPhoto(); }
             if (pageText != null) pageText.text = (_pos + 1) + " / " + _list.Length;
             Debug.Log("[Etp2Trace] viewer: post " + p + " (" + (_pos + 1) + "/" + _list.Length + ")");
@@ -213,25 +236,33 @@ namespace ali.eterpix.ui2
             if (rightLabel != null) rightLabel.text = _swap ? "前の画像" : "次の画像";
         }
 
-        // ---- 鍵(第1段階は見た目だけ) ----
+        // ---- 鍵(15章: かけた人だけが前/次を押せる. かけていなければ全員. 誰でもかけられる) ----
 
         public void OnLock()
         {
-            _locked = !_locked;
-            ApplyLock();
-            Debug.Log("[Etp2Trace] viewer: lock " + _locked);
+            etp2_cheki mine = Mine();
+            if (mine == null) return;
+            if (_lockHolder == null) mine.SetLock(true);
+            else if (_lockHolder == mine) mine.SetLock(false);
+            else return;   // ほかの人がかけている
+            Recalc();
+            Debug.Log("[Etp2Trace] viewer: lock " + (_lockHolder != null));
+        }
+
+        private bool LockedByOther()
+        {
+            return _cheki != null && _lockHolder != null && _lockHolder != Mine();
         }
 
         private void ApplyLock()
         {
+            _locked = _lockHolder != null;
             if (lockIcon != null) lockIcon.sprite = _locked ? lockClosedSprite : lockOpenSprite;
-            if (lockHover != null) lockHover.SetLabel(_locked ? "鍵を外す" : "鍵をかける");
+            if (lockHover != null) lockHover.SetLabel(!_locked ? "鍵をかける" : (_lockHolder == Mine() ? "鍵を外す" : "鍵がかかっています"));
             if (ownerText != null)
             {
                 ownerText.gameObject.SetActive(_locked);
-                VRCPlayerApi lp = Networking.LocalPlayer;
-                string name = Utilities.IsValid(lp) ? lp.displayName : "XX";
-                ownerText.text = name + "さんが操作中";
+                if (_locked) ownerText.text = _lockHolder.OwnerName() + "さんが操作中";
             }
             PaintLock();
         }
@@ -310,7 +341,112 @@ namespace ali.eterpix.ui2
             if (progressFill != null) progressFill.sizeDelta = new Vector2(progressWidth * Mathf.Clamp01(t), progressFill.sizeDelta.y);
         }
 
+        // ---- セッションの計算(15章) ----
+
+        public void RegisterCheki(etp2_cheki c)
+        {
+            if (c == null) return;
+            for (int i = 0; i < _chekis.Length; i++) if (_chekis[i] == c) return;
+            int k = 0;
+            for (int i = 0; i < _chekis.Length; i++) if (Utilities.IsValid(_chekis[i])) k++;
+            etp2_cheki[] next = new etp2_cheki[k + 1];
+            k = 0;
+            for (int i = 0; i < _chekis.Length; i++) if (Utilities.IsValid(_chekis[i])) next[k++] = _chekis[i];   // 抜けた人の分は詰める
+            next[k] = c;
+            _chekis = next;
+        }
+
+        public etp2_cheki Mine()
+        {
+            if (Utilities.IsValid(_mine)) return _mine;
+            _mine = null;
+            for (int i = 0; i < _chekis.Length; i++) if (Utilities.IsValid(_chekis[i]) && _chekis[i].IsMine()) { _mine = _chekis[i]; break; }
+            return _mine;
+        }
+
+        // サブチェキのオーブの「一緒に見る」
+        public void JoinFrom(etp2_cheki other)
+        {
+            etp2_cheki mine = Mine();
+            if (mine == null || other == null || other == mine) return;
+            if (mine.SessionKey() < 0 || mine.SessionKey() != other.SessionKey())
+            {
+                mine.LeaveSession();
+                mine.JoinSessionOf(other);
+                Recalc();
+            }
+            OpenFromCheki(other);
+        }
+
+        // 自分のチェキに誰かが入ってきた(その人のチェキの _hint が自分)
+        public void AdoptRequest(int key, int joinerAt)
+        {
+            etp2_cheki mine = Mine();
+            if (mine == null || mine.SessionKey() >= 0) return;
+            mine.Adopt(key, joinerAt);
+            Recalc();
+        }
+
+        public void OnSessionChanged() { Recalc(); }
+
+        public bool IsHost() { return _isHost; }
+
+        // 同じセッションの人から、ホスト・出す投稿・鍵をかけた人を決める. 全員が同じ規則で手元で決める
+        private void Recalc()
+        {
+            etp2_cheki mine = Mine();
+            int key = mine != null ? mine.SessionKey() : -1;
+            etp2_cheki host = null, latest = null, holder = null;
+            if (key >= 0)
+            {
+                for (int i = 0; i < _chekis.Length; i++)
+                {
+                    etp2_cheki c = _chekis[i];
+                    if (!Utilities.IsValid(c) || c.SessionKey() != key) continue;
+                    if (host == null || c.JoinedAt() < host.JoinedAt()) host = c;
+                    if (latest == null || c.PoidAt() > latest.PoidAt()) latest = c;
+                    if (c.LockAt() > 0 && (holder == null || c.LockAt() < holder.LockAt())) holder = c;
+                    if (mine.Hint() >= 0 && c != mine && c.OwnerId() == mine.Hint()) mine.ClearHint();   // 頼んだ人がホストになった
+                }
+            }
+            else if (mine != null && mine.LockAt() > 0) holder = mine;   // 1 人でも鍵はかけておける
+            bool wasHost = _isHost;
+            _isHost = host != null && host == mine;
+            if (_isHost && !wasHost) { _anchor = mine.transform.position; Debug.Log("[Etp2Trace] viewer: host of session " + key); }
+            if (latest != null && latest != mine && latest.Poid() != mine.Poid()) mine.FollowPost(latest.Poid(), latest.PoidAt());
+            bool lockChanged = holder != _lockHolder;
+            _lockHolder = holder;
+            if (lockChanged) ApplyLock();
+            // 開いていれば、自分のチェキの投稿(セッションの投稿)に合わせる
+            if (_cheki != null && mine != null && screen != null && screen.activeSelf && _list != null && _list.Length > 0)
+            {
+                int p = mine.CurrentPost();
+                if (p >= 0 && _list[Mathf.Clamp(_pos, 0, _list.Length - 1)] != p)
+                {
+                    for (int i = 0; i < _list.Length; i++) if (_list[i] == p) { _pos = i; Show(); break; }
+                }
+            }
+        }
+
         private void Update()
+        {
+            etp2_cheki mine = Mine();
+            if (mine != null && (mine.SessionKey() >= 0 || _lockHolder != null) && Time.time >= _nextRecalc)
+            {
+                _nextRecalc = Time.time + RecalcSeconds;
+                Recalc();   // 抜けた人の分も拾う
+                // ホストのチェキがセッションの場所から離れたら、ホストは抜ける(次の人へ引き継がれる)
+                if (_isHost && mine.SessionKey() >= 0 && (mine.transform.position - _anchor).magnitude > HostLeaveDistance)
+                {
+                    Debug.Log("[Etp2Trace] viewer: host moved away, leave session");
+                    mine.LeaveSession();
+                    Recalc();
+                }
+            }
+            UpdateHandover();
+        }
+
+        private void UpdateHandover()
         {
             if (_scene != 2 && _scene != 3) return;
             float t = (Time.time - _sceneStart) / HandoverSeconds;

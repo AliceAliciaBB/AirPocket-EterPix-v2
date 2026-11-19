@@ -585,6 +585,131 @@ namespace ali.eterpix.ui2.editor
             cheki.body = screen.gameObject;
             cheki.objectSync = sync;
             cheki.pickup = pickup;
+            BuildChekiOrb(root, cheki, ctx);
+        }
+
+        // ---- 計画書 15章 サブチェキのオーブ(自分の画面だけ. 同期しない) ----
+        // Orb: 見た目の球(Visual)・仮のピックアップ(Grab. etp2_cheki_orb)・選ぶ Canvas(UI)
+        static void BuildChekiOrb(GameObject root, etp2_cheki cheki, Etp2Ctx ctx)
+        {
+            float d = Etp2Spec.OrbDiameter;
+            var orbRoot = new GameObject("Orb");
+            orbRoot.layer = 13;
+            orbRoot.transform.SetParent(root.transform, false);
+
+            // 見た目: 半透明の球
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Object.DestroyImmediate(visual.GetComponent<Collider>());
+            visual.name = "Visual";
+            visual.layer = 13;
+            visual.transform.SetParent(orbRoot.transform, false);
+            visual.transform.localScale = Vector3.one * d;
+            var mr = visual.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = OrbMaterial();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+
+            // 仮のピックアップ(VR で手を入れて掴む)
+            var grab = new GameObject("Grab");
+            grab.layer = 13;
+            grab.transform.SetParent(orbRoot.transform, false);
+            var grb = grab.AddComponent<Rigidbody>();
+            grb.isKinematic = true;
+            grb.useGravity = false;
+            var sc = grab.AddComponent<SphereCollider>();
+            sc.isTrigger = true;
+            sc.radius = d / 2f;
+            var gp = grab.AddComponent<VRC.SDK3.Components.VRCPickup>();
+            gp.AutoHold = VRC.SDKBase.VRC_Pickup.AutoHoldMode.Yes;
+            gp.InteractionText = Etp2Spec.OrbOwnText;   // 案 C
+            gp.UseText = "ビューアを開く";
+            gp.proximity = Etp2Spec.OrbGrabProximity;   // 手を入れたときだけ(遠くからレーザーで掴まない)
+            var orb = grab.AddUdonSharpComponent<etp2_cheki_orb>();
+            orb.cheki = cheki;
+            orb.visual = visual;
+            orb.pickup = gp;
+            orb.grabCollider = sc;
+
+            // 選ぶ Canvas(見る人の方へ向ける). 球の全体が見えないボタン
+            var ui = NewRect(orbRoot.transform, "UI");
+            ui.gameObject.layer = 0;
+            ui.sizeDelta = new Vector2(d, d);
+            var canvas = ui.gameObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            ui.gameObject.AddComponent<GraphicRaycaster>();
+            ui.gameObject.AddComponent<VRC.SDK3.Components.VRCUiShape>();
+            var box = ui.gameObject.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.size = new Vector3(d, d, 1);
+            var hit = OrbImage(ui, "Hit", new Color(0, 0, 0, 0));
+            Stretch(hit.rectTransform);
+            var hb = hit.gameObject.AddComponent<Button>();
+            hb.transition = Selectable.Transition.None;
+            hb.navigation = new Navigation { mode = Navigation.Mode.None };
+            OnClick(hb, orb, nameof(etp2_cheki_orb.OnOrb));
+            orb.ui = ui;
+
+            // VR: 下に「一緒に見る」(レーザーで選ぶ)
+            var cap = OrbText(ctx, ui, "Caption", Etp2Spec.OrbTogetherText);
+            CenterAt(cap.rectTransform, -d / 2f - 20, d, 28);
+            orb.vrCaption = cap.gameObject;
+
+            // デスクトップ: 左クリックで 2 つの選択肢
+            var ch = NewRect(ui, "Choices");
+            CenterAt(ch, -d / 2f - 48, Etp2Spec.OrbChoiceW, 88);
+            for (int i = 0; i < 2; i++)
+            {
+                var bg = OrbImage(ch, i == 0 ? "Together" : "Own", new Color(0.12f, 0.12f, 0.14f, 0.92f));
+                CenterAt(bg.rectTransform, i == 0 ? 22 : -22, Etp2Spec.OrbChoiceW, 40);
+                var b = bg.gameObject.AddComponent<Button>();
+                b.targetGraphic = bg;
+                b.navigation = new Navigation { mode = Navigation.Mode.None };
+                OnClick(b, orb, i == 0 ? nameof(etp2_cheki_orb.OnTogether) : nameof(etp2_cheki_orb.OnOwn));
+                var t = OrbText(ctx, bg.transform, "Label", i == 0 ? Etp2Spec.OrbTogetherText : Etp2Spec.OrbOwnText);
+                Stretch(t.rectTransform);
+            }
+            orb.choices = ch.gameObject;
+            ch.gameObject.SetActive(false);
+            UdonSharpEditorUtility.CopyProxyToUdon(orb);
+        }
+
+        static Image OrbImage(Transform parent, string name, Color c)
+        {
+            var rt = NewRect(parent, name);
+            rt.gameObject.AddComponent<CanvasRenderer>();
+            var img = rt.gameObject.AddComponent<Image>();
+            img.color = c;
+            return img;
+        }
+
+        static TextMeshProUGUI OrbText(Etp2Ctx ctx, Transform parent, string name, string text)
+        {
+            var t = NewText(ctx, parent, name, text, Etp2Spec.FsButton, Role.None, TextAlignmentOptions.Center, false);
+            t.color = Color.white;
+            t.outlineWidth = 0.2f;
+            t.outlineColor = new Color32(0, 0, 0, 255);
+            return t;
+        }
+
+        // 親の中心から y(上が +)に置く
+        static void CenterAt(RectTransform rt, float y, float w, float h)
+        {
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0, y);
+            rt.sizeDelta = new Vector2(w, h);
+        }
+
+        static Material OrbMaterial()
+        {
+            string path = Etp2Spec.PackageRoot + "/Materials/etp2_orb.mat";
+            var m = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m != null) return m;
+            if (!UnityEditor.AssetDatabase.IsValidFolder(Etp2Spec.PackageRoot + "/Materials"))
+                UnityEditor.AssetDatabase.CreateFolder(Etp2Spec.PackageRoot, "Materials");
+            m = new Material(Shader.Find("Sprites/Default"));
+            m.color = Etp2Spec.OrbColor;
+            UnityEditor.AssetDatabase.CreateAsset(m, path);
+            return m;
         }
 
         // ---- 7章 フォトフレーム ----

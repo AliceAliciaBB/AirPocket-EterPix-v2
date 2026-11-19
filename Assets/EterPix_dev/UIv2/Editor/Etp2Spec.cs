@@ -27,6 +27,13 @@ namespace ali.eterpix.ui2.editor
         public static readonly Vector2 PhotoFrameSize = new Vector2(200, 200);   // 仮
         public static readonly Vector2 ChekiSize = new Vector2(80, 80);          // 計画書 14章. 仮(0.1m 角. 写真だけ)
         public const float ChekiThickness = 8;
+        // 計画書 15章 サブチェキのオーブ(仮). 長さはチェキのルートの座標(1 = 0.00125m)
+        public const float OrbDiameter = 200;          // 0.25m
+        public const float OrbGrabProximity = 0.1f;    // m. 手を入れたときだけ掴める
+        public const float OrbChoiceW = 200;
+        public static readonly Color OrbColor = new Color(0.6f, 0.85f, 1f, 0.18f);
+        public const string OrbTogetherText = "一緒に見る";
+        public const string OrbOwnText = "自分のチェキで見る";
 
         // ---- 1.3 文字の大きさ ----
         public const float FsLogo = 30;
