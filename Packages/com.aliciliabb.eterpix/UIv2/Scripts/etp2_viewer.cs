@@ -142,7 +142,7 @@ namespace ali.eterpix.ui2
 
         // 開いた直後の前/次は受け付けない. デスクトップでは開いた左クリック(チェキの Use)が、
         // そのまま目の前に出たビューアの「前へ」に当たり、1 つ戻ってしまう(最初の写真なら一番古い写真へ回る. 2026-11-19 ユーザー報告)
-        public const float OpenGuardSeconds = 0.5f;
+        public const float OpenGuardSeconds = 0.1f;   // 仮(ユーザー指定 2026-11-19)
         private float _openedAt = -10f;
 
         private void Open(etp2_photo_frame frame, etp2_cheki cheki, int pos)
