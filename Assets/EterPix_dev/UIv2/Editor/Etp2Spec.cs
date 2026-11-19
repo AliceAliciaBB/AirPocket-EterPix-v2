@@ -31,6 +31,8 @@ namespace ali.eterpix.ui2.editor
         public const float OrbDiameter = 200;          // 0.25m
         public const float OrbGrabProximity = 0.1f;    // m. 手を入れたときだけ掴める
         public const float OrbChoiceW = 200;
+        public const float OrbUiH = 88;                // 球の上の Canvas の高さ(ボタン 2 つ)
+        public const float OrbUiGap = 12;              // 球の上端から Canvas までのすき間
         public static readonly Color OrbColor = new Color(0.6f, 0.85f, 1f, 0.18f);
         public const string OrbTogetherText = "一緒に見る";
         public const string OrbOwnText = "自分のチェキで見る";

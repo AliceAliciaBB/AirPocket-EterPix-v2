@@ -6,7 +6,8 @@ namespace ali.eterpix.ui2
 {
     // サブチェキ(ほかの人のチェキ)の周りのオーブ. 自分の画面だけに出る(同期しない).
     // VR: 手を入れて掴む = 自分のチェキで見る(仮のピックアップを掴み、自分のチェキがついて来る) / レーザーで選ぶ = 一緒に見る
-    // デスクトップ: 左クリックで「一緒に見る」「自分のチェキで見る」を選ぶ(どちらも左クリックで区別できないため)
+    // デスクトップ: 球を押す(Interact)と、球の上に「一緒に見る」「自分のチェキで見る」が出る(どちらも左クリックで区別できないため)
+    // UI は球の上に出す(球の真ん中はチェキ本体の当たり判定と重なって押せないため. 2026-11-19 ユーザー指示)
     // 決まり: 計画書 15章. このスクリプトは仮のピックアップ(Grab)に付ける. 見た目と UI は兄弟
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class etp2_cheki_orb : UdonSharpBehaviour
@@ -18,11 +19,12 @@ namespace ali.eterpix.ui2
         [Header("ビルダーが入れる")]
         public etp2_cheki cheki;          // このオーブのサブチェキ(親)
         public GameObject visual;         // 半透明の球
-        public Transform ui;              // 選ぶための Canvas(見る人の方へ向ける)
-        public GameObject vrCaption;      // VR: 「一緒に見る」
+        public Transform ui;              // 選ぶための Canvas(球の上. 見る人の方へ向ける). 中身が無いときは隠す
+        public GameObject vrCaption;      // VR: 「一緒に見る」ボタン(レーザーで押す)
         public GameObject choices;        // デスクトップ: 「一緒に見る」「自分のチェキで見る」
         public VRC_Pickup pickup;         // 仮のピックアップ(VR だけ)
         public Collider grabCollider;
+        public Collider clickCollider;    // デスクトップ: 球を押す(etp2_cheki_orb_click)
 
         private bool _shown = true;
         private bool _holding;
@@ -62,11 +64,12 @@ namespace ali.eterpix.ui2
             _shown = show;
             bool vr = IsVR();
             if (visual != null) visual.SetActive(show);
-            if (ui != null) ui.gameObject.SetActive(show);
             if (vrCaption != null) vrCaption.SetActive(vr);
             if (choices != null) choices.SetActive(false);
+            if (ui != null) ui.gameObject.SetActive(show && vr);   // デスクトップは押してから出す
             if (pickup != null) pickup.pickupable = show && vr;
             if (grabCollider != null) grabCollider.enabled = show && vr;
+            if (clickCollider != null) clickCollider.enabled = show && !vr;
         }
 
         private void Update()
@@ -85,7 +88,7 @@ namespace ali.eterpix.ui2
                 etp2_cheki mine = Mine();
                 if (mine != null) mine.FollowTo(transform.position, transform.rotation);
             }
-            if (choices != null && choices.activeSelf && Time.time > _choiceUntil) choices.SetActive(false);
+            if (choices != null && choices.activeSelf && Time.time > _choiceUntil) HideChoices();
         }
 
         // ---- VR: 手を入れて掴む = 自分のチェキで見る ----
@@ -117,18 +120,25 @@ namespace ali.eterpix.ui2
 
         // ---- UI(VR はレーザー、デスクトップはクリック) ----
 
-        // オーブ全体の見えないボタン
+        // デスクトップ: 球を押した
         public void OnOrb()
         {
             if (IsVR()) { OnTogether(); return; }
             if (choices == null) return;
+            if (ui != null) ui.gameObject.SetActive(true);
             choices.SetActive(true);
             _choiceUntil = Time.time + ChoiceSeconds;
         }
 
-        public void OnTogether()
+        private void HideChoices()
         {
             if (choices != null) choices.SetActive(false);
+            if (ui != null && !IsVR()) ui.gameObject.SetActive(false);
+        }
+
+        public void OnTogether()
+        {
+            HideChoices();
             if (cheki == null || cheki.viewer == null) return;
             Debug.Log("[Etp2Trace] orb: together with player " + cheki.OwnerId());
             cheki.viewer.JoinFrom(cheki);
@@ -137,7 +147,7 @@ namespace ali.eterpix.ui2
         // デスクトップ: 自分のチェキをサブチェキの手前(見る人の方)に出す. 次の左クリックで掴める
         public void OnOwn()
         {
-            if (choices != null) choices.SetActive(false);
+            HideChoices();
             etp2_cheki mine = Mine();
             if (mine == null || cheki == null) return;
             Vector3 c = cheki.transform.position;

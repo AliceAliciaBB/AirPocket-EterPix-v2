@@ -630,33 +630,57 @@ namespace ali.eterpix.ui2.editor
             orb.pickup = gp;
             orb.grabCollider = sc;
 
-            // 選ぶ Canvas(見る人の方へ向ける). 球の全体が見えないボタン
+            // デスクトップ: 球を押す(Interact). チェキの Rigidbody と分けるため、自分の kinematic Rigidbody を持つ
+            var click = new GameObject("Click");
+            click.layer = 13;
+            click.transform.SetParent(orbRoot.transform, false);
+            var crb = click.AddComponent<Rigidbody>();
+            crb.isKinematic = true;
+            crb.useGravity = false;
+            var cc = click.AddComponent<SphereCollider>();
+            cc.isTrigger = true;
+            cc.radius = d / 2f;
+            var oc = click.AddUdonSharpComponent<etp2_cheki_orb_click>();
+            oc.orb = orb;
+            UdonSharpEditorUtility.CopyProxyToUdon(oc);
+            UdonSharpEditorUtility.GetBackingUdonBehaviour(oc).interactText = Etp2Spec.OrbTogetherText + " / " + Etp2Spec.OrbOwnText;
+            orb.clickCollider = cc;
+
+            // 選ぶ Canvas: 球の上(球の真ん中はチェキ本体と重なって押せない). 見る人の方へ向ける.
+            // 当たり判定がチェキの Rigidbody(ピックアップ)の一部にならないよう、自分の kinematic Rigidbody を持つ
+            float uiH = Etp2Spec.OrbUiH;
             var ui = NewRect(orbRoot.transform, "UI");
             ui.gameObject.layer = 0;
-            ui.sizeDelta = new Vector2(d, d);
+            ui.anchorMin = ui.anchorMax = new Vector2(0.5f, 0.5f);
+            ui.pivot = new Vector2(0.5f, 0f);
+            ui.sizeDelta = new Vector2(Etp2Spec.OrbChoiceW, uiH);
+            ui.localPosition = new Vector3(0, d / 2f + Etp2Spec.OrbUiGap, 0);
             var canvas = ui.gameObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             ui.gameObject.AddComponent<GraphicRaycaster>();
-            ui.gameObject.AddComponent<VRC.SDK3.Components.VRCUiShape>();
+            var urb = ui.gameObject.AddComponent<Rigidbody>();
+            urb.isKinematic = true;
+            urb.useGravity = false;
             var box = ui.gameObject.AddComponent<BoxCollider>();
             box.isTrigger = true;
-            box.size = new Vector3(d, d, 1);
-            var hit = OrbImage(ui, "Hit", new Color(0, 0, 0, 0));
-            Stretch(hit.rectTransform);
-            var hb = hit.gameObject.AddComponent<Button>();
-            hb.transition = Selectable.Transition.None;
-            hb.navigation = new Navigation { mode = Navigation.Mode.None };
-            OnClick(hb, orb, nameof(etp2_cheki_orb.OnOrb));
+            box.size = new Vector3(Etp2Spec.OrbChoiceW, uiH, 1);
+            box.center = new Vector3(0, uiH / 2f, 0);
+            ui.gameObject.AddComponent<VRC.SDK3.Components.VRCUiShape>();
             orb.ui = ui;
 
-            // VR: 下に「一緒に見る」(レーザーで選ぶ)
-            var cap = OrbText(ctx, ui, "Caption", Etp2Spec.OrbTogetherText);
-            CenterAt(cap.rectTransform, -d / 2f - 20, d, 28);
-            orb.vrCaption = cap.gameObject;
+            // VR: 「一緒に見る」ボタン(レーザーで押す). 一番下に置く
+            var capBg = OrbImage(ui, "Caption", new Color(0.12f, 0.12f, 0.14f, 0.92f));
+            CenterAt(capBg.rectTransform, -uiH / 2f + 20, Etp2Spec.OrbChoiceW, 40);
+            var capB = capBg.gameObject.AddComponent<Button>();
+            capB.targetGraphic = capBg;
+            capB.navigation = new Navigation { mode = Navigation.Mode.None };
+            OnClick(capB, orb, nameof(etp2_cheki_orb.OnTogether));
+            Stretch(OrbText(ctx, capBg.transform, "Label", Etp2Spec.OrbTogetherText).rectTransform);
+            orb.vrCaption = capBg.gameObject;
 
-            // デスクトップ: 左クリックで 2 つの選択肢
+            // デスクトップ: 球を押すと 2 つの選択肢
             var ch = NewRect(ui, "Choices");
-            CenterAt(ch, -d / 2f - 48, Etp2Spec.OrbChoiceW, 88);
+            Stretch(ch);
             for (int i = 0; i < 2; i++)
             {
                 var bg = OrbImage(ch, i == 0 ? "Together" : "Own", new Color(0.12f, 0.12f, 0.14f, 0.92f));
